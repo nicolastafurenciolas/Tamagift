@@ -1,0 +1,42 @@
+# ─────────────────────────────────────────────────────────────────
+# NUNCA subir a GitHub
+# ─────────────────────────────────────────────────────────────────
+
+# EL INVENTARIO DE LLAVES. Es el producto que se vende: en la base de
+# datos solo queda el hash, así que este CSV es la ÚNICA copia en claro.
+# Si llega a un repo público, cualquiera crea mascotas gratis.
+*.csv
+llaves-*.csv
+
+# Bases de datos locales (datos de prueba, y en producción la base vive
+# en el servidor, no en el repo).
+*.db
+*.sqlite
+*.sqlite3
+
+# Variables de entorno: claves, URLs de base de datos, credenciales.
+.env
+.env.*
+!.env.example
+
+# ─────────────────────────────────────────────────────────────────
+# Basura de build y dependencias
+# ─────────────────────────────────────────────────────────────────
+node_modules/
+dist/
+dev-dist/
+.vite/
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Sistema operativo / editores
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp

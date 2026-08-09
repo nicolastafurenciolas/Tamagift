@@ -1,0 +1,217 @@
+{
+  "backend/database.py": {
+    "mtime": 1784665863.0,
+    "ast_hash": "6e971fdef5d64a7df6c57d705cf8ff6f",
+    "semantic_hash": "6e971fdef5d64a7df6c57d705cf8ff6f"
+  },
+  "backend/main.py": {
+    "mtime": 1785182332.5568125,
+    "ast_hash": "e2d44429281533905c5f9d380d87d039",
+    "semantic_hash": "e2d44429281533905c5f9d380d87d039"
+  },
+  "backend/models.py": {
+    "mtime": 1785182324.3649275,
+    "ast_hash": "80340d59009a9cca1f5a3b41b30559ad",
+    "semantic_hash": "80340d59009a9cca1f5a3b41b30559ad"
+  },
+  "backend/schemas.py": {
+    "mtime": 1785182733.0160089,
+    "ast_hash": "8c28f1d8339dada8f38c7c2e55b5fc20",
+    "semantic_hash": "8c28f1d8339dada8f38c7c2e55b5fc20"
+  },
+  "backend/test_api.py": {
+    "mtime": 1784665864.0,
+    "ast_hash": "9b50d6c3394895c5bbef62dad3569861",
+    "semantic_hash": "9b50d6c3394895c5bbef62dad3569861"
+  },
+  "backend/test_integration.py": {
+    "mtime": 1784665864.0,
+    "ast_hash": "f67c9297f4d49b17ec140d5602da4274",
+    "semantic_hash": "f67c9297f4d49b17ec140d5602da4274"
+  },
+  "frontend/package.json": {
+    "mtime": 1784665863.0,
+    "ast_hash": "1e3b42d26b004816cb3afb9c49b9377e",
+    "semantic_hash": "1e3b42d26b004816cb3afb9c49b9377e"
+  },
+  "frontend/postcss.config.js": {
+    "mtime": 1784665863.0,
+    "ast_hash": "c735540bb63936a123bc867d950c9f69",
+    "semantic_hash": "c735540bb63936a123bc867d950c9f69"
+  },
+  "frontend/src/App.jsx": {
+    "mtime": 1785167457.203435,
+    "ast_hash": "3a7e2ac46d05db85c398c41777359292",
+    "semantic_hash": "3a7e2ac46d05db85c398c41777359292"
+  },
+  "frontend/src/PetRecipe.jsx": {
+    "mtime": 1785181214.7469656,
+    "ast_hash": "57ce144bf2764f124f9353fe45b24fce",
+    "semantic_hash": "57ce144bf2764f124f9353fe45b24fce"
+  },
+  "frontend/src/api.js": {
+    "mtime": 1785182720.684917,
+    "ast_hash": "220aa48129ad84d434338f1681040169",
+    "semantic_hash": "220aa48129ad84d434338f1681040169"
+  },
+  "frontend/src/components/BgRemover.jsx": {
+    "mtime": 1785182394.01029,
+    "ast_hash": "016d8ead0f1c0f7b0ad44c0d39cc11bb",
+    "semantic_hash": "016d8ead0f1c0f7b0ad44c0d39cc11bb"
+  },
+  "frontend/src/components/GlobalDefs.jsx": {
+    "mtime": 1784753825.880574,
+    "ast_hash": "53bdba525e4b2f3bc6c79ad5775af9ac",
+    "semantic_hash": "53bdba525e4b2f3bc6c79ad5775af9ac"
+  },
+  "frontend/src/components/Pet.jsx": {
+    "mtime": 1785183215.293141,
+    "ast_hash": "2cf59b14cf33ec3a3c41fd1d507611cf",
+    "semantic_hash": "2cf59b14cf33ec3a3c41fd1d507611cf"
+  },
+  "frontend/src/components/PetGiftGame.jsx": {
+    "mtime": 1785182980.289804,
+    "ast_hash": "d6e6edfccdd29e909781741513d3fb23",
+    "semantic_hash": "d6e6edfccdd29e909781741513d3fb23"
+  },
+  "frontend/src/components/PetGiftWizard.jsx": {
+    "mtime": 1785182688.6508398,
+    "ast_hash": "fe66d13c8a2686d1edf0cacbf80d2fb4",
+    "semantic_hash": "fe66d13c8a2686d1edf0cacbf80d2fb4"
+  },
+  "frontend/src/components/Room.jsx": {
+    "mtime": 1785183119.4700935,
+    "ast_hash": "e3368fb9188dbfa31f73c7ae751ed2ad",
+    "semantic_hash": "e3368fb9188dbfa31f73c7ae751ed2ad"
+  },
+  "frontend/src/components/icons.jsx": {
+    "mtime": 1784760745.2010157,
+    "ast_hash": "95c7697dfd4285d6495ad5d57db4af6b",
+    "semantic_hash": "95c7697dfd4285d6495ad5d57db4af6b"
+  },
+  "frontend/src/embed.js": {
+    "mtime": 1784804174.8446896,
+    "ast_hash": "c22f019f23d0213d0c06a2f642a69561",
+    "semantic_hash": "c22f019f23d0213d0c06a2f642a69561"
+  },
+  "frontend/src/gameState.js": {
+    "mtime": 1785181797.3904536,
+    "ast_hash": "107cb825051a9935e5139f0f9ca3fc7c",
+    "semantic_hash": "107cb825051a9935e5139f0f9ca3fc7c"
+  },
+  "frontend/src/main.jsx": {
+    "mtime": 1785161259.9353302,
+    "ast_hash": "ec05c83d9bfed70d888b2da13f269eef",
+    "semantic_hash": "ec05c83d9bfed70d888b2da13f269eef"
+  },
+  "frontend/src/pages/ArtCheck.jsx": {
+    "mtime": 1785179285.005535,
+    "ast_hash": "7db0d7cc024e0d72426d9814f3292a06",
+    "semantic_hash": "7db0d7cc024e0d72426d9814f3292a06"
+  },
+  "frontend/src/pages/CreatePage.jsx": {
+    "mtime": 1784665863.0,
+    "ast_hash": "492abacb9ad8245e78689a889921114c",
+    "semantic_hash": "492abacb9ad8245e78689a889921114c"
+  },
+  "frontend/src/pages/GiftPage.jsx": {
+    "mtime": 1784665863.0,
+    "ast_hash": "13c3790d690a1e1f7d74e9a2177e727c",
+    "semantic_hash": "13c3790d690a1e1f7d74e9a2177e727c"
+  },
+  "frontend/src/petAccessories.jsx": {
+    "mtime": 1785181480.1930685,
+    "ast_hash": "9060bf02f45da9c7bb57f93c0aa73a47",
+    "semantic_hash": "9060bf02f45da9c7bb57f93c0aa73a47"
+  },
+  "frontend/src/petParts.jsx": {
+    "mtime": 1785181054.7099104,
+    "ast_hash": "18a04f23897a3e9b6ba87b48b1723b81",
+    "semantic_hash": "18a04f23897a3e9b6ba87b48b1723b81"
+  },
+  "frontend/src/petStyles.js": {
+    "mtime": 1785181510.943848,
+    "ast_hash": "21aa7d0b1b271f87d9e10d28c9e94378",
+    "semantic_hash": "21aa7d0b1b271f87d9e10d28c9e94378"
+  },
+  "frontend/src/roomCatalog.jsx": {
+    "mtime": 1785181780.0529923,
+    "ast_hash": "f7e89f99b1f5dd6d738126ef996f8f99",
+    "semantic_hash": "f7e89f99b1f5dd6d738126ef996f8f99"
+  },
+  "frontend/src/shopCatalog.jsx": {
+    "mtime": 1785162489.8839667,
+    "ast_hash": "65c7317bc5af09a774fae31a9e2b2d4e",
+    "semantic_hash": "65c7317bc5af09a774fae31a9e2b2d4e"
+  },
+  "frontend/src/theme.js": {
+    "mtime": 1784753767.9738727,
+    "ast_hash": "a5bfab9bf1f69ca3e185ad3f2c1cd02f",
+    "semantic_hash": "a5bfab9bf1f69ca3e185ad3f2c1cd02f"
+  },
+  "frontend/tailwind.config.js": {
+    "mtime": 1784665863.0,
+    "ast_hash": "650228f8298f8490cf9d0c7cf5c0ffe7",
+    "semantic_hash": "650228f8298f8490cf9d0c7cf5c0ffe7"
+  },
+  "frontend/vite.config.js": {
+    "mtime": 1784665863.0,
+    "ast_hash": "63943a956385434a38274285cb426771",
+    "semantic_hash": "63943a956385434a38274285cb426771"
+  },
+  "historial/PetGiftGame_standalone.jsx": {
+    "mtime": 1784665865.0,
+    "ast_hash": "3a08b2e6aa85076a3870ba507b8ec17b",
+    "semantic_hash": "3a08b2e6aa85076a3870ba507b8ec17b"
+  },
+  "historial/PetGiftWizard_standalone.jsx": {
+    "mtime": 1784665865.0,
+    "ast_hash": "9f359c422dfa48a5d4216df635d8ef58",
+    "semantic_hash": "9f359c422dfa48a5d4216df635d8ef58"
+  },
+  "historial/PetMoodStudio_standalone.jsx": {
+    "mtime": 1784665864.0,
+    "ast_hash": "7f18cbdffde27de470d4e7531d47543a",
+    "semantic_hash": "7f18cbdffde27de470d4e7531d47543a"
+  },
+  "README.md": {
+    "mtime": 1784665894.0,
+    "ast_hash": "6c8b959b9227dee08c039a97a9141d4e",
+    "semantic_hash": "6c8b959b9227dee08c039a97a9141d4e"
+  },
+  "backend/DEPLOY.md": {
+    "mtime": 1785163232.8158724,
+    "ast_hash": "0e4d08b660ae18b1d558db138a6e765e",
+    "semantic_hash": "0e4d08b660ae18b1d558db138a6e765e"
+  },
+  "backend/render.yaml": {
+    "mtime": 1784665864.0,
+    "ast_hash": "f8b05fad0d3049fcfab7f06dffb1bba1",
+    "semantic_hash": "f8b05fad0d3049fcfab7f06dffb1bba1"
+  },
+  "backend/requirements.txt": {
+    "mtime": 1784665864.0,
+    "ast_hash": "f3fb861b28a934af0fcb0107a3383468",
+    "semantic_hash": "f3fb861b28a934af0fcb0107a3383468"
+  },
+  "frontend/README.md": {
+    "mtime": 1784665863.0,
+    "ast_hash": "2266b52dbb7be16569ec752fce5263cd",
+    "semantic_hash": "2266b52dbb7be16569ec752fce5263cd"
+  },
+  "frontend/index.html": {
+    "mtime": 1784665863.0,
+    "ast_hash": "6c7cf7330ffe986793d280ad1c81bc03",
+    "semantic_hash": "6c7cf7330ffe986793d280ad1c81bc03"
+  },
+  "frontend/public/icons/icon-192.png": {
+    "mtime": 1784665863.0,
+    "ast_hash": "ffd7f96a4587f9e37315f8cc12d89146",
+    "semantic_hash": "ffd7f96a4587f9e37315f8cc12d89146"
+  },
+  "frontend/public/icons/icon-512.png": {
+    "mtime": 1784665863.0,
+    "ast_hash": "2ead169fc578fb04270b98c97d416d3a",
+    "semantic_hash": "2ead169fc578fb04270b98c97d416d3a"
+  }
+}
