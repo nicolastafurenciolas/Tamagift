@@ -1,170 +1,184 @@
-# Desplegar Tamagift — guía paso a paso (Railway + Netlify)
+# Desplegar Tamagift — guía paso a paso
 
-Decisiones ya tomadas para este lanzamiento (no las repitas ni las reconsideres
-sin volver a hablarlo):
-- Backend + base de datos: **Railway** (Postgres administrado).
-- Imágenes (dibujos, fotos, objetos): se quedan como texto base64 dentro de las
-  filas de Postgres, **no** se migran a S3/R2 todavía. Es una optimización real
-  pendiente (ver comentario en `models.py`), pero no bloquea el lanzamiento a
-  la escala de un regalo personalizado (decenas de fotos por mascota, no miles).
-- Frontend: **Netlify**.
+Repositorio: https://github.com/nicolastafurenciolas/Tamagift
 
-## 0. ANTES DE SUBIR NADA A GITHUB — leer esto
+## Qué hace cada servicio (y por qué hacen falta tres)
 
-Ya existe un `.gitignore` en la raíz del proyecto que deja fuera:
+| Servicio | Qué hace | Por qué |
+|---|---|---|
+| **Netlify** | Sirve el frontend (HTML/JS/CSS) | Es lo que abre tu pareja al tocar el link |
+| **Supabase** | Base de datos Postgres | Guarda las mascotas y las llaves vendidas |
+| **Railway** | Ejecuta el backend Python | Netlify solo sirve archivos; no puede correr Python |
 
-- **`llaves-*.csv`** — el inventario de llaves en claro. En la base de datos
-  solo se guarda el hash, así que ese CSV es la **única** copia legible. Si
-  llega a un repo público, cualquiera puede crear mascotas gratis: es
-  literalmente el producto que vendés.
-- **`*.db`** — la base SQLite local con datos de prueba.
-- **`.env`**, `node_modules/`, `dist/`, `__pycache__/`.
+**¿Por qué no todo en Supabase, como en tu otro proyecto?** Porque en aquel el
+navegador habla directo con Supabase. Acá no se puede: la validación de llaves
+tiene que correr en un servidor. Si viviera en el navegador, cualquiera abre las
+herramientas de desarrollador, inserta una mascota y se salta el pago. Railway
+existe solo para eso.
 
-Comprobalo antes del primer push (tiene que responder que están ignorados):
+---
 
-```bash
-git check-ignore -v tamagift/backend/llaves-lote-inicial.csv tamagift/backend/tamagift.db
+## PASO 1 — Supabase (la base de datos)
+
+1. Entrá a supabase.com → **New project**.
+2. Ponele nombre `tamagift`, elegí una contraseña para la base y **guardala**
+   (la vas a necesitar en el paso siguiente y no se puede volver a ver).
+3. Región: la más cercana a donde estén tus clientas.
+4. Cuando termine de crearse: **Project Settings → Database → Connection string**.
+5. Elegí la pestaña **URI** y copiá la cadena. Se ve así:
+   ```
+   postgresql://postgres.xxxxx:[TU-PASSWORD]@aws-0-us-east-1.pooler.supabase.com:5432/postgres
+   ```
+6. Reemplazá `[TU-PASSWORD]` por la contraseña del paso 2.
+
+> **Importante:** usá el puerto **5432** (Session mode) o la conexión directa.
+> El puerto 6543 (Transaction mode) da problemas con SQLAlchemy, que es lo que
+> usa este backend.
+
+No hay que crear ninguna tabla a mano: el backend las crea solo al arrancar.
+
+---
+
+## PASO 2 — Railway (el backend)
+
+1. Entrá a railway.app y entrá con GitHub.
+2. **New Project → Deploy from GitHub repo** → elegí `Tamagift`.
+3. Abrí el servicio que se creó → pestaña **Settings**:
+   - **Root Directory**: `tamagift/backend`
+   - El resto se detecta solo (usa el `Procfile` que ya está en el repo).
+4. Pestaña **Variables** → agregá estas dos:
+   ```
+   DATABASE_URL = <la cadena que copiaste de Supabase en el paso 1>
+   REQUIRE_ACCESS_KEY = 1
+   ```
+5. Esperá a que termine el despliegue. En **Settings → Networking → Generate
+   Domain** te da una URL pública tipo `tamagift-production.up.railway.app`.
+6. **Comprobalo**: abrí `https://TU-URL.up.railway.app/docs` en el navegador.
+   Tenés que ver la documentación de la API con el título **Tamagift API**.
+
+---
+
+## PASO 3 — Generar las llaves reales
+
+Las llaves que tenés en tu computadora están en la base local y **no sirven en
+producción**. Hay que generar un lote nuevo apuntando a Supabase.
+
+Desde `tamagift/backend/` en tu computadora, en PowerShell:
+
+```powershell
+$env:DATABASE_URL="<la misma cadena de Supabase>"
+python generate_keys.py 300 --lote "lanzamiento"
 ```
 
-Si por lo que sea el CSV ya se subió alguna vez, **no alcanza con borrarlo en un
-commit nuevo**: queda en el historial. En ese caso hay que generar un lote nuevo
-de llaves y dar por quemadas las anteriores.
+Esto:
+- Inserta las 300 llaves **hasheadas** en Supabase.
+- Te deja un CSV con las llaves en claro en tu computadora.
 
-## 1. Backend + Postgres en Railway
+> **El CSV es tu inventario y la ÚNICA copia legible.** En la base solo queda el
+> hash: si lo perdés, esas llaves no se recuperan. Ya está en `.gitignore`, así
+> que no se sube a GitHub — guardalo aparte (Drive, disco externo).
 
-1. Crea una cuenta en railway.app (o entra con GitHub).
-2. Sube la carpeta `tamagift/` completa a un repositorio de GitHub
-   (o solo `backend/` y `frontend/` como dos repos separados, si preferís
-   desplegarlos como proyectos independientes — cualquiera de las dos formas
-   funciona, los pasos de abajo no cambian).
-3. En Railway: **New Project > Deploy from GitHub repo**, elige el repo.
-   - Si subiste `tamagift/` completo: en la configuración del
-     servicio, poné **Root Directory** = `backend`.
-   - Railway detecta Python automáticamente y usa el `Procfile` que ya
-     existe en `backend/Procfile` (`web: uvicorn main:app --host 0.0.0.0 --port $PORT`).
-4. En el mismo proyecto de Railway: **New > Database > Add PostgreSQL**.
-   Railway crea la base y expone `DATABASE_URL` automáticamente — andá a la
-   pestaña **Variables** del servicio backend y confirmá que `DATABASE_URL`
-   ya está ahí (Railway la enlaza sola entre el servicio y la base cuando
-   están en el mismo proyecto; si no aparece, copiala manualmente desde la
-   pestaña **Connect** de la base de Postgres).
-5. En **Variables** del servicio backend, agregá también:
+Para ver cuántas quedan sin usar, en cualquier momento:
+```powershell
+python generate_keys.py --estado
+```
+
+---
+
+## PASO 4 — Netlify (el frontend)
+
+1. Entrá a netlify.com → **Add new site → Import an existing project** → GitHub
+   → elegí `Tamagift`.
+2. Configuración del build:
+   - **Base directory**: `tamagift/frontend`
+   - El comando (`npm run build`) y la carpeta (`dist`) ya vienen en
+     `netlify.toml`, no hace falta escribirlos.
+3. Antes de desplegar, **Add environment variables**:
    ```
-   REQUIRE_ACCESS_KEY=1
+   VITE_API_BASE = https://TU-URL.up.railway.app
    ```
-   (Sin esta variable, el código ya default a requerir llave — pero ponela
-   explícita para no depender de un default y que quede documentado en el
-   panel de Railway qué está pasando.)
-   `ALLOWED_ORIGINS` lo vas a agregar en el paso 3, después de tener el
-   dominio de Netlify — por ahora podés dejarlo sin setear (el backend
-   acepta cualquier origen mientras tanto, no pasa nada porque nadie más
-   que vos lo está usando todavía).
-6. Esperá el primer deploy (unos minutos). Railway te da una URL pública
-   como `https://tamagift-api-production.up.railway.app` — la vas a necesitar
-   en el paso 2 y 3.
-7. Verificá que funciona abriendo `https://tu-url.up.railway.app/docs` en el
-   navegador — deberías ver la documentación automática de la API (Swagger).
+   (la URL de Railway del paso 2, **sin barra al final**)
+4. Deploy. Te queda un dominio tipo `tamagift.netlify.app`.
 
-## 2. Generar las llaves de acceso reales (contra Railway, no contra tu SQLite local)
+---
 
-Las 300 llaves que ya generaste (`llaves-lote-inicial.csv`) están en tu base
-SQLite **local** — no sirven para producción, ahí no hay nadie escuchando.
-Generá un lote nuevo apuntando directo a la base de Railway:
+## PASO 5 — Conectar los dos extremos (no te saltees esto)
 
-1. En Railway, abrí la base de Postgres > pestaña **Connect** > copiá la
-   `Connection URL` (empieza con `postgresql://`).
-2. En tu máquina, desde `tamagift/backend/`:
-   ```bash
-   DATABASE_URL="postgresql://usuario:pass@host:puerto/db" python generate_keys.py 300 --lote "lanzamiento-tiktok"
+Volvé a **Railway → Variables** y agregá:
+```
+ALLOWED_ORIGINS = https://tamagift.netlify.app
+```
+(con tu dominio real de Netlify)
+
+Sin esto el navegador bloquea las llamadas al backend por CORS y la app se queda
+en blanco sin decir por qué. Railway se redespliega solo al guardar la variable.
+
+---
+
+## PASO 6 — Probar que todo funciona
+
+1. Abrí `https://tamagift.netlify.app` → tenés que ver el asistente.
+2. Creá una mascota usando una llave real del CSV.
+3. Abrí el link `/p/xxxxx` que te da, **desde el celular**.
+4. Probá especialmente:
+   - Que la música arranque al tocar "Toca para abrir tu regalo".
+   - Los tres juegos con animación: **Torre**, **Cruzar la calle**, **Salta y vuela**.
+     Son los únicos que no se pudieron probar a ojo durante el desarrollo (el
+     entorno donde se programó no dibuja animaciones), aunque su lógica sí está
+     cubierta por pruebas automáticas.
+   - Que ningún juego obligue a hacer scroll.
+5. Probá que la MISMA llave ya no sirve para crear otra mascota.
+
+---
+
+## Cómo se actualiza a partir de acá
+
+Cada vez que hagamos un cambio y se suba a GitHub:
+
+- **Netlify** detecta el push y republica el frontend solo. ✅
+- **Railway** detecta el push y reinicia el backend solo. ✅
+- **Supabase** no se actualiza desde GitHub (es una base de datos), pero el
+  backend le agrega al arrancar cualquier columna nueva que falte. ✅
+
+O sea: **un push actualiza todo**. No hay que tocar nada a mano.
+
+La única excepción sería borrar o renombrar una columna existente — eso sí
+requeriría un paso manual, y lo avisaría antes de hacerlo.
+
+---
+
+## Dominio propio (cuando quieras)
+
+Podés lanzar con `tamagift.netlify.app` y comprar el dominio después: los links
+ya entregados siguen funcionando.
+
+1. Comprá el dominio (Cloudflare suele ser el más barato y no infla la renovación).
+2. Netlify → **Domain settings → Add a custom domain**.
+3. Seguí lo que te indique: lo más simple es apuntar los *nameservers* del
+   dominio a los de Netlify.
+4. Activá **HTTPS** (gratis y automático).
+5. **Volvé a Railway** y sumá el dominio nuevo a `ALLOWED_ORIGINS`, dejando
+   también el de Netlify:
    ```
-   (En PowerShell: `$env:DATABASE_URL="postgresql://..."; python generate_keys.py 300 --lote "lanzamiento-tiktok"`)
-3. Esto inserta las 300 llaves (hasheadas) directo en la base de producción y
-   te deja el CSV en claro en tu máquina — **guardalo bien, es tu inventario
-   real, no se puede recuperar desde la base**.
-4. `python generate_keys.py --estado` (con el mismo `DATABASE_URL`) te dice
-   cuántas quedan disponibles en cualquier momento, para reabastecer.
-
-## 3. Frontend en Netlify
-
-1. En Netlify: **Add new site > Import an existing project**, conectá el
-   mismo repo de GitHub.
-   - Si subiste `tamagift/` completo: **Base directory** = `frontend`.
-   - `netlify.toml` ya está en `frontend/` con el comando de build
-     (`npm run build`), la carpeta a publicar (`dist`), y el redirect que
-     hace falta para que `/p/{slug}` funcione aunque alguien lo abra
-     directo (no solo navegando desde adentro de la app).
-2. En **Site settings > Environment variables**, agregá:
+   ALLOWED_ORIGINS = https://tudominio.com,https://www.tudominio.com,https://tamagift.netlify.app
    ```
-   VITE_API_BASE=https://tu-url.up.railway.app
-   ```
-   (la URL de Railway del paso 1.6, sin barra al final).
-3. Deploy. Netlify te da un dominio tipo `tu-sitio.netlify.app`.
-4. Volvé a Railway y agregá la variable que faltaba en el backend:
-   ```
-   ALLOWED_ORIGINS=https://tu-sitio.netlify.app
-   ```
-   Railway redepliega solo al guardar la variable.
-5. El asistente queda en `tu-sitio.netlify.app` (raíz), y cada mascota en
-   `tu-sitio.netlify.app/p/{slug}` — ese es el link que se comparte.
 
-## 4. Dominio propio (cuando lo quieras — no hace falta para lanzar)
+### Si algún día querés cambiar de proveedor
+Lo único atado a Railway es el `Procfile` (un archivo de una línea). La base vive
+en Supabase, así que mudar el backend a Render o donde sea es cambiar de servicio
+y volver a poner las dos variables de entorno.
 
-Podés lanzar con `tu-sitio.netlify.app` y comprar el dominio después: el cambio
-no rompe las mascotas ya creadas **si seguís este orden**.
+---
 
-1. Comprá el dominio donde prefieras (Namecheap, Cloudflare, GoDaddy…).
-   Cloudflare suele ser el más barato y no cobra sobreprecio por renovar.
-2. En Netlify: **Domain settings > Add a custom domain** → escribí tu dominio.
-3. Netlify te dice qué poner en el panel de tu proveedor. Dos caminos:
-   - **Más simple:** apuntar los *nameservers* del dominio a los de Netlify.
-     Netlify gestiona todo el DNS.
-   - **Si querés seguir manejando el DNS vos:** un registro `CNAME` de `www`
-     apuntando a `tu-sitio.netlify.app`, y el dominio raíz con `ALIAS`/`ANAME`
-     (o los `A` que indique Netlify).
-4. Esperá la propagación (de minutos a unas horas) y activá **HTTPS** en
-   Netlify — el certificado es gratis y automático.
-5. **Paso que NO hay que olvidarse:** volvé a Railway y actualizá
-   `ALLOWED_ORIGINS` con el dominio nuevo, por ejemplo:
-   ```
-   ALLOWED_ORIGINS=https://tudominio.com,https://www.tudominio.com,https://tu-sitio.netlify.app
-   ```
-   Si no lo hacés, el navegador bloquea las llamadas al backend desde el dominio
-   nuevo por CORS y la app queda en blanco. Dejá también el `.netlify.app` en la
-   lista mientras convivan los dos.
+## Cuidado con el espacio
 
-Los links viejos (`tu-sitio.netlify.app/p/abc123`) siguen funcionando: Netlify
-mantiene el subdominio. Y como el `slug` no cambia, la misma mascota es
-alcanzable desde los dos dominios.
+Cada mascota pesa entre **5 y 25 MB** en la base, porque las fotos y el audio se
+guardan dentro de la fila. El plan gratis de Supabase ronda los 500 MB, o sea
+**entre 20 y 100 mascotas**.
 
-### ¿Y si algún día querés mudarte de Railway/Netlify?
-Lo único verdaderamente atado al proveedor es la base de datos. Antes de mudarte,
-sacá un volcado (`pg_dump`) y restauralo en el destino: los slugs, las mascotas y
-las llaves usadas viajan con él. El código no tiene nada específico de Railway
-más allá del `Procfile` (un archivo de una línea).
+Cuando te acerques al límite hay dos caminos: pasar al plan pago, o mover las
+imágenes y el audio a **Supabase Storage** (que ya viene incluido) y dejar en la
+base solo el enlace. Lo segundo es lo correcto a mediano plazo y está anotado
+como pendiente.
 
-## Qué ya está probado (en esta sesión, contra el backend corriendo local)
-
-- Todo el flujo del asistente y del juego, de punta a punta, en un navegador
-  real (Chrome, viewport móvil simulado) — mascotas completas, música,
-  minijuegos, tienda, re-personalización, etc. Ver `SESION_CAMBIOS.md` en la
-  raíz del proyecto para el detalle completo de qué se verificó y cómo.
-- El backend acepta y devuelve correctamente el payload completo del wizard.
-- Las migraciones ad-hoc de columnas nuevas corren sin romper una base
-  SQLite ya existente con datos.
-
-## Qué NO está probado todavía (pendiente, requiere que lo hagas vos)
-
-- El despliegue real en Railway y Netlify — preparé toda la configuración
-  (`Procfile`, `netlify.toml`, variables de entorno documentadas arriba) pero
-  no tengo forma de crear cuentas ni desplegar por vos.
-- Postgres real en vez de SQLite — el código ya soporta `DATABASE_URL` de
-  Postgres (`psycopg2-binary` en `requirements.txt`, conversión automática de
-  `postgres://` a `postgresql://` en `database.py`), pero nunca corrió contra
-  un Postgres real en esta sesión.
-- El flujo completo en un celular físico (iOS/Android), con dedo en vez de
-  mouse/touch simulado — especialmente importante para: la pantalla de
-  apertura "Toca para abrir tu regalo" (el gesto real que desbloquea audio),
-  el editor de retoque a mano (canvas), y el recorte de fondo de objetos
-  decorativos (`BgRemover.jsx`). Una vez desplegado, abrí el link de Netlify
-  directo desde el celular (no rotado desde una PC) y probá esos tres puntos
-  primero — son los que más dependen de un dispositivo táctil real.
+Podés vigilarlo en Supabase → **Settings → Usage**.
