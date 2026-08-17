@@ -40,3 +40,11 @@ desktop.ini
 .idea/
 .vscode/
 *.swp
+
+# ─────────────────────────────────────────────────────────────────
+# Fuera del repo: no forman parte de Tamagift
+# ─────────────────────────────────────────────────────────────────
+# Proyecto anterior, solo sirvió de referencia. Sigue en el disco.
+PusheenGame/
+# Salida generada por la herramienta de análisis.
+graphify-out/
