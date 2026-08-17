@@ -17,37 +17,46 @@ import licensing
 
 models.Base.metadata.create_all(bind=database.engine)
 
-# `create_all` sólo crea tablas que no existen: en una BD sqlite local ya
-# creada antes de agregar source_type/audio_data a Song, esas columnas
-# nunca aparecerían. Se agregan aquí si faltan. En producción (Postgres)
-# la tabla nace ya con las columnas nuevas, así que esto no aplica.
-if database.DATABASE_URL.startswith("sqlite"):
+# ── Columnas agregadas después de la primera versión ────────────────
+#
+# `create_all` solo crea tablas que faltan POR COMPLETO: si una tabla ya
+# existe y el modelo gana una columna nueva, no la agrega. Sin esto,
+# cualquier despliegue posterior al primero rompería en producción al
+# consultar una columna que no está en la base — y encima en silencio,
+# porque el arranque no falla, falla la primera petición.
+#
+# Por eso esto corre en CADA arranque y en los dos motores. Al agregar
+# una columna nueva al modelo, agregarla también a esta lista.
+LATE_COLUMNS = [
+    ("songs", "source_type", "VARCHAR(10) DEFAULT 'embed'"),
+    ("songs", "audio_data", "TEXT"),
+    ("photos", "price", "INTEGER DEFAULT 0"),
+    ("pets", "recipe_original", "TEXT"),
+    ("pets", "recipe_redesign", "TEXT"),
+    ("pets", "drawing_normal_redesign", "TEXT"),
+    ("pets", "drawing_feliz_redesign", "TEXT"),
+    ("pets", "drawing_enojado_redesign", "TEXT"),
+    ("pets", "active_design", "VARCHAR(10) DEFAULT 'original'"),
+]
+
+
+def ensure_late_columns():
+    is_sqlite = database.DATABASE_URL.startswith("sqlite")
     with database.engine.connect() as conn:
-        cols = [row[1] for row in conn.execute(text("PRAGMA table_info(songs)"))]
-        if "source_type" not in cols:
-            conn.execute(text("ALTER TABLE songs ADD COLUMN source_type VARCHAR(10) DEFAULT 'embed'"))
-        if "audio_data" not in cols:
-            conn.execute(text("ALTER TABLE songs ADD COLUMN audio_data TEXT"))
-
-        photo_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(photos)"))]
-        if "price" not in photo_cols:
-            conn.execute(text("ALTER TABLE photos ADD COLUMN price INTEGER DEFAULT 0"))
-
-        pet_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(pets)"))]
-        if "recipe_original" not in pet_cols:
-            conn.execute(text("ALTER TABLE pets ADD COLUMN recipe_original TEXT"))
-        if "recipe_redesign" not in pet_cols:
-            conn.execute(text("ALTER TABLE pets ADD COLUMN recipe_redesign TEXT"))
-        if "drawing_normal_redesign" not in pet_cols:
-            conn.execute(text("ALTER TABLE pets ADD COLUMN drawing_normal_redesign TEXT"))
-        if "drawing_feliz_redesign" not in pet_cols:
-            conn.execute(text("ALTER TABLE pets ADD COLUMN drawing_feliz_redesign TEXT"))
-        if "drawing_enojado_redesign" not in pet_cols:
-            conn.execute(text("ALTER TABLE pets ADD COLUMN drawing_enojado_redesign TEXT"))
-        if "active_design" not in pet_cols:
-            conn.execute(text("ALTER TABLE pets ADD COLUMN active_design VARCHAR(10) DEFAULT 'original'"))
-
+        for table, column, coltype in LATE_COLUMNS:
+            if is_sqlite:
+                # SQLite no admite ADD COLUMN IF NOT EXISTS: hay que mirar antes.
+                existing = [r[1] for r in conn.execute(text(f"PRAGMA table_info({table})"))]
+                if column in existing:
+                    continue
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {coltype}"))
+            else:
+                # Postgres sí lo admite, así que es idempotente de por sí.
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {coltype}"))
         conn.commit()
+
+
+ensure_late_columns()
 
 app = FastAPI(title="PetGift API")
 
