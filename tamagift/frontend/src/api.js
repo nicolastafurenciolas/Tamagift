@@ -10,10 +10,16 @@
 //
 // Nota: el fallback local sólo sirve en el MISMO dispositivo. Para que
 // el link funcione en el celular de la pareja (otro dispositivo) hace
-// falta el backend desplegado. La UI lo aclara cuando cae en local.
+// falta el backend desplegado. Por eso en producción NO se cae a local:
+// quien compró recibiría un link que en el otro celular no abre nada, y
+// creería que funcionó. Allí un fallo del servidor es un error con
+// "reintentar" (ver CreatePetError).
 // ─────────────────────────────────────────────────────────────────
 
 export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+
+// Solo en `npm run dev`. El build de Netlify (`vite build`) lo apaga solo.
+const ALLOW_LOCAL_FALLBACK = import.meta.env.DEV;
 
 const PET_KEY = (slug) => `tamagift:pet:${slug}`;
 
@@ -82,17 +88,28 @@ export class AccessKeyError extends Error {
   }
 }
 
-// ¿Hace falta llave para crear? Si el backend no responde, asumimos que
-// no (modo local de desarrollo), pero entonces tampoco hay backend donde
-// registrar nada.
+// El servidor no pudo crear la mascota (no contesta o falló). Solo se
+// lanza en producción; en desarrollo se cae a localStorage.
+export class CreatePetError extends Error {
+  constructor(reason) {
+    super(reason);
+    this.name = 'CreatePetError';
+    this.reason = reason;   // 'sin-conexion' | 'muy-pesado' | 'servidor'
+  }
+}
+
+// ¿Hace falta llave para crear? Si el backend no responde: en desarrollo
+// asumimos que no (modo local); en producción que sí, porque si no el
+// campo de la llave desaparecería y la persona no podría escribirla
+// cuando el servidor vuelva.
 export async function accessKeyRequired() {
   try {
     const res = await fetch(`${API_BASE}/api/access-keys/required`);
-    if (!res.ok) return false;
+    if (!res.ok) return !ALLOW_LOCAL_FALLBACK;
     const data = await res.json();
     return !!data.requerida;
   } catch (e) {
-    return false;
+    return !ALLOW_LOCAL_FALLBACK;
   }
 }
 
@@ -113,8 +130,9 @@ export async function checkAccessKey(key) {
   }
 }
 
-// Crea la mascota. Intenta el backend; si el backend NO RESPONDE, cae a
-// localStorage. Devuelve { slug, mode: 'backend' | 'local' }.
+// Crea la mascota. Intenta el backend; si el backend NO RESPONDE, en
+// desarrollo cae a localStorage y en producción lanza CreatePetError.
+// Devuelve { slug, mode: 'backend' | 'local' }.
 export async function createPet(payload) {
   let res;
   try {
@@ -124,8 +142,8 @@ export async function createPet(payload) {
       body: JSON.stringify(payload),
     });
   } catch (err) {
-    // El servidor no contesta (sin red, backend caído). Aquí sí tiene
-    // sentido el respaldo local.
+    // El servidor no contesta (sin red, backend caído, CORS mal puesto).
+    if (!ALLOW_LOCAL_FALLBACK) throw new CreatePetError('sin-conexion');
     const slug = randomSlug();
     saveLocalPet(slug, payload);
     return { slug, mode: 'local' };
@@ -140,6 +158,7 @@ export async function createPet(payload) {
     throw new AccessKeyError(reason);
   }
   if (!res.ok) {
+    if (!ALLOW_LOCAL_FALLBACK) throw new CreatePetError(res.status === 413 ? 'muy-pesado' : 'servidor');
     const slug = randomSlug();
     saveLocalPet(slug, payload);
     return { slug, mode: 'local' };

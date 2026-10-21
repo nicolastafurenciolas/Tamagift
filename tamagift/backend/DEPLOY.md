@@ -172,9 +172,12 @@ y volver a poner las dos variables de entorno.
 
 ## Cuidado con el espacio
 
-Cada mascota pesa entre **5 y 25 MB** en la base, porque las fotos y el audio se
-guardan dentro de la fila. El plan gratis de Supabase ronda los 500 MB, o sea
-**entre 20 y 100 mascotas**.
+Las fotos y el audio se guardan dentro de la fila de la mascota. Las fotos ya
+se achican en el navegador antes de enviarse (lado mayor 1280 px, ~250 KB cada
+una), así que una mascota **sin canciones subidas** pesa alrededor de **2-3 MB**.
+Lo que más pesa ahora son las canciones subidas como archivo: hasta 10 MB cada
+una (unos 13 MB en la base). El plan gratis de Supabase ronda los 500 MB, o sea
+**unas 150-250 mascotas sin audio subido, bastantes menos con audio**.
 
 Cuando te acerques al límite hay dos caminos: pasar al plan pago, o mover las
 imágenes y el audio a **Supabase Storage** (que ya viene incluido) y dejar en la

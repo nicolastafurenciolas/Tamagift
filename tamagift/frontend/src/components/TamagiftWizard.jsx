@@ -2,7 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import { C, FONT, SHADOW, DRAW_COLORS, tint } from '../theme';
 import { IconGift, IconSparkle, IconClose, IconBack, IconCamera, IconPencil } from './icons';
-import { createPet, accessKeyRequired, checkAccessKey, AccessKeyError } from '../api';
+import { createPet, accessKeyRequired, checkAccessKey, AccessKeyError, CreatePetError } from '../api';
 import { toEmbedUrl, providerLabel } from '../embed';
 import { DEFAULT_RECIPE, PetRecipeMarkup, recipeToPngDataUrl } from '../PetRecipe';
 import BgRemover from './BgRemover';
@@ -10,6 +10,7 @@ import { isTestKey, buildTestPet, testGameState } from '../testSeed';
 import { checkYouTubeEmbeddable, youtubeIdFromEmbed } from '../ytCheck';
 import { musicErrorText } from './MusicBar';
 import { ModularPetStep, useDesignerState } from './PetDesigner';
+import { compressImageFile, PHOTO_MAX_SIDE, FOOD_MAX_SIDE } from '../imageCompress';
 
 const CANVAS_SIZE = 320;
 
@@ -114,6 +115,11 @@ function AddButton({ onClick, color, children }) {
 }
 
 // ── Paso: Bienvenida ──────────────────────────────────────────────
+// La clave de prueba sale en `npm run dev`. En un despliegue de pruebas
+// se puede encender con VITE_ENABLE_TEST_KEY=1; en el de producción no
+// se pone y el recuadro no aparece.
+const SHOW_TEST_KEY = import.meta.env.DEV || import.meta.env.VITE_ENABLE_TEST_KEY === '1';
+
 function WelcomeStep({ onTestKey, testState, keyRequired, accessKey, setAccessKey, keyState }) {
   const [key, setKey] = useState('');
   const wrong = key.length > 0 && !isTestKey(key);
@@ -159,7 +165,9 @@ function WelcomeStep({ onTestKey, testState, keyRequired, accessKey, setAccessKe
       )}
 
       {/* Atajo de pruebas: genera una mascota completa al azar y
-          entrega el link, sin pasar por los 10 pasos. */}
+          entrega el link, sin pasar por los 10 pasos. Solo para quien
+          desarrolla: quien compra no debe verlo. */}
+      {SHOW_TEST_KEY && (
       <div className="pg-card" style={{ marginTop: 22, padding: 14, background: C.surfaceAlt }}>
         <p style={{ fontFamily: FONT.display, fontSize: 12, fontWeight: 700, color: C.inkSoft, marginBottom: 6 }}>
           Clave de prueba
@@ -198,6 +206,7 @@ function WelcomeStep({ onTestKey, testState, keyRequired, accessKey, setAccessKe
           <p style={{ fontSize: 11.5, color: C.rose, marginTop: 7 }}>No se pudo generar. Intenta de nuevo.</p>
         )}
       </div>
+      )}
     </StepShell>
   );
 }
@@ -226,9 +235,7 @@ function FoodsStep({ foods, setFoods }) {
   function pickImage(e) {
     const file = (e.target.files || [])[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setImage(ev.target.result);
-    reader.readAsDataURL(file);
+    compressImageFile(file, FOOD_MAX_SIDE).then(setImage);
     e.target.value = '';
   }
 
@@ -365,12 +372,9 @@ function PriceHint({ price }) {
 function PhotosStep({ photos, setPhotos }) {
   function handleFiles(e) {
     const files = Array.from(e.target.files || []);
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        setPhotos((prev) => [...prev, { id: uid(), url: ev.target.result, caption: '', used_for: 'puzzle', price: DEFAULT_POSTER_PRICE }]);
-      };
-      reader.readAsDataURL(file);
+    // Todas juntas y en el orden en que se eligieron.
+    Promise.all(files.map((file) => compressImageFile(file, PHOTO_MAX_SIDE))).then((urls) => {
+      setPhotos((prev) => [...prev, ...urls.map((url) => ({ id: uid(), url, caption: '', used_for: 'puzzle', price: DEFAULT_POSTER_PRICE }))]);
     });
     e.target.value = '';
   }
@@ -1135,7 +1139,13 @@ function SummaryRow({ label, value }) {
   );
 }
 
-function SummaryStep({ petName, partnerName, histories, foods, phrases, photos, songs, submitState, resultSlug, resultMode, showDetails, lastPayload, onFinalize, onCopyLink, copied }) {
+const SUBMIT_ERROR_TEXT = {
+  'sin-conexion': 'No logramos conectar con el servidor. Revisa tu conexión y vuelve a tocar "Finalizar". Nada de lo que hiciste se perdió.',
+  'muy-pesado': 'El regalo pesa demasiado para enviarlo. Prueba quitando alguna canción subida o algunas fotos, y vuelve a tocar "Finalizar".',
+  'servidor': 'El servidor tuvo un problema. Espera un momento y vuelve a tocar "Finalizar". Nada de lo que hiciste se perdió.',
+};
+
+function SummaryStep({ petName, partnerName, histories, foods, phrases, photos, songs, submitState, submitError, resultSlug, resultMode, showDetails, lastPayload, onFinalize, onCopyLink, copied }) {
   function currentDataUrl(mood) {
     const hh = histories[mood];
     if (!hh || hh.index < 0) return null;
@@ -1186,7 +1196,7 @@ function SummaryStep({ petName, partnerName, histories, foods, phrases, photos, 
       {submitState === 'error' && (
         <div className="pg-card" style={{ padding: 14, borderColor: C.rose }}>
           <p style={{ fontFamily: FONT.display, fontSize: 13.5, fontWeight: 700, marginBottom: 4, color: C.ink }}>No pudimos crear el link ahora mismo</p>
-          <p style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: showDetails ? 10 : 0 }}>Revisa tu conexión e inténtalo de nuevo. Nada de lo que hiciste se perdió.</p>
+          <p style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: showDetails ? 10 : 0 }}>{SUBMIT_ERROR_TEXT[submitError] || SUBMIT_ERROR_TEXT['sin-conexion']}</p>
           {showDetails && (
             <textarea readOnly value={lastPayload} rows={6} style={{ width: '100%', fontSize: 11, padding: 8, borderRadius: 10, border: `1px solid ${C.line}`, fontFamily: 'monospace', background: C.surfaceAlt }} />
           )}
@@ -1253,6 +1263,7 @@ export default function TamagiftWizard() {
   }, [accessKey, keyRequired]);
 
   const [submitState, setSubmitState] = useState('idle');
+  const [submitError, setSubmitError] = useState('sin-conexion');
   const [resultSlug, setResultSlug] = useState(null);
   const [resultMode, setResultMode] = useState('backend');
   const [lastPayload, setLastPayload] = useState('');
@@ -1311,11 +1322,15 @@ export default function TamagiftWizard() {
       // Una llave rechazada no es un fallo de red: hay que decirlo claro
       // y mandar a la persona al paso 0, no ofrecerle "reintentar".
       if (err instanceof AccessKeyError) {
+        // Por si al cargar la página el servidor no contestó y el campo
+        // de la llave quedó oculto.
+        setKeyRequired(true);
         setKeyState(err.reason === 'clave-usada' ? 'usada' : 'invalida');
         setSubmitState('idle');
         setStep(0);
         return;
       }
+      setSubmitError(err instanceof CreatePetError ? err.reason : 'sin-conexion');
       setLastPayload(JSON.stringify(payload, null, 2));
       setSubmitState('error');
     }
@@ -1386,7 +1401,7 @@ export default function TamagiftWizard() {
         <SummaryStep
           petName={petName} partnerName={partnerName} histories={designer.histories}
           foods={foods} phrases={phrases} photos={photos} songs={songs}
-          submitState={submitState} resultSlug={resultSlug} resultMode={resultMode} showDetails={showDetails} lastPayload={lastPayload}
+          submitState={submitState} submitError={submitError} resultSlug={resultSlug} resultMode={resultMode} showDetails={showDetails} lastPayload={lastPayload}
           onFinalize={handleFinalize} onCopyLink={copyLink} copied={copied}
         />
         {submitState === 'success' && (
