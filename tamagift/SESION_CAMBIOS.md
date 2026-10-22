@@ -424,6 +424,55 @@ medidas. Además las mascotas pasan a ser **mochis** con varios anchos.
 - **Revisión**: `/arte` (laboratorio de kits), `/hoja`, `/aleatorio`,
   `/dev/<pantalla>?estilo=<id>`.
 
+## Cuarto, muebles, decoración y tienda rehechos desde cero
+
+Pedido: rehacer todos los muebles y cuartos (las pesas, el baúl, la
+guitarra, el escritorio y el espejo estaban mal dibujados), con una
+perspectiva que tenga sentido, más variedad y más opciones de
+personalización en la tienda (pintura de muebles, colores de pared y
+piso), en todos los estilos; rehacer la decoración; que se vea de
+estudio profesional.
+
+- **Una sola perspectiva para todo** (`frontend/src/art/room/draw.js`):
+  vista 3/4 sin punto de fuga. Cada mueble muestra su frente y su tapa
+  (la mitad de su fondo), sin costados ni trapecios; lo redondo es una
+  elipse el doble de ancha que alta; la luz viene de arriba a la
+  izquierda. Herramientas comunes: `box`, `cylinder`, `pot`, `legs`,
+  `tube` (tubos que siguen una curva), `hollow` (interiores), `mat`
+  (frente, tapa y brillo de un color).
+- **Paredes** (`art/room/walls.js`): 17 diseños (liso, rayas, lunares,
+  flores, vichy, corazones, estrellas, zócalo, ladrillo, tablas,
+  azulejos, piedra, ondas, nubes, hojas, damasco, rejilla), cada uno con
+  varios colores. **Pisos** (`art/room/floors.js`): 9 diseños (tablas,
+  espiga, ajedrez, baldosa, hidráulico, alfombrado, losas, mármol,
+  rejilla). Las tablas y baldosas van en la misma vista que los muebles
+  (las líneas hacia el fondo son verticales). Se guarda
+  `"diseño.color"`; los ids viejos se traducen solos.
+- **46 muebles** en 8 categorías (`art/room/furniture/`): camas,
+  asientos, mesas y guardado, música y juegos, plantas, luces,
+  alfombras y cosas para la pared. **14 pinturas** para cada uno
+  (madera, tela y detalle). Se ven 1.25× para que la mochi quepa en la
+  cama y el sofá. Las alfombras van en el suelo, debajo de todo.
+- **19 piezas de decoración** (`art/room/decor.js`); las que van
+  "encima" (lámpara de mesa, velas, taza…) se pueden poner sobre
+  cualquier mueble.
+- **Pósters** con marco dibujado y pintable; la foto va adentro.
+- **Margen bajo los dibujos** (`FOOT`): sombras y bases redondas ya no se
+  cortan en el borde; el cuarto lo descuenta para que todo siga apoyado.
+- **Tienda**: categorías de muebles, pintura antes y después de comprar,
+  colores de pared y piso, y una pestaña nueva de **accesorios** para la
+  mochi (cabeza, cuello y cara, con 12 colores) que se ven en el cuarto,
+  en el baño y en los juegos.
+- **Baño** redibujado en la misma vista, en tres capas (la mascota queda
+  dentro de la tina).
+- **Lo-fi**: las fotos (pósters, cartas) ya no se oscurecen de más.
+- **Pruebas**: `node src/room.test.mjs` (cada pared, piso, mueble y
+  pintura da un SVG sano; ids viejos; tamaños que calzan con el dibujo).
+- **Revisión**: `/arte` (cuartos armados, paredes, colores, pisos,
+  muebles por categoría, decoración), `/arte?set=muebles3&cat=<categoría>`
+  (cada mueble en un rincón con una mochi al lado para la escala),
+  `set=paredes2`, `set=pisos2`, `set=deco`.
+
 ## Resumen de archivos tocados en toda la sesión
 
 **Backend:**

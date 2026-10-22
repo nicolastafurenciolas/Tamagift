@@ -73,6 +73,30 @@ estampados y 46 accesorios de cabeza, cuello y cara.
   muebles, paredes, pisos y arte de minijuegos, en SVG que los kits
   redibujan.
 
+## El cuarto (`src/art/room/`)
+
+- **Perspectiva única** (`draw.js`): vista 3/4 sin punto de fuga. Un
+  mueble es su frente más su tapa (`DEPTH = 0.5` de su fondo); sin
+  costados. Lo redondo es una elipse con `ry = rx × 0.5`. Luz de arriba a
+  la izquierda. Todo mueble nuevo se arma con `box`, `cylinder`, `pot`,
+  `legs`, `tube` y `mat(color)` para que encaje con los demás.
+- **Paredes y pisos** (`walls.js`, `floors.js`): un diseño con varios
+  colores; la partida guarda `"diseño.color"` (`"rayas.menta"`). Los ids
+  viejos pasan por `WALL_ALIASES` / `FLOOR_ALIASES`. En pixel la luz de la
+  pared va en bandas (`data-only="pixel"`), en los demás en degradado.
+- **Muebles** (`furniture/`): un archivo por categoría; `index.js` los
+  junta, los escala 1.25× (`FURNITURE_SCALE`) y les suma el margen de
+  abajo (`FOOT`, ver `draw.js`). Cada uno recibe una pintura de
+  `paints.js` (`wood`, `cloth`, `accent`).
+  - `place: 'pared'` cuelga; `layer: 'suelo'` (alfombras) va debajo de
+    todo.
+- **Decoración** (`decor.js`): `place: 'piso'` o `'sobre'` (encima de
+  cualquier mueble).
+- **Baño** (`bath.js`): fondo y frente de la tina por separado, con la
+  mascota en medio.
+- `roomCatalog.jsx` y `shopCatalog.jsx` son la puerta de entrada para la
+  tienda y el cuarto.
+
 ## Agregar un estilo nuevo
 
 1. Agregar la entrada en `STYLES` de `registry.js` (todas las claves de
@@ -92,8 +116,10 @@ estampados y 46 accesorios de cabeza, cuello y cara.
   kits: la misma pieza dibujada por cada estilo. Conjuntos: `familia`,
   `animos`, `formas`, `orejas`, `ojos`, `bocas`, `mejillas`, `colas`,
   `estampados`, `cabeza`, `cuello`, `cara`, `presets`, `muebles`
-  (`&pintura=negro`), `paredes`, `pisos`, `comida`, `ui`.
-- `/estilos` — el mismo arte en los seis estilos (`?solo=pixel` para uno).
+  (`&pintura=negro`), `muebles3` (cada mueble en un rincón con una mochi
+  para la escala; `&cat=asientos&pared=rayas.menta&piso=espiga.miel`),
+  `paredes2`, `pisos2`, `deco`, `comida`, `ui`.
+- `/estilos` — lo mismo que `/arte`.
 - `/hoja?estilo=<id>` — hoja completa de un estilo: cuartos, ánimos,
   estilos de partida, cada pieza de personalización, muebles, colores,
   paredes, pisos, decoración, comida, interfaz y minijuegos.

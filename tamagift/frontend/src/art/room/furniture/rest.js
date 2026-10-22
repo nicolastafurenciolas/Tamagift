@@ -111,7 +111,8 @@ export const REST = [
       // respaldo con capitoné
       s += face('M24 80V30C24 12 44 6 64 6C84 6 104 12 104 30V80Z', tone(p.cloth, -0.15));
       [[44, 30], [64, 24], [84, 30], [54, 52], [74, 52]].forEach(([x, y]) => { s += Cir(x, y, 2.6, { fill: tone(p.cloth, -1), 'data-r': 'flat' }); });
-      s += line('M44 30L54 52L64 24L74 52L84 30', tone(p.cloth, -0.6), 1.2, { opacity: 0.6 });
+      // pliegues cortos alrededor de cada botón (en neón brillarían como una W)
+      s += line([[44, 30], [64, 24], [84, 30], [54, 52], [74, 52]].map(([x, y]) => `M${x - 6} ${y - 4}L${x - 2.5} ${y - 1.5}M${x + 6} ${y - 4}L${x + 2.5} ${y - 1.5}M${x - 6} ${y + 4}L${x - 2.5} ${y + 1.5}M${x + 6} ${y + 4}L${x + 2.5} ${y + 1.5}`).join(''), tone(p.cloth, -0.6), 1.2, { opacity: 0.55, 'data-skip': 'neon' });
       s += face(rr(30, 76, 68, 28, 6), C.top);
       s += face(rr(30, 102, 68, 20, 5), tone(p.cloth, -0.35));
       // brazos enrollados
