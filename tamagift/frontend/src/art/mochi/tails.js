@@ -1,8 +1,8 @@
 // Colas (asoman por atrás, a la derecha) y estampados (recortados a la
 // silueta y sin tapar la cara).
 
-import { G, P, Ell, Cir, E } from '../svg';
-import { parseColor, hex, ramp } from '../color';
+import { G, P, Ell, Cir, E } from '../svg.js';
+import { parseColor, hex, ramp } from '../color.js';
 
 const shade = (c, k) => hex(ramp(parseColor(c), k));
 const OUT = '#3A2A3E';

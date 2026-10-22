@@ -1,8 +1,8 @@
 // Puente entre los kits de dibujo y la interfaz: caché, cola (para no
 // trabar el celular dibujando treinta cosas de golpe) y exportar a PNG.
 
-import { drawArt } from './kit';
-import { getStyle } from '../styles/registry';
+import { drawArt, pixelSizeFor } from './kit.js';
+import { getStyle } from '../styles/registry.js';
 
 const cache = new Map();
 const inflight = new Map();
@@ -15,7 +15,7 @@ function remember(key, value) {
 
 export function artKey({ sourceKey, styleId, w, h, kind = 'art', pixel, fit }) {
   const st = getStyle(styleId);
-  const px = st.art.kind === 'pixel' ? (pixel || st.art.pixel || 3) : 0;
+  const px = st.art.kind === 'pixel' ? pixelSizeFor(st, w, h, pixel) : 0;
   return `A|${st.id}|${kind}|${fit || ''}|${Math.round(w)}x${Math.round(h)}|${px ? px.toFixed(2) : ''}|${sourceKey}`;
 }
 

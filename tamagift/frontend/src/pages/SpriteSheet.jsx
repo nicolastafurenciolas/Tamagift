@@ -1,8 +1,10 @@
 import React from 'react';
 import Sprite from '../components/Sprite';
 import { PetRecipeMarkup, DEFAULT_RECIPE } from '../PetRecipe';
-import { BODIES, EARS, EYES, MOUTHS, CHEEK_STYLES } from '../petParts';
-import { TAILS, PATTERNS, HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES } from '../petAccessories';
+import {
+  SHAPES as BODIES, EARS, EYES, MOUTHS, CHEEKS as CHEEK_STYLES, TAILS, PATTERNS,
+  HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES, MOODS as ALL_MOODS,
+} from '../art/mochi';
 import { PET_STYLES } from '../petStyles';
 import { FURNITURE, WALL_STYLES, FLOOR_STYLES, FURNITURE_PAINTS, findPaint, findFurniture, findWall, findFloor } from '../roomCatalog';
 import { DECOR_CATALOG } from '../shopCatalog';
@@ -103,7 +105,7 @@ function StyleSheet({ s }) {
       </Section>
 
       <Section s={s} title="Mascota: ánimos y estilos de partida">
-        {['normal', 'feliz', 'enojado'].map((m) => (
+        {ALL_MOODS.map((m) => (
           <Cell key={m} s={s} label={m} w={102}><Sprite styleId={sid} art={petArt(BASE_PET, m)} cacheKey={`hoja-mood-${m}`} w={96} h={96} kind="pet" /></Cell>
         ))}
         {PET_STYLES.map((p) => (
@@ -111,7 +113,7 @@ function StyleSheet({ s }) {
         ))}
       </Section>
 
-      <Section s={s} title="Cuerpos"><PartRow s={s} list={BODIES} field="body" /></Section>
+      <Section s={s} title="Anchos de mochi"><PartRow s={s} list={BODIES} field="body" /></Section>
       <Section s={s} title="Orejas"><PartRow s={s} list={EARS} field="ears" /></Section>
       <Section s={s} title="Ojos"><PartRow s={s} list={EYES} field="eyes" /></Section>
       <Section s={s} title="Bocas"><PartRow s={s} list={MOUTHS} field="mouth" /></Section>

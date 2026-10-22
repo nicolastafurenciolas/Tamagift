@@ -2,6 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { drawArt } from '../art/kit';
 import { mochiSvg, SHAPES, MOODS, HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES, EARS, EYES, MOUTHS, TAILS, PATTERNS, CHEEKS } from '../art/mochi';
 import { STYLE_LIST } from '../styles/registry';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { FURNITURE, WALL_STYLES, FLOOR_STYLES, findPaint } from '../roomCatalog';
+import { FOOD_SPRITES, UI_SPRITES } from '../sprites';
+import { PET_STYLES } from '../petStyles';
+import { DEFAULT_RECIPE } from '../PetRecipe';
 
 // Laboratorio de arte (solo desarrollo): /arte?set=familia&size=170
 // Muestra la misma mochi dibujada por cada kit de estilo.
@@ -28,6 +33,15 @@ function sets(name) {
   if (name === 'colas') return cyc(TAILS, 'tail');
   if (name === 'estampados') return cyc(PATTERNS, 'pattern', { accentColor: '#E9799A', accentAlt: '#7FC8F8' });
   if (name === 'mejillas') return cyc(CHEEKS, 'cheeks');
+  if (name === 'presets') return PET_STYLES.map((p) => ({ name: p.label, r: { ...DEFAULT_RECIPE, ...p.recipe } }));
+  if (name === 'muebles') {
+    const paint = new URLSearchParams(window.location.search).get('pintura') || 'natural';
+    return FURNITURE.map((f) => ({ name: f.name, markup: renderToStaticMarkup(f.render(findPaint(paint))), w: f.w, h: f.h }));
+  }
+  if (name === 'paredes') return WALL_STYLES.map((st) => ({ name: st.name, kind: 'surface', w: 400, h: 160, markup: renderToStaticMarkup(<svg viewBox="0 0 400 160" width="400" height="160"><rect width="400" height="160" fill={st.base} />{st.render && st.render(400, 160)}</svg>) }));
+  if (name === 'pisos') return FLOOR_STYLES.map((st) => ({ name: st.name, kind: 'surface', w: 400, h: 110, markup: renderToStaticMarkup(<svg viewBox="0 0 400 110" width="400" height="110"><rect width="400" height="110" fill={st.base} />{st.render && st.render(400, 110)}</svg>) }));
+  if (name === 'comida') return FOOD_SPRITES.map((f) => ({ name: f.id, markup: renderToStaticMarkup(f.render()), w: 100, h: 100 }));
+  if (name === 'ui') return Object.entries(UI_SPRITES).map(([k, r]) => ({ name: k, markup: renderToStaticMarkup(r()), w: 90, h: 90 }));
   return FAMILY;
 }
 
@@ -43,7 +57,11 @@ export default function ArtLab() {
       st,
       cells: set.map((c) => {
         const t0 = performance.now();
-        const res = drawArt({ markup: mochiSvg(c.r, c.mood || 'normal'), styleId: st.id, w: size, h: size, kind: 'pet' });
+        let res;
+        if (c.markup) {
+          const k = Math.min(size * 1.6 / c.w, size * 1.6 / c.h, c.kind === 'surface' ? 1 : 3);
+          res = drawArt({ markup: c.markup, styleId: st.id, w: Math.round(c.w * k), h: Math.round(c.h * k), kind: c.kind || 'art' });
+        } else res = drawArt({ markup: mochiSvg(c.r, c.mood || 'normal'), styleId: st.id, w: size, h: size, kind: 'pet' });
         return { ...c, res, ms: Math.round(performance.now() - t0) };
       }),
     }));
@@ -59,7 +77,7 @@ export default function ArtLab() {
           <div style={{ width: 90, fontFamily: st.fonts.display, color: st.ui.ink, fontSize: 14 }}>{st.name}</div>
           {cells.map((c) => (
             <div key={c.name} style={{ textAlign: 'center' }}>
-              <img src={c.res.url} width={size} height={size} alt="" style={{ imageRendering: c.res.pixelated ? 'pixelated' : 'auto', display: 'block' }} />
+              <img src={c.res.url} width={c.res.cssW} height={c.res.cssH} alt="" style={{ imageRendering: c.res.pixelated ? 'pixelated' : 'auto', display: 'block' }} />
               <div style={{ fontSize: 11, color: st.ui.inkSoft, fontFamily: 'sans-serif' }}>{c.name} · {c.ms}ms</div>
             </div>
           ))}

@@ -4,6 +4,7 @@ import { useStyle } from '../styles/StyleContext';
 import { getStyle } from '../styles/registry';
 import { mochiSvg } from '../art/mochi';
 import { pixelateOverlay } from '../art/render';
+import { pixelSizeFor } from '../art/kit';
 import { overlayFor } from '../petLook';
 
 // ─────────────────────────────────────────────────────────────────
@@ -51,7 +52,7 @@ export default function PetArt({ look, recipe: recipeProp, mood = 'normal', size
   }, [baseKey, mood, view]);
 
   const st = getStyle(styleId);
-  const pixelSize = st.art.kind === 'pixel' ? (pixel || st.art.pixel || 3) : 0;
+  const pixelSize = st.art.kind === 'pixel' ? pixelSizeFor(st, size, size, pixel) : 0;
   const wrap = { position: 'relative', width: size, height: size, flexShrink: 0, ...style };
 
   if (markup) {

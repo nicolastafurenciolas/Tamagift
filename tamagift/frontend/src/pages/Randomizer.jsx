@@ -2,14 +2,18 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import Sprite from '../components/Sprite';
 import { PetRecipeMarkup, randomRecipe } from '../PetRecipe';
-import { BODIES, EARS, EYES, MOUTHS, CHEEK_STYLES } from '../petParts';
-import { TAILS, PATTERNS, HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES, findPart } from '../petAccessories';
+import {
+  SHAPES as BODIES, EARS, EYES, MOUTHS, CHEEKS as CHEEK_STYLES, TAILS, PATTERNS,
+  HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES,
+} from '../art/mochi';
 import { PET_STYLES } from '../petStyles';
 import { FURNITURE, WALL_STYLES, FLOOR_STYLES, FURNITURE_PAINTS, findPaint } from '../roomCatalog';
 import { STYLE_LIST, getStyle } from '../styles/registry';
 import { getMotion } from '../styles/motion';
 import { useStyle } from '../styles/StyleContext';
-import { renderSprite } from '../styles/spriteEngine';
+import { renderArt } from '../art/render';
+
+const findPart = (list, id) => list.find((p) => p.id === id) || list[0];
 import { ROOM } from '../gameState';
 import { play } from '../sound';
 import { C, FONT, SHADOW } from '../theme';
@@ -77,7 +81,7 @@ function prefetch(c) {
     { art: c.right.render(findPaint(c.paintR)), key: `furn-${c.right.id}-${c.paintR}`, w: c.right.w, h: c.right.h, pixel: pixelOf(c.styleId) },
     { art: c.hang.render(findPaint('natural')), key: `furn-${c.hang.id}-natural`, w: c.hang.w, h: c.hang.h, pixel: pixelOf(c.styleId) },
   ];
-  return Promise.all(jobs.map((j) => renderSprite({
+  return Promise.all(jobs.map((j) => renderArt({
     markup: renderToStaticMarkup(j.art), sourceKey: `k:${j.key}`, w: j.w, h: j.h, kind: j.kind || 'art', fit: j.fit, pixel: j.pixel, styleId: c.styleId,
   }).catch(() => null)));
 }

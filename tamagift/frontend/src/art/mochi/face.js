@@ -3,7 +3,7 @@
 // dibujan con el SVG de acá y el kit de pixel la reemplaza por su
 // versión hecha a mano píxel a píxel (art/pixelStamps.js).
 
-import { G, P, Ell, Cir, E } from '../svg';
+import { G, P, Ell, Cir, E } from '../svg.js';
 
 export const INK = '#3A2A3E';
 export const MOODS = ['normal', 'feliz', 'triste', 'enojado', 'dormido', 'sorprendido'];

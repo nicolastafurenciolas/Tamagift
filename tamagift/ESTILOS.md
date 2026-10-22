@@ -5,67 +5,90 @@ asistente (paso "Estilo") y quien recibe lo puede cambiar cuando quiera
 desde el botón de paleta en la barra de arriba del juego. Si nadie eligió
 nada, el estilo es **Pixel art**.
 
-| id | Nombre | Interfaz | Sprites | Movimiento | Sonido |
+| id | Nombre | Interfaz | Cómo dibuja (kit) | Movimiento | Sonido |
 |---|---|---|---|---|---|
-| `pixel` | Pixel art (por defecto) | Pixelify Sans, esquinas mordidas, sombras duras | Rejilla de 3 px, paleta con rampas, contorno de 1 px | Saltos de 2 cuadros, sin girar | Chip (onda cuadrada) |
-| `lofi` | Lo-fi noche acogedora | Noche violeta, luz de lámpara | Gradación nocturna, borde de luz cálida, grano | Respira despacio | Teclado suave con eco y crujido de vinilo |
-| `retro` | Retro setentero | Righteous, bordes marrones, sombras corridas | Paleta de los 70, trama de puntos, contorno grueso | Rebote de caricatura | Funk con filtro "wah" |
-| `papel` | Papel recortado | Patrick Hand, papel kraft, bordes irregulares | Cartulinas planas, corte irregular, sombra de capa | Stop motion a 8 cuadros/s | Marimba y papel |
-| `neon` | Neón nocturno | Orbitron, fondo negro con rejilla, brillos | Silueta oscura con tubos de luz y resplandor | Titila | Sintetizador con eco |
-| `sticker` | Sticker kawaii | Baloo 2, lunares menta, borde blanco | Colores vivos, borde blanco grueso y sombrita | Gelatina | Burbujitas |
+| `pixel` | Pixel art (por defecto) | Pixelify Sans, esquinas mordidas, sombras duras | Cada parte rasterizada en su rejilla, rampas de color con tono desplazado, contorno de 1 px por parte, caras hechas a mano píxel a píxel | Saltos de 2 cuadros, sin girar | Chip (onda cuadrada) |
+| `lofi` | Lo-fi noche acogedora | Noche violeta, luz de lámpara | Degradado por parte, luz cálida en el borde, grano suave | Respira despacio | Teclado suave con eco y crujido de vinilo |
+| `retro` | Retro setentero | Righteous, bordes marrones, sombras corridas | Colores llevados a la paleta de los 70, contorno marrón grueso corrido del color, trama de puntos en la sombra | Rebote de caricatura | Funk con filtro "wah" |
+| `papel` | Papel recortado | Patrick Hand, papel kraft, bordes irregulares | Cada parte es una cartulina cortada a tijera, con sombra de capa y fibra | Stop motion a 8 cuadros/s | Marimba y papel |
+| `neon` | Neón nocturno | Orbitron, fondo negro con rejilla, brillos | Piezas oscuras con tubos de luz del color de cada parte; los ojos se encienden | Titila | Sintetizador con eco |
+| `sticker` | Sticker kawaii | Baloo 2, lunares menta, borde blanco | Colores vivos, contorno suave, sombra de celuloide, brillo y borde blanco grueso | Gelatina | Burbujitas |
+
+## La mascota: mochis
+
+Desde el rediseño las mascotas son **mochis**: un cuerpito blandito en
+cuatro anchos (`alto`, `redondo`, `mochi`, `ancho`) con orejitas que dicen
+qué animal son (19 opciones), 10 ojos, 9 bocas, 6 ánimos (`normal`,
+`feliz`, `triste`, `enojado`, `dormido`, `sorprendido`), mejillas, colas,
+estampados y 46 accesorios de cabeza, cuello y cara.
+
+- **`src/art/mochi/`**: arma la mochi como SVG por partes.
+  - `body.js`: los cuatro anchos y la **geometría** de cada uno (borde de
+    arriba, altura de los ojos, línea del collar, coronilla). Todo lo
+    demás se ancla a esto, así un gorro queda sobre la cabeza y un collar
+    abraza el cuerpo en cualquier ancho.
+  - `ears.js`, `face.js`, `tails.js` (colas y estampados), `accessories.js`.
+  - `index.js`: `mochiSvg(receta, ánimo)`. Si alas, colas o capa
+    sobresalen, achica todo un poco desde el piso para que entre entera.
+- La receta usa los mismos campos de antes (`body`, `ears`, `eyes`,
+  `mouth`, `tail`, `cheeks`, `pattern`, `headAcc`, `neckAcc`, `extraAcc` y
+  los colores). Los cuerpos viejos se convierten al ancho más parecido.
+- Los **retoques a mano** viajan dentro de la receta (`overlays`: un PNG
+  transparente por ánimo). En pixel se bajan a la rejilla.
+- **`src/petLook.js`**: lo que el juego muestra (receta, o los PNG de
+  mascotas viejas). **`components/PetArt.jsx`** la dibuja en el estilo
+  activo.
+- Los trajes guardan su propia receta (la misma mochi con otros
+  accesorios).
 
 ## Cómo funciona
 
-- **`src/styles/registry.js`**: la definición de cada estilo (colores,
-  letras, sombras, cómo se redibuja el arte, movimiento y sonido).
+- **`src/art/kit.js`**: el motor. Lee el SVG, identifica cada parte por
+  su rol y la dibuja con el kit del estilo (no filtra una imagen):
+  - `data-r="body"` volumen principal · `part` pieza con contorno ·
+    `flat` detalle encima · `line` trazo · `shine` brillo · `tone` luz o
+    sombra transparente. Sin `data-r`, el rol se deduce.
+  - `data-px="eye.redondos.feliz"`: en pixel la pieza se reemplaza por
+    una hecha a mano (`src/art/pixelStamps.js`, en varios tamaños).
+  - `data-skip="pixel"`: detalle que un estilo no dibuja (las cuerdas de
+    la guitarra en pixel).
+- **`src/art/render.js`**: caché, cola y exportar a PNG.
+- **`components/Sprite.jsx`**: `art` / `markup` van al motor de kits;
+  `src` (fotos, dibujos subidos) va al motor de imágenes
+  (`styles/spriteEngine.js`), que sigue siendo un filtro porque ahí no hay
+  partes que redibujar.
+- **`src/styles/registry.js`**: colores, letras, sombras, `art.kind`
+  (qué kit), movimiento y sonido de cada estilo.
 - **`src/theme.js`**: `C`, `SHADOW` y `FONT` son variables CSS
-  (`C.rose` → `var(--pg-c-rose)`). `applyStyle()` las llena. Por eso
-  cualquier `style={{ color: C.rose }}` cambia solo con el estilo.
-  - `tint(c, x)` aclara/oscurece (para brillos y sombras).
-  - `soft(c, x)` es para FONDOS: mezcla con la superficie y no con blanco,
-    así en estilos oscuros no aparecen parches claros.
-  - Los colores ya no son hex: si algo necesita el valor real (canvas),
-    usar `resolveColor()`.
+  (`C.rose` → `var(--pg-c-rose)`). `applyStyle()` las llena.
+  - `tint(c, x)` aclara/oscurece; `soft(c, x)` es para FONDOS (mezcla con
+    la superficie, sin parches claros en estilos oscuros).
 - **`src/index.css`**: lo propio de cada estilo colgado de
-  `[data-style="…"]` (esquinas en pixel, brillo en neón, etc.). En pixel
-  todo es cuadrado; lo que deba ser redondo lleva la clase
-  `pg-keep-round` (se recorta como octágono de píxeles).
+  `[data-style="…"]`. En pixel todo es cuadrado; lo redondo lleva
+  `pg-keep-round`.
 - **`src/styles/StyleContext.jsx`**: el estilo activo (`useStyle()`).
-  `?estilo=neon` en cualquier URL fuerza un estilo (para probar).
-- **`src/styles/spriteEngine.js` + `components/Sprite.jsx`**: el motor
-  que redibuja TODO el arte (SVG de la app o imágenes subidas) en el
-  estilo activo. Resultado en caché por (fuente, tamaño, estilo).
-
-  ```jsx
-  <Sprite art={<svg…/>} cacheKey="algo-estable" w={64} h={64} />
-  <Sprite src={pet.drawing_normal} w={190} h={190} kind="pet" />
-  <Sprite src={foto} w={48} h={48} kind="photo" />
-  ```
-  `kind`: `art` (contorno), `pet`, `photo` (sin contorno; en pixel se
-  tramea), `surface` (paredes y pisos), `icon`.
-  `w`/`h` son el tamaño EN PANTALLA: en pixel deciden cuántos píxeles de
-  arte tiene el sprite. Si el sprite vive dentro de algo escalado (el
-  cuarto), pasar `pixel` ya corregido (ver `Room.jsx`).
-- **`src/styles/motion.js`**: cómo respira, camina y lanza partículas la
-  mascota en cada estilo.
-- **`src/sound.js`**: el mismo repertorio de sonidos con seis "paquetes"
-  de timbre; `setSoundPack()` lo cambia junto con el estilo.
-- **`src/sprites.jsx`**: comidas, burbujas, esponja, bandera, trofeo…
-  dibujos propios que reemplazan a los emojis (un emoji se ve igual en
-  todos los estilos y rompe la estética).
+  `?estilo=neon` en cualquier URL fuerza un estilo.
+- **`src/styles/motion.js`** y **`src/sound.js`**: movimiento y sonido.
+- **`src/sprites.jsx`**, **`roomCatalog.jsx`**, **`gameArt.jsx`**: comida,
+  muebles, paredes, pisos y arte de minijuegos, en SVG que los kits
+  redibujan.
 
 ## Agregar un estilo nuevo
 
 1. Agregar la entrada en `STYLES` de `registry.js` (todas las claves de
    `COLOR_KEYS`, letras, sombras, `art.kind`, `motion`, `sound`).
-2. Escribir su procesador en `spriteEngine.js` (o reusar uno existente
-   en `art.kind`).
+2. Escribir su kit en `art/kit.js` (o reusar uno en `art.kind`).
 3. Sus detalles de interfaz en `index.css` bajo `[data-style="nuevo"]`.
 4. Agregar el id al `StyleId` de `backend/schemas.py`.
-5. Revisarlo en `/estilos` (laboratorio de arte) y en `/dev/main?estilo=nuevo`.
+5. Revisarlo en `/arte?solo=nuevo` y en `/dev/main?estilo=nuevo`.
 
 ## Páginas de revisión (solo en `npm run dev`)
 
+- `/arte?set=<conjunto>&size=150&solo=pixel,neon` — laboratorio de los
+  kits: la misma pieza dibujada por cada estilo. Conjuntos: `familia`,
+  `animos`, `formas`, `orejas`, `ojos`, `bocas`, `mejillas`, `colas`,
+  `estampados`, `cabeza`, `cuello`, `cara`, `presets`, `muebles`
+  (`&pintura=negro`), `paredes`, `pisos`, `comida`, `ui`.
 - `/estilos` — el mismo arte en los seis estilos (`?solo=pixel` para uno).
 - `/hoja?estilo=<id>` — hoja completa de un estilo: cuartos, ánimos,
   estilos de partida, cada pieza de personalización, muebles, colores,

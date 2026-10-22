@@ -2,8 +2,8 @@
 // con la base en (0,0), y se coloca sobre el borde del cuerpo en el
 // ángulo de ese punto. Así sirve igual en los cuatro anchos.
 
-import { G, P, Ell, Cir, E, mirrorX } from '../svg';
-import { parseColor, hex, ramp, mixRgb } from '../color';
+import { G, P, Ell, Cir, E, mirrorX } from '../svg.js';
+import { parseColor, hex, ramp, mixRgb } from '../color.js';
 
 export const EARS = [
   { id: 'ninguna', label: 'Sin orejas' },

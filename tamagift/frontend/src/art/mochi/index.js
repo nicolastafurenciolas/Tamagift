@@ -1,12 +1,12 @@
 // Arma una mochi completa (SVG con partes) a partir de su receta.
 
-import { G, P, Ell, E, svgDoc, mirrorX } from '../svg';
-import { parseColor, hex, mixRgb, lum, rgbToHsl } from '../color';
-import { geometry, SHAPES } from './body';
-import { renderEyes, renderMouth, renderCheeks, EYES, MOUTHS, CHEEKS, INK, MOODS } from './face';
-import { renderEars, colorsForEars, EARS } from './ears';
-import { renderTail, renderPattern, TAILS, PATTERNS } from './tails';
-import { renderAccessories, HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES } from './accessories';
+import { G, P, Ell, E, svgDoc, mirrorX } from '../svg.js';
+import { parseColor, hex, mixRgb, lum, rgbToHsl } from '../color.js';
+import { geometry, SHAPES } from './body.js';
+import { renderEyes, renderMouth, renderCheeks, EYES, MOUTHS, CHEEKS, INK, MOODS } from './face.js';
+import { renderEars, colorsForEars, EARS } from './ears.js';
+import { renderTail, renderPattern, TAILS, PATTERNS } from './tails.js';
+import { renderAccessories, HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES } from './accessories.js';
 
 export { SHAPES, EYES, MOUTHS, CHEEKS, EARS, TAILS, PATTERNS, MOODS, HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES };
 
@@ -66,7 +66,17 @@ export function mochiSvg(recipe = DEFAULT_MOCHI, mood = 'normal') {
   parts.push(renderEyes(r.eyes, g, mood, c, shift));
   parts.push(renderMouth(r.mouth, g, mood, c, { y: ears.faceShift ? -4 : 0 }));
   parts.push(acc.front);
-  return svgDoc(200, 200, parts.join(''));
+  // Que entre entera: alas, colas largas y capas sobresalen del cuerpo;
+  // en los anchos más grandes se achica todo un poco desde el piso.
+  const wings = ['alas', 'dragon'].includes(r.ears) ? 32 : ['murcielago', 'koala', 'raton'].includes(r.ears) ? 8 : 3;
+  const TAIL_OUT = { gato: 26, esponjosa: 40, corta: 16, rizada: 22, lazo: 30, demonio: 30, puas: 42 };
+  const right = Math.max(g.r + (TAIL_OUT[r.tail] || 3), r.neckAcc === 'capa' ? g.r + 44 : 0, g.r + wings);
+  const left = g.l - wings;
+  const half = Math.max(100 - left, right - 100);
+  const k = Math.min(1, 95 / half);
+  const body = parts.join('');
+  const inner = k < 0.999 ? G({ transform: `translate(100 186) scale(${k.toFixed(3)}) translate(-100 -186)` }, body) : body;
+  return svgDoc(200, 200, inner);
 }
 
 export { geometry };

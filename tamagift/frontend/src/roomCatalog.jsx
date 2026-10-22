@@ -391,31 +391,49 @@ export const FURNITURE = [
     ),
   },
   {
+    // Proporciones de guitarra de verdad: el cuerpo es la mitad del largo,
+    // la parte de abajo es más ancha que la de arriba, la boca queda justo
+    // encima de la cintura y el puente en la parte ancha. Antes la boca
+    // estaba abajo, el mástil era corto y no se leía como guitarra.
     id: 'guitarra', name: 'Guitarra', price: 140, w: 86, h: 205, place: 'piso',
     tags: ['rockero', 'metalero', 'hippie', 'punk'],
     render: (c) => (
       <svg viewBox="0 0 86 205" width="100%" height="100%">
-        <Floorshadow cx={44} cy={200} rx={28} />
-        <g transform="rotate(8 43 120)">
-          {/* caja con canto en sombra y tapa iluminada */}
-          <path d="M43 198 C21 198 10 181 12 164 C14 151 25 145 27 134 C29 123 20 115 22 104 C24 91 33 84 43 84 C53 84 62 91 64 104 C66 115 57 123 59 134 C61 145 72 151 74 164 C76 181 65 198 43 198 Z" fill={dim(c.wood, 0.3)} {...S} />
-          <path d="M43 193 C25 193 16 179 18 165 C20 154 30 148 32 137 C34 126 25 118 27 107 C29 96 36 90 43 90 C50 90 57 96 59 107 C61 118 52 126 54 137 C56 148 66 154 68 165 C70 179 61 193 43 193 Z" fill={c.wood} />
-          <path d="M30 110 C26 124 34 132 32 145 C30 157 22 163 20 173 C16 160 20 148 26 138 C22 128 24 117 30 110 Z" fill={lit(c.wood, 0.28)} />
-          {/* boca con profundidad */}
-          <circle cx="43" cy="158" r="13" fill="#1F1A24" {...Sm} />
-          <circle cx="43" cy="158" r="16" fill="none" stroke={c.cloth} strokeWidth="2.6" />
-          <path d="M32 152 a13 13 0 0 1 8 -6" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="2" />
-          {/* mástil y clavijero */}
-          <path d="M36 90 h14 v-70 h-14 Z" fill={dim(c.wood, 0.18)} {...Sm} />
-          <path d="M36 90 h4 v-70 h-4 Z" fill={lit(c.wood, 0.2)} />
-          <path d="M34 20 h18 a4 4 0 0 1 4 4 v16 h-26 v-16 a4 4 0 0 1 4 -4 Z" fill="#2A2530" {...Sm} />
-          <g stroke="rgba(255,255,255,0.5)" strokeWidth="1.2">
-            <path d="M38 24 v152 M43 24 v152 M48 24 v152" />
+        <Floorshadow cx={46} cy={200} rx={30} />
+        <g transform="rotate(9 43 200)">
+          {/* aros (el costado de la caja, un poco más oscuro, asoma abajo) */}
+          <path d="M43 106 C55 106 67 111 67 124 C67 133 61 138 61 143 C61 149 74 156 74 174 C74 191 61 201 43 201 C25 201 12 191 12 174 C12 156 25 149 25 143 C25 138 19 133 19 124 C19 111 31 106 43 106 Z" fill={dim(c.wood, 0.45)} {...S} />
+          {/* tapa */}
+          <path data-r="part" d="M43 103 C55 103 67 108 67 121 C67 130 61 135 61 140 C61 146 74 153 74 171 C74 188 61 197 43 197 C25 197 12 188 12 171 C12 153 25 146 25 140 C25 135 19 130 19 121 C19 108 31 103 43 103 Z" fill={lit(c.wood, 0.18)} {...S} />
+          {/* brillo de la tapa */}
+          <path d="M24 116 C26 109 33 106 38 106 C32 110 28 116 27 124 Z M17 168 C18 158 24 152 28 150 C24 157 21 166 22 176 Z" fill={LT} />
+          {/* golpeador y roseta */}
+          <path d="M50 131 C58 133 61 141 58 150 C55 156 49 156 47 151 C51 147 52 139 50 131 Z" fill={dim(c.wood, 0.55)} {...Sx} />
+          <circle cx="43" cy="131" r="12" fill="none" stroke={c.cloth} strokeWidth="2.6" />
+          <circle cx="43" cy="131" r="9" fill="#2A2026" {...Sm} />
+          {/* puente */}
+          <path d="M30 168 h26 a3 3 0 0 1 3 3 v1 a3 3 0 0 1 -3 3 h-26 a3 3 0 0 1 -3 -3 v-1 a3 3 0 0 1 3 -3 Z" fill="#3A2A2E" {...Sx} />
+          <path d="M33 170.5 h20" stroke="#EDE6DA" strokeWidth="1.4" />
+          {/* mástil: madera + diapasón oscuro con trastes */}
+          <path d="M38.2 107 L39.2 24 h7.6 l1 83 Z" fill={dim(c.wood, 0.2)} {...Sm} />
+          <path d="M39.6 105 L40.3 25 h5.4 l0.7 80 Z" fill="#3A2A2E" />
+          {[34, 44, 53.5, 62.5, 71, 79, 86.5, 93.5, 100].map((y) => (
+            <path key={y} d={`M${39.7 + (y - 25) * 0.009} ${y} H${46.3 - (y - 25) * 0.009}`} stroke="#CFC6BC" strokeWidth="1.1" />
+          ))}
+          {[53.5, 71, 86.5].map((y) => <circle key={y} cx="43" cy={y - 4.5} r="0.9" fill="#EDE6DA" data-skip="pixel" />)}
+          {/* clavijero */}
+          <path d="M38 25 L36.5 7 Q36.5 3 40 3 H46 Q49.5 3 49.5 7 L48 25 Z" fill="#3A2A2E" {...Sm} />
+          <path d="M39.4 24 h7.2" stroke="#EDE6DA" strokeWidth="1.6" />
+          {[8, 13.5, 19].map((y) => (
+            <g key={y}>
+              <path d={`M36.8 ${y} h-4.5`} stroke="#B9BCC0" strokeWidth="2.6" strokeLinecap="round" />
+              <path d={`M49.2 ${y} h4.5`} stroke="#B9BCC0" strokeWidth="2.6" strokeLinecap="round" />
+            </g>
+          ))}
+          {/* cuerdas: del clavijero al puente */}
+          <g stroke="rgba(255,255,255,0.75)" strokeWidth="0.7" data-skip="pixel">
+            {[-2.5, -1.5, -0.5, 0.5, 1.5, 2.5].map((d) => <path key={d} d={`M${43 + d} 24 L${43 + d * 1.35} 171`} />)}
           </g>
-          <g stroke="#B9BCC0" strokeWidth="3" strokeLinecap="round">
-            <path d="M30 26 h-5 M30 34 h-5 M56 26 h5 M56 34 h5" />
-          </g>
-          <path d="M32 176 h22 v6 h-22 Z" fill="#4A3439" {...Sx} />
         </g>
       </svg>
     ),

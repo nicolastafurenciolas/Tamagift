@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { C, FONT, SHADOW, DRAW_COLORS, soft } from '../theme';
 import { IconPencil } from './icons';
-import { BODY_COLORS, ACCENT_COLORS, BELLY_COLORS, EYE_COLORS } from '../petParts';
+import { BODY_COLORS, ACCENT_COLORS, BELLY_COLORS, EYE_COLORS } from '../art/mochi/colors';
 import {
   SHAPES as BODIES, EARS, EYES, MOUTHS, CHEEKS as CHEEK_STYLES, TAILS, PATTERNS,
   HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES, geometry,

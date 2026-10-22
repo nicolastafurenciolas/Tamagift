@@ -3,8 +3,8 @@
 // del collar, posición de los ojos), así un gorro queda sobre la cabeza
 // y un collar abraza el cuerpo en los cuatro anchos.
 
-import { G, P, Ell, Cir, E, R, mirrorX } from '../svg';
-import { parseColor, hex, ramp, mixRgb, lum } from '../color';
+import { G, P, Ell, Cir, E, R, mirrorX } from '../svg.js';
+import { parseColor, hex, ramp, mixRgb, lum } from '../color.js';
 
 const OUT = '#3A2A3E';
 const GOLD = '#FFD166', GOLD_D = '#B0782A', SILVER = '#DCE1EA', SILVER_D = '#7C8496';

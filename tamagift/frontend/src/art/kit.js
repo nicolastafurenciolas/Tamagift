@@ -26,9 +26,9 @@
 //   neon    piezas oscuras con tubos de luz del color de cada parte.
 // ─────────────────────────────────────────────────────────────────
 
-import { getStyle, COLOR_KEYS } from '../styles/registry';
-import { parseColor, hex, rgba, mixRgb, ramp, lum, rgbToHsl, hslToRgb, nearestOf, rng, inkOf } from './color';
-import { stampFor } from './pixelStamps';
+import { getStyle, COLOR_KEYS } from '../styles/registry.js';
+import { parseColor, hex, rgba, mixRgb, ramp, lum, rgbToHsl, hslToRgb, nearestOf, rng, inkOf } from './color.js';
+import { stampFor } from './pixelStamps.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 const SKIP = new Set(['defs', 'clipPath', 'mask', 'pattern', 'linearGradient', 'radialGradient', 'filter', 'symbol', 'title', 'desc', 'style', 'metadata', 'marker']);
@@ -119,26 +119,37 @@ function collect(svg) {
       const op = ctx.op * parseFloat(cs.opacity || 1);
       const clips = ch.getAttribute('clip-path') ? [...ctx.clips, { ref: ch.getAttribute('clip-path'), el: ch }] : ctx.clips;
       const role = ch.getAttribute('data-r') || ctx.role;
+      const skip = ch.getAttribute('data-skip') ? [...ctx.skip, ...ch.getAttribute('data-skip').split(' ')] : ctx.skip;
       const px = ch.getAttribute('data-px') || null;
       if (tag === 'g' || tag === 'svg' || tag === 'a') {
-        if (px) { items.push(makeItem(svg, ch, { op, clips, role: 'stamp', px })); continue; }
-        walk(ch, { op, clips, role });
+        if (px) { items.push(makeItem(svg, ch, { op, clips, role: 'stamp', px, skip })); continue; }
+        walk(ch, { op, clips, role, skip });
       } else if (GEOM.has(tag)) {
-        items.push(makeItem(svg, ch, { op, clips, role, px }));
+        items.push(makeItem(svg, ch, { op, clips, role, px, skip }));
       } else {
         items.push({ el: ch, tag, role: 'raw', clips, op });
       }
     }
   };
-  walk(svg, { op: 1, clips: [], role: null });
+  walk(svg, { op: 1, clips: [], role: null, skip: [] });
   items.forEach((it, i) => { it.i = i; });
   return items;
 }
 
-function makeItem(svg, el, { op, clips, role, px }) {
+// ¿Alguien le puso relleno a esta pieza (ella o un grupo de arriba)? Las
+// líneas viejas no decían fill y el navegador las rellena de negro.
+function explicitFill(el) {
+  for (let n = el; n && n.tagName !== 'svg'; n = n.parentElement) {
+    if (n.hasAttribute('fill') || (n.style && n.style.fill)) return true;
+  }
+  return false;
+}
+
+function makeItem(svg, el, { op, clips, role, px, skip = [] }) {
   const cs = getComputedStyle(el);
   let fill = readPaint(svg, cs.fill);
   let stroke = readPaint(svg, cs.stroke);
+  if (stroke && !explicitFill(el)) fill = null;
   if (fill) fill = [fill[0], fill[1], fill[2], fill[3] * parseFloat(cs.fillOpacity || 1) * op];
   if (stroke) stroke = [stroke[0], stroke[1], stroke[2], stroke[3] * parseFloat(cs.strokeOpacity || 1) * op];
   const sw = stroke ? parseFloat(cs.strokeWidth) || 1 : 0;
@@ -155,7 +166,7 @@ function makeItem(svg, el, { op, clips, role, px }) {
     }
   }
   if (r === 'line' && !stroke && fill) { stroke = fill; }
-  return { el, tag, role: r, fill, stroke, sw, op, clips, px, fillRule: cs.fillRule, cap: cs.strokeLinecap, join: cs.strokeLinejoin };
+  return { el, tag, role: r, fill, stroke, sw, op, clips, px, skip, fillRule: cs.fillRule, cap: cs.strokeLinecap, join: cs.strokeLinejoin };
 }
 
 // ── Utilidades DOM para los kits vectoriales ─────────────────────
@@ -196,6 +207,13 @@ function wrapAll(svg, attrs) {
   return g;
 }
 const paintAttr = (c) => (c ? hex(c) : 'none');
+// Cambia el color de un trazo sin perder su transparencia (las juntas de
+// un piso son líneas tenues: al recolorearlas no deben volverse sólidas).
+function setStroke(el, color, it) {
+  el.setAttribute('stroke', color);
+  const a = it.stroke ? it.stroke[3] / (it.op || 1) : 1;
+  if (a < 0.98) el.setAttribute('stroke-opacity', +a.toFixed(3));
+}
 const isShapeRole = (r) => r === 'body' || r === 'part';
 
 // ── STICKER ──────────────────────────────────────────────────────
@@ -230,7 +248,7 @@ function kitSticker(svg, items, o) {
       el.setAttribute('stroke', 'none');
     } else if (it.role === 'line' && it.stroke) {
       const c = lum(it.stroke) < 0.35 ? '#4A2C48' : hex(vivid(it.stroke));
-      el.setAttribute('stroke', c);
+      setStroke(el, c, it);
     }
   }
   if (o.kind === 'art' || o.kind === 'pet') {
@@ -291,13 +309,14 @@ function kitLofi(svg, items, o) {
       }
     }
     if (it.role === 'line' && it.stroke) {
-      el.setAttribute('stroke', lum(it.stroke) < 0.3 ? '#2E2140' : hex(lofiGrade(it.stroke)));
+      setStroke(el, lum(it.stroke) < 0.3 ? '#2E2140' : hex(lofiGrade(it.stroke)), it);
     }
   }
   const id = uid('lf');
   const f = mk('filter', { id, x: '-10%', y: '-10%', width: '120%', height: '120%' });
+  const ga = o.kind === 'surface' ? 0.3 : 0.42;
   f.innerHTML = `<feTurbulence type="fractalNoise" baseFrequency="${(0.95 / Math.max(0.5, o.u)).toFixed(2)}" numOctaves="2" seed="3" result="n"/>
-    <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 0.9  0 0 0 0 0.8  0 0 0 0.9 -0.35" result="g"/>
+    <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 0.9  0 0 0 0 0.8  0 0 0 ${ga} ${(-ga * 0.42).toFixed(3)}" result="g"/>
     <feComposite in="g" in2="SourceAlpha" operator="in" result="grain"/>
     <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="grain"/></feMerge>`;
   defs.appendChild(f);
@@ -366,7 +385,7 @@ function kitRetro(svg, items, o) {
       el.setAttribute('fill', '#FFF6E2');
     }
     if (it.role === 'line' && it.stroke) {
-      el.setAttribute('stroke', lum(it.stroke) < 0.45 ? RETRO_LINE : hex(retroMap(it.stroke)));
+      setStroke(el, lum(it.stroke) < 0.45 ? RETRO_LINE : hex(retroMap(it.stroke)), it);
       el.setAttribute('stroke-width', it.sw * 1.2);
       el.setAttribute('stroke-linecap', 'round');
     }
@@ -416,7 +435,7 @@ function kitPapel(svg, items, o) {
     seed += 7;
     if (it.role === 'stamp' || it.role === 'raw') continue;
     if (it.role === 'line' && it.stroke) {
-      el.setAttribute('stroke', lum(it.stroke) < 0.4 ? '#3A2722' : hex(paperTone(it.stroke)));
+      setStroke(el, lum(it.stroke) < 0.2 ? '#3A2722' : hex(paperTone(it.stroke)), it);
       el.setAttribute('stroke-linecap', 'round');
       continue;
     }
@@ -474,7 +493,12 @@ function kitNeon(svg, items, o) {
     if (it.role === 'stamp' || it.role === 'raw') continue;
     if (it.role === 'line' && it.stroke) {
       const c = hex(neonize(it.stroke));
-      el.setAttribute('stroke', c);
+      setStroke(el, c, it);
+      if (o.kind === 'surface') {
+        // en paredes y pisos las líneas son tenues: el brillo es de los muebles
+        el.setAttribute('stroke-opacity', Math.min(0.55, it.stroke[3]));
+        continue;
+      }
       el.setAttribute('stroke-width', Math.max(it.sw, 1.6 * o.u));
       el.before(glowCopy(el, c, Math.max(it.sw, 1.6 * o.u) * 1.8));
       continue;
@@ -493,7 +517,8 @@ function kitNeon(svg, items, o) {
     const n = neonize(it.fill);
     // Lo oscuro y chico (ojos, narices) se enciende: en la noche la
     // mirada brilla.
-    const darkSmall = it.role === 'flat' && lum(it.fill) < 0.22;
+    let darkSmall = it.role === 'flat' && lum(it.fill) < 0.22 && o.kind !== 'surface';
+    if (darkSmall) { const b = bbox(el); darkSmall = b.width * b.height < o.vb.width * o.vb.height * 0.012; }
     el.setAttribute('fill', darkSmall ? '#FFF2FC' : hex(mixRgb(it.fill, NIGHT, it.role === 'flat' ? 0.7 : 0.8)));
     const w = (isShapeRole(it.role) ? 2.1 : 1.3) * o.u;
     const col = darkSmall ? '#FF8AD8' : hex(n);
@@ -595,6 +620,7 @@ function kitPixel(svg, items, o) {
 
   for (const it of items) {
     if (it.role === 'raw' || it.role === 'none') continue;
+    if (it.skip && it.skip.includes('pixel')) continue;
     if (it.role === 'stamp') {
       const b = it.el.getBoundingClientRect();
       const sr = svg.getBoundingClientRect();
@@ -607,6 +633,15 @@ function kitPixel(svg, items, o) {
       const c = it.stroke;
       const mm = it.el.getCTM();
       const thick = it.sw * (Math.hypot(mm.a, mm.b) || 1) >= 1.9;
+      if (c[3] < 0.95) {
+        // trazo tenue: tiñe lo que hay debajo (como una junta o una veta)
+        const a = Math.min(0.8, Math.max(0.25, c[3] * 1.4));
+        for (let p = 0; p < N; p++) {
+          if (d[p * 4 + 3] < 110 || al[p] < 0.99) continue;
+          col[p * 3] += (c[0] - col[p * 3]) * a; col[p * 3 + 1] += (c[1] - col[p * 3 + 1]) * a; col[p * 3 + 2] += (c[2] - col[p * 3 + 2]) * a;
+        }
+        continue;
+      }
       for (let p = 0; p < N; p++) {
         if (d[p * 4 + 3] < 70) continue;
         if (!isLine[p]) { under[p * 3] = col[p * 3]; under[p * 3 + 1] = col[p * 3 + 1]; under[p * 3 + 2] = col[p * 3 + 2]; underIdx[p] = al[p] >= 0.99 ? idx[p] : -1; }
@@ -785,6 +820,15 @@ function drawStamp(img, W, H, s, o) {
 // ── API ──────────────────────────────────────────────────────────
 const KITS = { sticker: kitSticker, lofi: kitLofi, retro: kitRetro, papel: kitPapel, neon: kitNeon };
 
+// Tamaño del píxel de arte. En el mundo (cuarto, mascota grande) es el
+// del estilo; en miniaturas se achica para que entren los detalles: una
+// mochi de 60 px con píxeles de 3 tiene 20 puntos y no se le ve la cara.
+export function pixelSizeFor(style, w, h, pixel) {
+  if (pixel) return pixel;
+  const base = style.art.pixel || 3;
+  return Math.min(base, Math.max(1.5, Math.min(w, h) / 40));
+}
+
 /**
  * Dibuja `markup` en el estilo `styleId`. Sincrónico.
  * Devuelve { url, cssW, cssH, pixelated }.
@@ -792,7 +836,7 @@ const KITS = { sticker: kitSticker, lofi: kitLofi, retro: kitRetro, papel: kitPa
 export function drawArt({ markup, styleId, w, h, kind = 'art', pixel, fit }) {
   const style = getStyle(styleId);
   const kitName = style.art.kind;
-  const px = kitName === 'pixel' ? (pixel || style.art.pixel || 3) : 1;
+  const px = kitName === 'pixel' ? pixelSizeFor(style, w, h, pixel) : 1;
   const gw = Math.max(4, Math.round(w / px)), gh = Math.max(4, Math.round(h / px));
   const svg = mount(resolveVars(markup, styleId), kitName === 'pixel' ? gw : w, kitName === 'pixel' ? gh : h, fit);
   try {
