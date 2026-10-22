@@ -12,6 +12,7 @@ const SpriteSheet = import.meta.env.DEV ? lazy(() => import('./pages/SpriteSheet
 const Randomizer = import.meta.env.DEV ? lazy(() => import('./pages/Randomizer')) : null;
 const ArtLab = import.meta.env.DEV ? lazy(() => import('./pages/ArtLab')) : null;
 const IconLab = import.meta.env.DEV ? lazy(() => import('./pages/IconLab')) : null;
+const MailboxPage = lazy(() => import('./pages/MailboxPage'));
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
             <Route path="/" element={<Navigate to="/crear" replace />} />
             <Route path="/crear" element={<CreatePage />} />
             <Route path="/p/:slug" element={<GiftPage />} />
+            <Route path="/buzon/:slug" element={<MailboxPage />} />
             {ArtLab && <Route path="/estilos" element={<ArtLab />} />}
             {DevGame && <Route path="/dev/:pantalla" element={<DevGame />} />}
             {SpriteSheet && <Route path="/hoja" element={<SpriteSheet />} />}

@@ -10,6 +10,7 @@ import { findDecor } from '../../shopCatalog';
 import { FramedPoster } from './posters';
 import { applyLook } from '../../wardrobeState';
 import { UI_SPRITES, foodSpriteFor } from '../../sprites';
+import { envelopeSvg } from '../../art/room/world';
 
 // ─────────────────────────────────────────────────────────────────
 // Abrir el pedido: la caja se abre con brillitos y sale cada cosa, con lo
@@ -25,6 +26,7 @@ function ItemArt({ d, posters, baseRecipe, game }) {
   if (d.kind === 'piso') return <Sprite markup={floorSwatchSvg(d.value, 120)} cacheKey={`swatch-piso-${d.value}`} w={64} h={64} kind="surface" fit="cover" />;
   if (d.kind === 'monedas') return <Sprite art={UI_SPRITES.moneda()} cacheKey="ui-moneda" w={52} h={52} />;
   if (d.kind === 'comida') { const sp = foodSpriteFor(d.refId); return <Sprite art={sp.render()} cacheKey={`food-${sp.id}`} w={56} h={56} />; }
+  if (d.kind === 'carta') return <Sprite markup={envelopeSvg()} cacheKey="envelope" w={62} h={52} />;
   if (d.kind === 'ropa' && baseRecipe) {
     const [slot] = d.refId.split(':');
     const r = applyLook(baseRecipe, { ...game, wear: { ...(game.wear || {}), [slot]: d.wear } });
@@ -33,7 +35,7 @@ function ItemArt({ d, posters, baseRecipe, game }) {
   return null;
 }
 
-const ACTION = { mueble: 'Ponerlo en el cuarto', decor: 'Ponerlo en el cuarto', poster: 'Colgarlo', ropa: 'Ponérmelo', pared: '¡A pintar!', piso: '¡A enchapar!', monedas: 'Guardarlas', comida: 'A la nevera' };
+const ACTION = { carta: 'Leerla', mueble: 'Ponerlo en el cuarto', decor: 'Ponerlo en el cuarto', poster: 'Colgarlo', ropa: 'Ponérmelo', pared: '¡A pintar!', piso: '¡A enchapar!', monedas: 'Guardarlas', comida: 'A la nevera' };
 
 export default function DeliveryModal({ items, posters, baseRecipe, game, onUse, onKeepAll }) {
   const [opened, setOpened] = useState(false);

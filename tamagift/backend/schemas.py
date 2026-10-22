@@ -215,6 +215,31 @@ class PetOut(BaseModel):
         from_attributes = True
 
 
+class PetCreated(PetOut):
+    # Solo en la respuesta de crear: la llave del buzón (ver Letter).
+    owner_token: Optional[str] = None
+
+
+# Quien escribe se identifica con la llave del buzón o con la llave de
+# acceso con que compró el regalo.
+class MailboxAuth(BaseModel):
+    token: Optional[str] = Field(default=None, max_length=60)
+    access_key: Optional[str] = Field(default=None, max_length=80)
+
+
+class LetterIn(MailboxAuth):
+    text: str = Field(min_length=1, max_length=600)
+    photo: Optional[str] = Field(default=None, max_length=IMG_MAX)
+
+
+class LetterOut(BaseModel):
+    id: int
+    text: str
+    has_photo: bool = False
+    photo: Optional[str] = None
+    created_at: Optional[str] = None
+
+
 class RedesignIn(BaseModel):
     recipe: dict
     drawing_normal: str = Field(max_length=IMG_MAX)

@@ -606,6 +606,32 @@ vestidor y en la decoración.
   algunas orejas la boca no se corre junto con los ojos), así los
   colmillos quedan justo debajo con cualquier oreja.
 
+## Premio de cada día, recordatorio y buzón de cartas
+
+- **Premio del día** (`daily.js`, `components/game/DailyGift.jsx`): un
+  calendario de 7 premios (monedas, comida y, el séptimo, una deco
+  sorpresa que llega a la puerta). Avanza un casillero por cada día que
+  se entra, aunque no sean seguidos: faltar no borra lo avanzado. La
+  racha de días seguidos se cuenta aparte, con su llamita. Se abre una
+  vez por visita después de la guía, y desde Minijuegos.
+- **Recordatorio** (`reminder.js`): "Agregar a mi calendario" baja un
+  evento diario (.ics) con el link del regalo a la hora elegida. Sirve en
+  iPhone y Android sin notificaciones push ni permisos.
+- **Buzón**: quien regaló le escribe cartas (texto y foto) cuando quiera.
+  - Al crear el regalo recibe, aparte del link del regalo, el link
+    privado de su buzón (`/buzon/<slug>?t=<llave>`); también puede entrar
+    con la llave de acceso con que compró el regalo (sirve para los
+    regalos de antes).
+  - Backend: columna `pets.owner_token` (se agrega sola), tabla
+    `letters`, `POST …/letters` (con llave; como mucho 10 por día),
+    `GET …/letters?after=` (sin fotos) y `GET …/letters/{id}` (con foto),
+    `POST …/mailbox/check`. Pruebas: `backend/test_mailbox.py`.
+  - A quien recibe le llega como paquete: suena el timbre, en la caja
+    está "Carta de Nico" y al leerla se ve con su foto. Las cartas viejas
+    se releen desde el sobre de la barra de arriba. Se revisa al abrir,
+    cada 3 minutos y al volver a la pestaña. Las fotos no se guardan en
+    la partida (se piden al servidor al abrir la carta).
+
 ## Resumen de archivos tocados en toda la sesión
 
 **Backend:**

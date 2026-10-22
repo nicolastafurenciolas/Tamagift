@@ -157,15 +157,17 @@ export default function WorldEvents({ event, onResolve, onLetter, onHip, onTrick
 
 export function LetterModal({ letter, from, petName, onClose }) {
   return (
-    <Modal onClose={onClose} maxWidth={340} z={80}>
+    <Modal onClose={onClose} maxWidth={340} z={85}>
       <div className="pg-anim-pop" style={{ background: '#FFFBF3', border: '2px solid #E8D9C4', borderRadius: 14, padding: '18px 16px', textAlign: 'left', boxShadow: SHADOW.soft, position: 'relative' }}>
         <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)' }}>
           <Sprite markup={envelopeSvg()} cacheKey="envelope" w={46} h={38} />
         </div>
         <p style={{ fontFamily: FONT.hand || FONT.display, fontSize: 15, color: '#8C7A70', margin: '6px 0 10px' }}>Para {petName} y para ti:</p>
+        {letter.loading && <p style={{ fontFamily: FONT.hand || FONT.display, fontSize: 18, color: '#8C7A70', margin: 0 }}>Abriendo el sobre…</p>}
         {letter.photo
           ? <div style={{ borderRadius: 10, overflow: 'hidden', border: '6px solid #FFFFFF', boxShadow: SHADOW.soft, transform: 'rotate(-2deg)' }}><Sprite src={letter.photo} w={280} h={210} kind="photo" fit="cover" /></div>
-          : <p style={{ fontFamily: FONT.hand || FONT.display, fontSize: 21, color: C.ink, lineHeight: 1.35, margin: 0 }}>{letter.text}</p>}
+          : null}
+        {letter.text && <p style={{ fontFamily: FONT.hand || FONT.display, fontSize: 21, color: C.ink, lineHeight: 1.35, margin: letter.photo ? '12px 0 0' : 0, whiteSpace: 'pre-wrap' }}>{letter.text}</p>}
         <p style={{ fontFamily: FONT.hand || FONT.display, fontSize: 15, color: '#8C7A70', margin: '12px 0 0', textAlign: 'right' }}>— {from || 'Con cariño'}</p>
       </div>
       <button onClick={onClose} className="pg-btn pg-btn-rose pg-focus" style={{ marginTop: 14, padding: '10px 26px', fontSize: 13.5 }}>Guardarla en el corazón</button>

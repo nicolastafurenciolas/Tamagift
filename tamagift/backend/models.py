@@ -53,6 +53,10 @@ class Pet(Base):
     # quien regala; quien recibe lo puede cambiar desde el juego.
     app_style = Column(String(16), nullable=True)
 
+    # Llave del buzón: con ella quien regaló puede mandar cartas después
+    # (ver Letter). Solo se entrega una vez, al crear la mascota.
+    owner_token = Column(String(40), nullable=True)
+
     hunger_meter = Column(Integer, default=60)
     love_meter = Column(Integer, default=60)
     current_mood = Column(String(20), default="normal")
@@ -188,6 +192,24 @@ class DecorItem(Base):
     ratio = Column(Float, default=1.0)
 
     pet = relationship("Pet", back_populates="decor_items")
+
+class Letter(Base):
+    """Una carta que quien regaló manda después de crear el regalo (texto
+    y, si quiere, una foto). Le llega a quien recibe como un paquete en la
+    puerta de su cuarto.
+
+    Escribir pide la llave del buzón (`Pet.owner_token`) o la llave de
+    acceso con que se compró ese regalo; leer solo pide el link del
+    regalo, igual que el resto de la mascota.
+    """
+    __tablename__ = "letters"
+
+    id = Column(Integer, primary_key=True, index=True)
+    pet_id = Column(Integer, ForeignKey("pets.id"), index=True, nullable=False)
+    text = Column(Text, nullable=False)
+    photo = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 
 class GameSave(Base):
     """La partida de quien recibe el regalo: monedas, lo comprado, el

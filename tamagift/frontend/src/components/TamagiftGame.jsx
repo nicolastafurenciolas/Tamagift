@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { lookOf, parseRecipe } from '../petLook';
 import { C, FONT, SHADOW } from '../theme';
-import { loadPet, feedPetRemote, redesignPetRemote, setActiveDesignRemote, setPetStyleRemote, fetchGameSave, pushGameSave } from '../api';
+import { loadPet, feedPetRemote, redesignPetRemote, setActiveDesignRemote, setPetStyleRemote, fetchGameSave, pushGameSave, fetchLetters, fetchLetter } from '../api';
+import MailArchive from './game/MailArchive';
 import {
   loadGameState, saveGameState, ROOM, registerPlay, isDailyBonusReady, isNewRecord,
   DAILY_BONUS_MULTIPLIER, playsTodayFor, hydrateGameState, hasStoredGameState, todayKey,
@@ -365,6 +366,36 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
     later(() => setBubble({ text: `¡Llegó ${season.name}! Hasta ${season.until} hay disfraces y decoración en la tienda`, tone: 'gusta' }), 600);
   }, [seasonKey, opened, screen, tutorialActive, guideReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Buzón: cartas nuevas de quien regaló (llegan como paquete) ────
+  const [mailOpen, setMailOpen] = useState(false);
+  const checkLetters = useRef(null);
+  checkLetters.current = async () => {
+    if (loadState !== 'live' || !pet) return;
+    const list = await fetchLetters(slug, gameRef.current.lastLetterId || 0);
+    if (!list || !list.length) return;
+    const label = `Carta de ${pet.creator_name || 'alguien especial'}`;
+    setGame((g) => {
+      const last = g.lastLetterId || 0;
+      let st = g;
+      list.filter((l) => l.id > last).forEach((l) => { st = addDelivery(st, { kind: 'carta', refId: l.id, label }); });
+      return { ...st, lastLetterId: Math.max(last, ...list.map((l) => l.id)) };
+    });
+  };
+  useEffect(() => {
+    if (loadState !== 'live' || !pet) return undefined;
+    checkLetters.current();
+    const id = setInterval(() => { if (document.visibilityState !== 'hidden') checkLetters.current(); }, 3 * 60 * 1000);
+    const onVis = () => { if (document.visibilityState === 'visible') checkLetters.current(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis); };
+  }, [loadState, !!pet]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function openMailLetter(id) {
+    setLetter({ loading: true, mail: true });
+    play('unbox');
+    const l = await fetchLetter(slug, id);
+    setLetter(l ? { text: l.text, photo: l.photo, mail: true } : { text: 'No se pudo abrir la carta. Revisa tu conexión e intenta de nuevo desde el buzón.', mail: true });
+  }
+
   // ── Premio de cada día (daily.js) ────────────────────────────────
   const [dailyOpen, setDailyOpen] = useState(false);
   const [dailyClaimed, setDailyClaimed] = useState(null);
@@ -522,6 +553,9 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
       setGame((g) => ({ ...unpack(g, d), wear: { ...(g.wear || {}), [slot]: d.wear } }));
       fireReaction('happy');
       setBubble({ text: '¡Me encanta cómo me queda!', tone: 'gusta' });
+    } else if (d.kind === 'carta') {
+      setGame((g) => unpack(g, d));
+      openMailLetter(d.refId);
     } else if (d.kind === 'pared' || d.kind === 'piso') {
       setGame((g) => unpack(g, d));
       setUnboxOpen(false);
@@ -890,6 +924,11 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
                 <IconMusic size={16} color={musicOpen ? C.onAccent : C.lavender} />
               </RoundBtn>
             )}
+            {(game.lastLetterId || 0) > 0 && (
+              <RoundBtn onClick={() => { play('pop'); setMailOpen(true); }} label="Cartas recibidas">
+                <IconEnvelope size={16} color={C.roseDeep} />
+              </RoundBtn>
+            )}
             <RoundBtn active={styleOpen} activeColor={C.rose} onClick={() => { play('pop'); setStyleOpen(true); }} label="Cambiar estilo">
               <IconPalette size={16} color={C.rose} />
             </RoundBtn>
@@ -1069,6 +1108,10 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
         />
       )}
 
+      {mailOpen && (
+        <MailArchive slug={slug} from={pet.creator_name} onClose={() => { play('pop'); setMailOpen(false); }} onOpen={(id) => openMailLetter(id)} />
+      )}
+
       {dailyOpen && (
         <DailyGift
           status={daily} claimed={dailyClaimed} streakAfter={daily.ready ? (daily.streak || 0) + 1 : daily.streak}
@@ -1080,7 +1123,13 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
       {letter && (
         <LetterModal
           letter={letter} from={pet.creator_name} petName={pet.name}
-          onClose={() => { setLetter(null); resolveEvent({ vitals: { love: 10 }, bubble: 'Qué lindo mensaje…', react: 'love' }); }}
+          onClose={() => {
+            const mail = letter.mail;
+            setLetter(null);
+            // las del buzón no son un suceso: no cierran el que esté pasando
+            if (mail) { if (!letter.loading) { addVitals({ love: 10 }); fireReaction('love'); setBubble({ text: 'Qué lindo mensaje…', tone: 'gusta' }); } }
+            else resolveEvent({ vitals: { love: 10 }, bubble: 'Qué lindo mensaje…', react: 'love' });
+          }}
         />
       )}
 

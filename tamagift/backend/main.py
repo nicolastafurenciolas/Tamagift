@@ -7,7 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from typing import List
 
 from sqlalchemy import text, func
 
@@ -40,6 +41,7 @@ LATE_COLUMNS = [
     ("pets", "active_design", "VARCHAR(10) DEFAULT 'original'"),
     ("pets", "app_style", "VARCHAR(16)"),
     ("outfits", "recipe", "TEXT"),
+    ("pets", "owner_token", "VARCHAR(40)"),
 ]
 
 
@@ -161,7 +163,7 @@ def access_key_required():
     return {"requerida": REQUIRE_ACCESS_KEY}
 
 
-@app.post("/api/pets", response_model=schemas.PetOut)
+@app.post("/api/pets", response_model=schemas.PetCreated)
 def create_pet(payload: schemas.PetCreate, db: Session = Depends(database.get_db)):
     slug = generate_slug()
     while db.query(models.Pet).filter(models.Pet.slug == slug).first():
@@ -182,6 +184,7 @@ def create_pet(payload: schemas.PetCreate, db: Session = Depends(database.get_db
         drawing_enojado=payload.drawing_enojado,
         recipe_original=payload.recipe_original,
         app_style=payload.app_style,
+        owner_token=secrets.token_urlsafe(18),
     )
     db.add(pet)
     db.flush()
@@ -340,6 +343,80 @@ def set_active_design(slug: str, payload: schemas.ActiveDesignIn, db: Session = 
     db.commit()
     db.refresh(pet)
     return pet
+
+
+# ── Buzón: cartas de quien regaló ───────────────────────────────────
+
+LETTERS_PER_DAY = 10
+
+
+def _pet_or_404(db, slug):
+    pet = db.query(models.Pet).filter(models.Pet.slug == slug).first()
+    if not pet:
+        raise HTTPException(status_code=404, detail="Mascota no encontrada")
+    return pet
+
+
+def _can_write(db, pet, auth):
+    """¿Es quien regaló? Con la llave del buzón, o con la llave de acceso
+    que creó esta mascota (sirve también para los regalos de antes del
+    buzón, que no tienen llave de buzón)."""
+    if auth.token and pet.owner_token and secrets.compare_digest(auth.token, pet.owner_token):
+        return True
+    normalized = licensing.normalize_key(auth.access_key or "")
+    if normalized:
+        row = db.query(models.AccessKey).filter(models.AccessKey.key_hash == licensing.hash_key(normalized)).first()
+        if row and row.used_by_slug == pet.slug:
+            return True
+    return False
+
+
+def _letter_out(l, with_photo):
+    return schemas.LetterOut(
+        id=l.id, text=l.text, has_photo=bool(l.photo), photo=l.photo if with_photo else None,
+        created_at=l.created_at.isoformat() if l.created_at else None,
+    )
+
+
+@app.post("/api/pets/{slug}/mailbox/check")
+def check_mailbox(slug: str, payload: schemas.MailboxAuth, db: Session = Depends(database.get_db)):
+    pet = _pet_or_404(db, slug)
+    return {"ok": _can_write(db, pet, payload)}
+
+
+@app.post("/api/pets/{slug}/letters", response_model=schemas.LetterOut)
+def send_letter(slug: str, payload: schemas.LetterIn, db: Session = Depends(database.get_db)):
+    pet = _pet_or_404(db, slug)
+    if not _can_write(db, pet, payload):
+        raise HTTPException(status_code=403, detail="sin-permiso")
+    since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=1)
+    recent = db.query(models.Letter).filter(models.Letter.pet_id == pet.id, models.Letter.created_at >= since).count()
+    if recent >= LETTERS_PER_DAY:
+        raise HTTPException(status_code=429, detail="muchas-cartas")
+    letter = models.Letter(pet_id=pet.id, text=payload.text.strip(), photo=payload.photo or None)
+    db.add(letter)
+    db.commit()
+    db.refresh(letter)
+    return _letter_out(letter, False)
+
+
+# Las cartas, sin las fotos (pesan): `after` devuelve solo las más nuevas
+# que esa. La foto de cada una se pide aparte.
+@app.get("/api/pets/{slug}/letters", response_model=List[schemas.LetterOut])
+def list_letters(slug: str, after: int = 0, db: Session = Depends(database.get_db)):
+    pet = _pet_or_404(db, slug)
+    rows = (db.query(models.Letter).filter(models.Letter.pet_id == pet.id, models.Letter.id > after)
+            .order_by(models.Letter.id.asc()).limit(50).all())
+    return [_letter_out(l, False) for l in rows]
+
+
+@app.get("/api/pets/{slug}/letters/{letter_id}", response_model=schemas.LetterOut)
+def get_letter(slug: str, letter_id: int, db: Session = Depends(database.get_db)):
+    pet = _pet_or_404(db, slug)
+    letter = db.query(models.Letter).filter(models.Letter.pet_id == pet.id, models.Letter.id == letter_id).first()
+    if not letter:
+        raise HTTPException(status_code=404, detail="Carta no encontrada")
+    return _letter_out(letter, True)
 
 
 # ── Partida guardada ────────────────────────────────────────────────

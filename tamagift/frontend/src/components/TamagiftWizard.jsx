@@ -1228,7 +1228,31 @@ function SummaryRow({ label, value }) {
   );
 }
 
-function SummaryStep({ petName, partnerName, previewRecipe, appStyle, foods, phrases, photos, songs, submitState, submitError, resultSlug, resultMode, onFinalize, onCopyLink, copyState }) {
+// El link privado del buzón (para mandarle cartas después). Se copia
+// aparte: es solo para quien regala.
+function MailboxLinkBox({ slug, token, partnerName }) {
+  const [state, setState] = useState(null);
+  const link = `${window.location.origin}/buzon/${slug}?t=${token}`;
+  async function copy() {
+    try { await navigator.clipboard.writeText(link); setState('ok'); play('coin'); } catch (e) { setState('error'); }
+    setTimeout(() => setState((s) => (s === 'error' ? s : null)), 1800);
+  }
+  return (
+    <div className="pg-card pg-anim-pop" style={{ padding: 16, marginTop: 12, textAlign: 'left', borderColor: C.lavender }}>
+      <p style={{ fontFamily: FONT.display, fontSize: 14.5, fontWeight: 800, margin: '0 0 4px', color: C.ink }}>Tu buzón (solo para ti)</p>
+      <p style={{ fontSize: 12.5, color: C.inkSoft, margin: '0 0 10px', lineHeight: 1.45 }}>
+        Con este link le puedes mandar cartas y fotos a {partnerName || 'tu pareja'} cuando quieras: le llegan en una cajita a la puerta del cuarto. Guárdalo y no lo compartas.
+      </p>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: C.surfaceAlt, border: `1.5px solid ${C.line}`, borderRadius: 12, padding: '8px 10px' }}>
+        <input readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Link del buzón" style={{ flex: 1, minWidth: 0, fontSize: 12, color: C.ink, background: 'transparent', border: 'none', outline: 'none', fontFamily: FONT.body }} />
+        <button onClick={copy} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '6px 12px', fontSize: 12, flexShrink: 0 }}>{state === 'ok' ? '¡Copiado!' : 'Copiar'}</button>
+      </div>
+      {state === 'error' && <p style={{ fontSize: 11.5, color: C.rose, margin: '6px 0 0' }}>No se pudo copiar solo: mantén presionado el link para copiarlo.</p>}
+    </div>
+  );
+}
+
+function SummaryStep({ petName, partnerName, previewRecipe, appStyle, foods, phrases, photos, songs, submitState, submitError, resultSlug, resultMode, resultToken, onFinalize, onCopyLink, copyState }) {
   const link = resultSlug ? `${window.location.origin}/p/${resultSlug}` : '';
   return (
     <StepShell title="Revisa y finaliza" subtitle="Así va a quedar el regalo">
@@ -1281,6 +1305,7 @@ function SummaryStep({ petName, partnerName, previewRecipe, appStyle, foods, phr
           )}
         </div>
       )}
+      {submitState === 'success' && resultToken && <MailboxLinkBox slug={resultSlug} token={resultToken} partnerName={partnerName} />}
 
       {submitState === 'error' && (
         <div className="pg-card" style={{ padding: 14, borderColor: C.rose }}>
@@ -1401,6 +1426,7 @@ export default function TamagiftWizard() {
   const [submitError, setSubmitError] = useState('sin-conexion');
   const [resultSlug, setResultSlug] = useState(null);
   const [resultMode, setResultMode] = useState('backend');
+  const [resultToken, setResultToken] = useState(null);
   const [copyState, setCopyState] = useState(null);
   // Vista previa del resumen: la misma receta (con retoques) que se envía.
   const previewRecipe = sid === 'resumen' ? designer.fullRecipe() : null;
@@ -1444,9 +1470,10 @@ export default function TamagiftWizard() {
       access_key: accessKey.trim() || null,
     };
     try {
-      const { slug, mode } = await createPet(payload);
+      const { slug, mode, ownerToken } = await createPet(payload);
       setResultSlug(slug);
       setResultMode(mode);
+      setResultToken(ownerToken || null);
       setSubmitState('success');
       play('win');
       clearDraft();
@@ -1472,7 +1499,8 @@ export default function TamagiftWizard() {
     setTestState('working');
     try {
       const { payload } = await buildTestPet();
-      const { slug, mode } = await createPet({ ...payload, app_style: appStyle, access_key: accessKey.trim() || null });
+      const { slug, mode, ownerToken } = await createPet({ ...payload, app_style: appStyle, access_key: accessKey.trim() || null });
+      setResultToken(ownerToken || null);
       try {
         localStorage.setItem(`tamagift:gamestate:${slug}`, JSON.stringify(testGameState()));
       } catch (e) { /* modo privado - no es crítico */ }
@@ -1560,7 +1588,7 @@ export default function TamagiftWizard() {
         <SummaryStep
           petName={petName} partnerName={partnerName} previewRecipe={previewRecipe} appStyle={appStyle}
           foods={foods} phrases={phrases} photos={photos} songs={songs}
-          submitState={submitState} submitError={submitError} resultSlug={resultSlug} resultMode={resultMode}
+          submitState={submitState} submitError={submitError} resultSlug={resultSlug} resultMode={resultMode} resultToken={resultToken}
           onFinalize={handleFinalize} onCopyLink={copyLink} copyState={copyState}
         />
         {submitState === 'success' && (

@@ -180,7 +180,10 @@ export async function createPet(payload) {
   // Copia local para que el link abra al toque en este mismo dispositivo
   // aunque el backend tarde o se caiga luego.
   try { saveLocalPet(data.slug, payload); } catch (e) { /* opcional */ }
-  return { slug: data.slug, mode: 'backend' };
+  // La llave del buzón se entrega una sola vez: queda guardada en este
+  // dispositivo (y en el link del buzón que se muestra al terminar).
+  if (data.owner_token) saveOwnerToken(data.slug, data.owner_token);
+  return { slug: data.slug, mode: 'backend', ownerToken: data.owner_token || null };
 }
 
 // fetch con tiempo límite: sin esto, con el servidor dormido la pantalla
@@ -318,6 +321,70 @@ export async function pushGameSave(slug, { data, rev, savedAt, force = false }, 
     if (res.ok) return { ok: true, ...(await res.json()) };
     if (res.status === 409) return { conflict: true, ...(await res.json()) };
     return { failed: res.status };
+  } catch (e) {
+    return null;
+  }
+}
+
+// ── Buzón: cartas de quien regaló ────────────────────────────────────
+// Quien regaló escribe desde /buzon/:slug (con la llave del buzón o con
+// la llave de acceso con que compró el regalo); a quien recibe le llegan
+// como paquete a la puerta.
+
+const OWNER_KEY = (slug) => `tamagift:owner:${slug}`;
+export function saveOwnerToken(slug, token) {
+  try { localStorage.setItem(OWNER_KEY(slug), token); } catch (e) { /* no es grave */ }
+}
+export function getOwnerToken(slug) {
+  try { return localStorage.getItem(OWNER_KEY(slug)); } catch (e) { return null; }
+}
+
+// ¿Esta llave abre el buzón? 'ok' | 'no' | 'sin-conexion'
+export async function checkMailbox(slug, auth) {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE}/api/pets/${slug}/mailbox/check`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(auth),
+    }, 10000);
+    if (!res.ok) return res.status === 404 ? 'no-existe' : 'sin-conexion';
+    return (await res.json()).ok ? 'ok' : 'no';
+  } catch (e) {
+    return 'sin-conexion';
+  }
+}
+
+// Manda una carta. Devuelve { ok, letter } o { error: 'sin-permiso' |
+// 'muchas-cartas' | 'muy-pesada' | 'sin-conexion' }.
+export async function sendLetter(slug, { text, photo, token, accessKey }) {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE}/api/pets/${slug}/letters`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, photo: photo || null, token: token || null, access_key: accessKey || null }),
+    }, 30000);
+    if (res.ok) return { ok: true, letter: await res.json() };
+    if (res.status === 403) return { error: 'sin-permiso' };
+    if (res.status === 429) return { error: 'muchas-cartas' };
+    if (res.status === 413 || res.status === 422) return { error: 'muy-pesada' };
+    return { error: 'sin-conexion' };
+  } catch (e) {
+    return { error: 'sin-conexion' };
+  }
+}
+
+// Las cartas más nuevas que `after` (sin fotos), o null sin conexión.
+export async function fetchLetters(slug, after = 0) {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE}/api/pets/${slug}/letters?after=${Number(after) || 0}`, {}, 10000);
+    return res.ok ? await res.json() : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Una carta completa, con su foto.
+export async function fetchLetter(slug, id) {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE}/api/pets/${slug}/letters/${Number(id)}`, {}, 20000);
+    return res.ok ? await res.json() : null;
   } catch (e) {
     return null;
   }
