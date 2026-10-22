@@ -127,14 +127,21 @@ export function unlock() {
 export function installUnlock() {
   if (typeof window === 'undefined') return () => {};
   const handler = () => unlock();
-  const events = ['pointerdown', 'keydown', 'touchstart'];
+  // En celulares, pointerdown/touchstart NO cuentan como gesto para el
+  // audio: Chrome y Safari solo aceptan el final del toque (pointerup,
+  // touchend) o el click. Se escuchan todos.
+  const events = ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'click', 'keydown'];
   events.forEach((e) => window.addEventListener(e, handler, { passive: true }));
   return () => events.forEach((e) => window.removeEventListener(e, handler));
 }
 
 function ready() {
   const c = ensureCtx();
-  return c && !muted && unlocked ? c : null;
+  if (!c || muted || !unlocked) return null;
+  // Si el sistema lo suspendió (pantalla bloqueada, otra app), se intenta
+  // reanudar antes de sonar en vez de quedarse mudo para siempre.
+  if (c.state !== 'running') c.resume().catch(() => {});
+  return c;
 }
 
 function semitone(freq) {
@@ -308,7 +315,10 @@ export function play(name) {
   try {
     const fn = SOUNDS[name];
     if (fn) fn();
-  } catch (e) { /* el audio nunca puede romper el juego */ }
+  } catch (e) {
+    // El audio nunca puede romper el juego; en desarrollo se avisa.
+    if (import.meta.env && import.meta.env.DEV) console.warn('sonido', name, e);
+  }
 }
 
 export const SOUND_NAMES = Object.keys(SOUNDS);

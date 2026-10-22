@@ -1,4 +1,56 @@
-# Registro de cambios — sesión de continuación (tareas #38-#44)
+# Registro de cambios
+
+## Sesión de estilos visuales (Opus 5.5)
+
+**Pedido:** que la persona pueda elegir el estilo de la app (quien regala y
+quien recibe), con los seis estilos votados: Pixel art (por defecto), Lo-fi
+noche acogedora, Retro setentero, Papel recortado, Neón nocturno y Sticker
+kawaii; rehacer todos los sprites en esos estilos, mejorar interfaces,
+animaciones y sonidos, y arreglar todo lo que fallara.
+
+**Qué se hizo** (detalle técnico en `ESTILOS.md`):
+- Sistema de estilos: tokens de interfaz como variables CSS, letras, bordes,
+  sombras y fondos propios por estilo; selector con vista previa real de la
+  mascota en el asistente (paso "Estilo") y en el juego (botón de paleta).
+- Motor de sprites (`styles/spriteEngine.js`): todo el arte (mascota,
+  muebles, decoración, comida, juegos, paredes, pisos, pósters, íconos) se
+  redibuja en el estilo activo. En pixel: rejilla real de 3 px con paleta de
+  rampas y contorno de color.
+- Sprites propios en vez de emojis (`sprites.jsx`).
+- Movimiento por estilo (`styles/motion.js`) y sonido por estilo
+  (seis paquetes de timbre en `sound.js`).
+- El juego se dividió en `components/game/` (un archivo por minijuego,
+  tienda, baño, decoración, escenas).
+- Backend: `app_style`, `POST /api/pets/{slug}/style`, validación completa
+  de entradas (422 en vez de 500), tope de tamaño, `pool_pre_ping`.
+
+**Fallas corregidas (auditoría completa del código):** música de Spotify sin
+reproductor; lista que no avanzaba ni repetía; sin pausa/siguiente; carga
+fallida mostraba una mascota de demostración; textos largos rompían la
+creación; "Salta y vuela" perdía resultados; hambre y amor no se guardaban;
+el rediseño cobraba antes de guardar; cruces dobles en "Cruzar la calle";
+trivia repetible para farmear monedas y con respuestas correctas como
+"incorrectas"; Simón se rompía con un toque de más; la serpiente podía
+girar sobre sí misma y arrancaba sola; topos escondidos antes de tiempo y
+sin castigo por fallar; baño con monedas infinitas; resultados fantasma al
+salir de un juego; pestañas de la tienda y modo decorar desbordaban; baño,
+menú y juegos que obligaban a hacer scroll; zoom por doble toque; sonido
+que no se desbloqueaba en celulares; mascota no acariciable con mouse;
+rompecabezas que estiraba fotos; imágenes ilegibles guardadas rotas;
+pósters locales sin id; búsqueda de comida con comodines; resumen del
+asistente sin la mascota; copiar link que mentía; asistente sin borrador.
+
+**Verificación:** capturas con Chrome emulando un celular (390×760 y
+360×640) de todas las pantallas en los seis estilos; prueba de los 84
+sonidos (14 efectos × 6 paquetes) sin errores; pruebas del backend y de la
+lógica de los juegos; `vite build`.
+
+**Pendiente de probar en un celular físico:** que el audio y el reproductor
+de YouTube/Spotify se comporten igual que en la emulación.
+
+---
+
+# Sesión anterior — continuación (tareas #38-#44)
 
 Este documento describe, tarea por tarea, todos los cambios hechos en esta sesión sobre el proyecto Tamagift, con el objetivo de que puedan ser revisados por otro modelo (Opus 5) sin necesidad de rehacer la exploración del código. Incluye: qué se pidió, qué decisiones de producto se tomaron (y quién las tomó), qué archivos cambiaron, qué se implementó exactamente, y cómo se verificó.
 
