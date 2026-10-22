@@ -388,6 +388,42 @@ Cruzar (3 vidas reales + carros que aceleran; antes era imposible perder).
 
 ---
 
+## Mochis y dibujo nativo por estilo
+
+Pedido: los estilos se veían "pasados por un filtro" (el pixel art era
+una imagen achicada), los accesorios no calzaban (gorros muy arriba o
+muy abajo, collares que no abrazaban) y la guitarra tenía mal las
+medidas. Además las mascotas pasan a ser **mochis** con varios anchos.
+
+- **Motor de kits** (`frontend/src/art/kit.js`): el arte se escribe como
+  SVG con partes (`data-r`: body, part, flat, line, shine, tone) y cada
+  estilo dibuja cada parte a su manera. Pixel arma la rejilla pieza por
+  pieza (rampas de color, contorno de 1 px, sombra en media luna) y usa
+  caras hechas a mano (`art/pixelStamps.js`); papel recorta cartulina;
+  neón enciende tubos; retro corre la tinta y trama las sombras; lo-fi
+  pone luz de lámpara y grano; sticker contorno suave y borde blanco.
+  Las fotos y dibujos subidos siguen por el motor de imágenes.
+- **Mochi** (`frontend/src/art/mochi/`): 4 anchos, 19 animalitos, 10 ojos,
+  9 bocas, 6 ánimos, 7 mejillas, 8 colas, 13 estampados y 46 accesorios,
+  todos anclados a la geometría del cuerpo. Las recetas viejas y los 14
+  estilos de partida siguen sirviendo.
+- **El juego dibuja desde la receta** (`petLook.js`, `components/PetArt.jsx`):
+  cuarto, baño, apertura, minijuegos, tienda y selector de estilo. Los
+  retoques a mano viajan dentro de la receta (`overlays`); los PNG quedan
+  de respaldo.
+- **Trajes**: el diseñador de prendas ahora elige accesorios (cabeza,
+  cuello, cara) y además se puede dibujar encima. Se guarda la receta del
+  traje (`outfits.recipe`, columna nueva).
+- **Backend**: `recipe_original` admite hasta 3 MB (por los retoques),
+  `RedesignIn` valida el tamaño, `outfits.recipe` nueva.
+- **Cuarto**: guitarra redibujada con proporciones reales; trazos tenues
+  de pisos y paredes ya no se vuelven líneas sólidas; neón no "enciende"
+  paredes oscuras.
+- **Pruebas**: `node src/mochi.test.mjs` (más de 2000 combinaciones sin
+  coordenadas rotas, recetas viejas, estilos de partida).
+- **Revisión**: `/arte` (laboratorio de kits), `/hoja`, `/aleatorio`,
+  `/dev/<pantalla>?estilo=<id>`.
+
 ## Resumen de archivos tocados en toda la sesión
 
 **Backend:**
