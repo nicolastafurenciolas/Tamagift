@@ -32,7 +32,7 @@ function randomSlug(len = 8) {
 
 // Deja la config guardada localmente con los mismos campos que devuelve
 // el backend en GET /api/pets/:slug (para que el juego no note diferencia).
-function saveLocalPet(slug, payload) {
+export function saveLocalPet(slug, payload) {
   const record = {
     slug,
     name: payload.name,
@@ -47,12 +47,15 @@ function saveLocalPet(slug, payload) {
     drawing_feliz_redesign: null,
     drawing_enojado_redesign: null,
     active_design: 'original',
+    app_style: payload.app_style || null,
     hunger_meter: 60,
     love_meter: 60,
     current_mood: 'normal',
     food_preferences: payload.food_preferences || [],
     phrases: payload.phrases || [],
-    photos: payload.photos || [],
+    // Ids estables por posición: sin id, todos los pósters compartían
+    // `undefined` y comprar o colgar uno afectaba a todos.
+    photos: (payload.photos || []).map((p, i) => ({ ...p, id: p.id != null ? p.id : `local-photo-${i}` })),
     songs: payload.songs || [],
     // Igual que decor_items: sin backend no hay id autoincremental real,
     // así que se inventa uno estable por posición para este dispositivo.
@@ -94,7 +97,7 @@ export class CreatePetError extends Error {
   constructor(reason) {
     super(reason);
     this.name = 'CreatePetError';
-    this.reason = reason;   // 'sin-conexion' | 'muy-pesado' | 'servidor'
+    this.reason = reason;   // 'sin-conexion' | 'muy-pesado' | 'servidor' | 'datos'
   }
 }
 
@@ -157,6 +160,15 @@ export async function createPet(payload) {
     try { reason = (await res.json()).detail || reason; } catch (e) { /* da igual */ }
     throw new AccessKeyError(reason);
   }
+  // Algún dato no pasó la validación del servidor (texto demasiado
+  // largo, demasiadas fotos…): reintentar no sirve, hay que corregirlo.
+  if (res.status === 422) {
+    let field = '';
+    try { const d = await res.json(); field = (d.detail && d.detail[0] && d.detail[0].loc || []).slice(-2).join(' › '); } catch (e) { /* da igual */ }
+    const err = new CreatePetError('datos');
+    err.field = field;
+    throw err;
+  }
   if (!res.ok) {
     if (!ALLOW_LOCAL_FALLBACK) throw new CreatePetError(res.status === 413 ? 'muy-pesado' : 'servidor');
     const slug = randomSlug();
@@ -171,20 +183,59 @@ export async function createPet(payload) {
   return { slug: data.slug, mode: 'backend' };
 }
 
-// Carga la mascota por slug. Backend primero; luego localStorage.
-// Devuelve el objeto pet o null (el juego cae a su mascota demo).
-export async function loadPet(slug) {
+// fetch con tiempo límite: sin esto, con el servidor dormido la pantalla
+// se quedaba en "Cargando…" para siempre.
+async function fetchWithTimeout(url, opts = {}, ms = 15000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
   try {
-    const res = await fetch(`${API_BASE}/api/pets/${slug}`);
-    if (res.ok) {
-      const data = await res.json();
-      return { pet: data, mode: 'live' };
-    }
-  } catch (err) { /* intenta local abajo */ }
+    return await fetch(url, { ...opts, signal: ctrl.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
 
+// Carga la mascota por slug. Devuelve { pet, mode }:
+//   'live'  → del servidor
+//   'local' → copia guardada en este dispositivo (servidor sin respuesta)
+//   'demo'  → slug de demostración
+//   'error' → no se pudo cargar (el juego ofrece reintentar). Antes un
+//             fallo del servidor mostraba una mascota de demostración y
+//             quien recibía el regalo veía otra mascota sin explicación.
+//   'missing' → el regalo no existe (link mal copiado)
+export async function loadPet(slug) {
+  if (!slug || slug === 'demo') return { pet: null, mode: 'demo' };
+  let failed = false;
+  try {
+    const res = await fetchWithTimeout(`${API_BASE}/api/pets/${slug}`);
+    if (res.ok) return { pet: await res.json(), mode: 'live' };
+    if (res.status === 404) {
+      const local = getLocalPet(slug);
+      return local ? { pet: local, mode: 'local' } : { pet: null, mode: 'missing' };
+    }
+    failed = true;
+  } catch (err) {
+    failed = true;
+  }
   const local = getLocalPet(slug);
   if (local) return { pet: local, mode: 'local' };
-  return { pet: null, mode: 'demo' };
+  return { pet: null, mode: failed ? 'error' : 'demo' };
+}
+
+// Guarda el estilo visual elegido por quien recibe el regalo, para que
+// lo vea igual en cualquier dispositivo. Si falla no pasa nada: el
+// estilo también queda guardado en este dispositivo.
+export async function setPetStyleRemote(slug, styleId) {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE}/api/pets/${slug}/style`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ app_style: styleId }),
+    }, 8000);
+    return res.ok;
+  } catch (e) {
+    return false;
+  }
 }
 
 // Alimenta contra el backend si la mascota es 'live'. Devuelve la respuesta

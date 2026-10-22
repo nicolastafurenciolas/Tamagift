@@ -1,6 +1,10 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useCallback } from 'react';
-import { C, FONT, SHADOW } from '../theme';
+import { C, FONT } from '../theme';
 import Pet from './Pet';
+import Sprite from './Sprite';
+import { useStyle } from '../styles/StyleContext';
+import { getMotion } from '../styles/motion';
+import { PosterArt } from './game/posters';
 import { ROOM } from '../gameState';
 import { findFurniture, findWall, findFloor, findPaint } from '../roomCatalog';
 import { findDecor } from '../shopCatalog';
@@ -22,12 +26,16 @@ import { findDecor } from '../shopCatalog';
 // El alto del visor se adapta a la pantalla: en un celular corto se
 // encoge para que el dock de acciones siga entrando sin scroll, pero
 // nunca baja de 230 px para que la mascota no quede diminuta.
-const VIEW_H_MAX = 330;
+const VIEW_H_MAX = 440;
 const VIEW_H_MIN = 230;
-const RESERVED = 330;   // lo que ocupan barra de arriba, dock y márgenes
-function computeViewH() {
+const RESERVED = 310;   // lo que ocupan barra de arriba, dock y márgenes
+// Decorando, debajo del cuarto aparece la bandeja (y la barra del objeto
+// elegido): el cuarto se achica para que todo siga entrando sin scroll.
+const RESERVED_EDITING = 520;
+function computeViewH(editing = false, extra = 0) {
   if (typeof window === 'undefined') return VIEW_H_MAX;
-  return Math.round(clampNum(window.innerHeight - RESERVED, VIEW_H_MIN, VIEW_H_MAX));
+  const reserved = (editing ? RESERVED_EDITING : RESERVED) + extra;
+  return Math.round(clampNum(window.innerHeight - reserved, editing ? 180 : VIEW_H_MIN, VIEW_H_MAX));
 }
 const clampNum = (v, a, b) => Math.max(a, Math.min(b, v));
 const WALK_SPEED = 46;        // unidades del mundo por segundo
@@ -102,34 +110,29 @@ export function stepCamera(cam, p, dt, worldViewW, maxCam, editing, now) {
 // rectángulos de color plano con rayas encima, que es justo lo que se
 // veía como "hecho en Paint".
 
-function Wall({ wall }) {
+function wallArt(wall) {
   const w = ROOM.W, h = ROOM.FLOOR_Y;
-  const gid = `wallgrad-${wall.id}`;
-  const vid = `wallvig-${wall.id}`;
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ position: 'absolute', left: 0, top: 0 }}>
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
       <defs>
         {/* La luz entra por arriba: la pared se oscurece hacia abajo. */}
-        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id="wl" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.20" />
           <stop offset="0.55" stopColor="#FFFFFF" stopOpacity="0.02" />
           <stop offset="1" stopColor="#4A3439" stopOpacity="0.16" />
         </linearGradient>
-        {/* Viñeta suave a los lados, para que el cuarto tenga esquinas. */}
-        <linearGradient id={vid} x1="0" y1="0" x2="1" y2="0">
+        <linearGradient id="wv" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0" stopColor="#4A3439" stopOpacity="0.14" />
           <stop offset="0.06" stopColor="#4A3439" stopOpacity="0" />
           <stop offset="0.94" stopColor="#4A3439" stopOpacity="0" />
           <stop offset="1" stopColor="#4A3439" stopOpacity="0.14" />
         </linearGradient>
       </defs>
-
       <rect x="0" y="0" width={w} height={h} fill={wall.base} />
       {wall.render && wall.render(w, h)}
-      <rect x="0" y="0" width={w} height={h} fill={`url(#${gid})`} />
-      <rect x="0" y="0" width={w} height={h} fill={`url(#${vid})`} />
-
-      {/* Rodapié: da el corte entre pared y piso y ancla la habitación. */}
+      <rect x="0" y="0" width={w} height={h} fill="url(#wl)" />
+      <rect x="0" y="0" width={w} height={h} fill="url(#wv)" />
+      {/* Rodapié: el corte entre pared y piso. */}
       <rect x="0" y={h - 26} width={w} height="26" fill="#4A3439" opacity="0.10" />
       <rect x="0" y={h - 20} width={w} height="20" fill="#F6EFE6" />
       <rect x="0" y={h - 20} width={w} height="4" fill="#FFFFFF" opacity="0.7" />
@@ -139,35 +142,65 @@ function Wall({ wall }) {
   );
 }
 
-function Floor({ floor }) {
+function floorArt(floor) {
   const w = ROOM.W, h = ROOM.H - ROOM.FLOOR_Y;
-  const gid = `floorgrad-${floor.id}`;
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ position: 'absolute', left: 0, top: ROOM.FLOOR_Y }}>
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
       <defs>
-        {/* El piso se aclara hacia adelante: es lo que lo saca de verse
-            como una franja plana pegada a la pared. */}
-        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id="fl" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#4A3439" stopOpacity="0.30" />
           <stop offset="0.35" stopColor="#4A3439" stopOpacity="0.06" />
           <stop offset="1" stopColor="#FFFFFF" stopOpacity="0.16" />
         </linearGradient>
       </defs>
-
       <rect x="0" y="0" width={w} height={h} fill={floor.base} />
       {floor.render && floor.render(w, h)}
-      <rect x="0" y="0" width={w} height={h} fill={`url(#${gid})`} />
-      {/* sombra de contacto contra el rodapié */}
+      <rect x="0" y="0" width={w} height={h} fill="url(#fl)" />
       <rect x="0" y="0" width={w} height="14" fill="#4A3439" opacity="0.18" />
       <rect x="0" y="0" width={w} height="3" fill="#4A3439" opacity="0.3" />
     </svg>
   );
 }
 
+// La pared y el piso pasan por el motor de estilos como superficies.
+function Wall({ wall, pixel }) {
+  return (
+    <div style={{ position: 'absolute', left: 0, top: 0 }}>
+      <Sprite art={wallArt(wall)} cacheKey={`wall-${wall.id}`} w={ROOM.W} h={ROOM.FLOOR_Y} kind="surface" fit="cover" pixel={pixel} />
+    </div>
+  );
+}
+
+function Floor({ floor, pixel }) {
+  return (
+    <div style={{ position: 'absolute', left: 0, top: ROOM.FLOOR_Y }}>
+      <Sprite art={floorArt(floor)} cacheKey={`floor-${floor.id}`} w={ROOM.W} h={ROOM.H - ROOM.FLOOR_Y} kind="surface" fit="cover" pixel={pixel} />
+    </div>
+  );
+}
+
+// Ambiente propio de cada estilo, encima del cuarto.
+function Ambience({ styleId, layer }) {
+  if (styleId === 'lofi' && layer === 'front') {
+    return (
+      <>
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(circle at 18% 22%, rgba(255,199,126,0.30), transparent 38%), radial-gradient(circle at 78% 30%, rgba(255,199,126,0.16), transparent 34%)', mixBlendMode: 'screen' }} />
+        {[12, 34, 58, 81].map((l, i) => (
+          <span key={i} className="pg-keep-round" style={{ position: 'absolute', left: `${l}%`, bottom: '24%', width: 5, height: 5, borderRadius: '50%', background: '#FFE3B0', boxShadow: '0 0 6px #FFC77E', animation: `pg-drift ${7 + i * 1.3}s linear ${i * 1.4}s infinite`, pointerEvents: 'none' }} />
+        ))}
+      </>
+    );
+  }
+  if (styleId === 'neon' && layer === 'back') {
+    return <div style={{ position: 'absolute', left: 0, right: 0, top: ROOM.FLOOR_Y - 1, height: 3, background: '#FF4FD8', boxShadow: '0 0 10px #FF4FD8, 0 0 22px rgba(255,79,216,0.6)', pointerEvents: 'none' }} />;
+  }
+  return null;
+}
+
 // Un objeto puesto en el cuarto. `item` trae posición y tamaño; el
 // contenido depende de si es mueble, decoración o póster.
-function PlacedItem({ item, posters, customDecor, selected, editing, onPointerDown }) {
-  const inner = renderPlacedContent(item, posters, customDecor);
+function PlacedItem({ item, posters, customDecor, selected, editing, onPointerDown, pixel }) {
+  const inner = renderPlacedContent(item, posters, customDecor, pixel);
   if (!inner) return null;
   const { w, h } = placedSize(item, posters, customDecor);
   const f = item.kind === 'mueble' ? findFurniture(item.refId) : null;
@@ -186,7 +219,7 @@ function PlacedItem({ item, posters, customDecor, selected, editing, onPointerDo
             width: sw * 0.84,
             height: 20,
             borderRadius: '50%',
-            background: 'radial-gradient(ellipse, rgba(74,52,57,0.34) 0%, rgba(74,52,57,0) 72%)',
+            background: 'radial-gradient(ellipse, rgba(30,18,26,0.34) 0%, rgba(30,18,26,0) 72%)',
             pointerEvents: 'none',
           }}
         />
@@ -228,48 +261,58 @@ function placedSize(item, posters, customDecor) {
   return { w: 92, h: 92 };
 }
 
-function renderPlacedContent(item, posters, customDecor) {
+function renderPlacedContent(item, posters, customDecor, pixel) {
+  const { w, h } = placedSize(item, posters, customDecor);
+  const sw = Math.round(w * item.scale), sh = Math.round(h * item.scale);
   if (item.kind === 'mueble') {
     const f = findFurniture(item.refId);
     if (!f) return null;
-    return f.render(findPaint(item.paint));
+    const paint = item.paint || 'natural';
+    return <Sprite art={f.render(findPaint(paint))} cacheKey={`furn-${f.id}-${paint}`} w={sw} h={sh} pixel={pixel} />;
   }
   if (item.kind === 'poster') {
-    const p = (posters || []).find((x) => x.id === item.refId);
+    const p = (posters || []).find((x) => String(x.id) === String(item.refId));
     if (!p) return null;
+    const pad = Math.round(7 * item.scale);
+    const border = Math.max(3, Math.round(4 * item.scale));
     return (
       <div style={{
-        width: '100%', height: '100%', background: '#FFF9F0', padding: 7,
-        border: `4px solid ${C.ink}`, borderRadius: 4, boxShadow: '5px 7px 0 rgba(74,52,57,0.22)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+        width: '100%', height: '100%', background: C.surface, padding: pad,
+        border: `${border}px solid ${C.ink}`, borderRadius: 4, boxShadow: '5px 7px 0 rgba(30,18,26,0.22)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', boxSizing: 'border-box',
       }}>
-        {p.type === 'photo'
-          ? <img src={p.url} alt="" draggable="false" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <div style={{ width: '100%', height: '100%', background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 44 }}>{p.emoji}</div>}
+        <PosterArt poster={p} w={sw - (pad + border) * 2} h={sh - (pad + border) * 2} />
       </div>
     );
   }
   // decoración: primero la que subió quien regaló, si no la del catálogo
   const custom = (customDecor || []).find((d) => String(d.id) === String(item.refId));
-  if (custom) {
-    return <img src={custom.image} alt={custom.name} draggable="false" style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'drop-shadow(3px 5px 0 rgba(74,52,57,0.2))' }} />;
-  }
+  if (custom) return <Sprite src={custom.image} w={sw} h={sh} kind="art" pixel={pixel} />;
   const d = findDecor(item.refId);
-  return d ? d.render() : null;
+  return d ? <Sprite art={d.render()} cacheKey={`decor-${d.id}`} w={sw} h={sh} pixel={pixel} /> : null;
 }
 
 // ── El cuarto ────────────────────────────────────────────────────
 export default function Room({
   petName, mood, drawingUrl, posters, customDecor,
   game, setGame, editing, onPokePet, reaction, cameraRef, fullBleed = false,
+  extraReserved = 0,   // alto que ocupan paneles abiertos debajo (comida, música)
 }) {
   const viewportRef = useRef(null);
   const worldRef = useRef(null);
   const petRef = useRef(null);
 
+  const { style } = useStyle();
+  const walk = getMotion(style.motion).walk;
   const [viewW, setViewW] = useState(340);
-  const [viewH, setViewH] = useState(computeViewH);
+  const [viewH, setViewH] = useState(() => computeViewH(editing, extraReserved));
   const zoom = viewH / ROOM.H;
+  // Tamaño del píxel de arte en unidades del mundo: así, una vez escalado
+  // el cuarto, cada píxel mide en pantalla lo mismo que en el resto del
+  // juego. Se redondea el zoom para no redibujar todo por cada píxel de
+  // diferencia al girar el teléfono.
+  const zq = Math.max(0.3, Math.round(zoom * 20) / 20);
+  const pixel = style.art.kind === 'pixel' ? (style.art.pixel || 3) / zq : undefined;
   const [selected, setSelected] = useState(null);
 
   // Todo el movimiento vive en refs — ver la nota de arriba.
@@ -286,10 +329,11 @@ export default function Room({
     const ro = new ResizeObserver(() => setViewW(el.clientWidth));
     ro.observe(el);
     setViewW(el.clientWidth);
-    const onResize = () => setViewH(computeViewH());
+    const onResize = () => setViewH(computeViewH(editing, extraReserved));
+    onResize();
     window.addEventListener('resize', onResize);
     return () => { ro.disconnect(); window.removeEventListener('resize', onResize); };
-  }, []);
+  }, [editing, extraReserved]);
 
   // Pinta la posición actual. Se llama desde el bucle y también una vez
   // al montar: si `requestAnimationFrame` está suspendido (pestaña en
@@ -304,12 +348,20 @@ export default function Room({
       worldRef.current.style.transform = `translate3d(${-cam.current.x * zoom}px,0,0) scale(${zoom})`;
     }
     if (petRef.current) {
-      const bob = p.state === 'walk' ? Math.abs(Math.sin(p.phase)) * 5 : 0;
-      const tilt = p.state === 'walk' ? Math.sin(p.phase) * 2.2 : 0;
+      // Cada estilo camina distinto: pixel salta de a un píxel y sin
+      // inclinarse, retro rebota de más, papel va a saltitos.
+      let bob = p.state === 'walk' ? Math.abs(Math.sin(p.phase)) * walk.bob : 0;
+      const tilt = p.state === 'walk' ? Math.sin(p.phase) * walk.tilt : 0;
+      let x = p.x - ROOM.PET_W / 2;
+      if (walk.grid) {
+        const g = pixel || walk.grid;
+        x = Math.round(x / g) * g;
+        bob = Math.round(bob / g) * g;
+      }
       petRef.current.style.transform =
-        `translate3d(${p.x - ROOM.PET_W / 2}px, ${-bob}px, 0) rotate(${tilt}deg) scaleX(${p.facing})`;
+        `translate3d(${x}px, ${-bob}px, 0) rotate(${tilt}deg) scaleX(${p.facing})`;
     }
-  }, [cameraRef, worldViewW, zoom]);
+  }, [cameraRef, worldViewW, zoom, walk, pixel]);
 
   useLayoutEffect(() => {
     cam.current.x = clamp(pet.current.x - worldViewW / 2, 0, maxCam);
@@ -317,18 +369,22 @@ export default function Room({
   }, [worldViewW, maxCam, paint, zoom]);
 
   useEffect(() => {
-    let raf, last = performance.now();
+    let raf, last = performance.now(), lastPaint = 0;
+    const frameMs = walk.fps ? 1000 / walk.fps : 0;
     function tick(now) {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       if (!editing) stepPet(pet.current, dt);
       stepCamera(cam.current, pet.current, dt, worldViewW, maxCam, editing, now);
-      paint();
+      // En papel la mascota se pinta a 8 cuadros por segundo (stop
+      // motion), aunque la física siga corriendo suave por debajo.
+      if (!frameMs || now - lastPaint >= frameMs) { paint(); lastPaint = now; }
+      else if (worldRef.current) worldRef.current.style.transform = `translate3d(${-cam.current.x * zoom}px,0,0) scale(${zoom})`;
       raf = requestAnimationFrame(tick);
     }
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [worldViewW, maxCam, editing, paint, zoom]);
+  }, [worldViewW, maxCam, editing, paint, zoom, walk]);
 
   // Guarda dónde quedó la mascota al salir, para que no reaparezca
   // siempre en el mismo sitio.
@@ -339,9 +395,12 @@ export default function Room({
   // ── Arrastrar: mueve la cámara, o el objeto si estás editando ────
   const onViewportPointerDown = useCallback((e) => {
     if (drag.current) return;
+    // Si se tocó a la mascota, el clic tiene que llegarle a ella: capturar
+    // el puntero aquí se lo robaba y con mouse no se podía acariciar.
+    if (!editing && e.target.closest && e.target.closest('[data-pet-button]')) return;
     viewportRef.current.setPointerCapture(e.pointerId);
     drag.current = { mode: 'cam', x0: e.clientX, cam0: cam.current.x, moved: 0 };
-  }, []);
+  }, [editing]);
 
   const onItemPointerDown = useCallback((e, item) => {
     e.stopPropagation();
@@ -398,20 +457,21 @@ export default function Room({
           borderTop: fullBleed ? `2px solid ${C.line}` : undefined,
           borderBottom: fullBleed ? `2px solid ${C.line}` : undefined,
           touchAction: 'none', cursor: editing ? 'default' : 'grab',
-          background: findWall(game.wall).base,
+          background: C.paperDeep,
         }}
       >
         <div
           ref={worldRef}
           style={{ position: 'absolute', left: 0, top: 0, width: ROOM.W, height: ROOM.H, transformOrigin: '0 0', willChange: 'transform' }}
         >
-          <Wall wall={findWall(game.wall)} />
-          <Floor floor={findFloor(game.floor)} />
+          <Wall wall={findWall(game.wall)} pixel={pixel} />
+          <Floor floor={findFloor(game.floor)} pixel={pixel} />
+          <Ambience styleId={style.id} layer="back" />
 
           {sorted.map((item) => (
             <PlacedItem
               key={item.key} item={item} posters={posters} customDecor={customDecor}
-              selected={selected === item.key} editing={editing} onPointerDown={onItemPointerDown}
+              selected={selected === item.key} editing={editing} onPointerDown={onItemPointerDown} pixel={pixel}
             />
           ))}
 
@@ -425,13 +485,14 @@ export default function Room({
               transformOrigin: '50% 92%',
             }}
           >
-            <Pet mood={mood} drawingUrl={drawingUrl} size={ROOM.PET_W} onPoke={onPokePet} reaction={reaction} />
+            <Pet mood={mood} drawingUrl={drawingUrl} size={ROOM.PET_W} onPoke={onPokePet} reaction={reaction} pixel={pixel} />
           </div>
+          <Ambience styleId={style.id} layer="front" />
         </div>
 
         {/* pista de que el cuarto sigue a los lados */}
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'linear-gradient(90deg, rgba(74,52,57,0.10), transparent 8%, transparent 92%, rgba(74,52,57,0.10))' }} />
-        <div style={{ position: 'absolute', right: 10, bottom: 7, fontFamily: FONT.display, fontSize: 10, fontWeight: 700, color: 'rgba(74,52,57,0.42)', pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'linear-gradient(90deg, rgba(20,12,20,0.12), transparent 8%, transparent 92%, rgba(20,12,20,0.12))' }} />
+        <div style={{ position: 'absolute', right: 10, bottom: 7, fontFamily: FONT.display, fontSize: 10.5, fontWeight: 700, color: '#FFFFFF', textShadow: '0 1px 2px rgba(0,0,0,0.5)', opacity: 0.85, pointerEvents: 'none' }}>
           {editing ? 'arrastra para acomodar' : 'desliza para ver el cuarto'}
         </div>
       </div>
@@ -466,7 +527,7 @@ function SmallBtn({ children, onClick, danger }) {
         padding: '6px 12px', borderRadius: 999, cursor: 'pointer',
         fontFamily: FONT.display, fontSize: 12, fontWeight: 700,
         background: danger ? C.surface : C.surfaceAlt,
-        color: danger ? C.rose : C.ink,
+        color: danger ? C.rose : C.ink, minWidth: 40,
         border: `1.5px solid ${danger ? C.rose : C.line}`,
       }}
     >

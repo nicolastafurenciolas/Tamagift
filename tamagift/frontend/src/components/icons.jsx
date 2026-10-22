@@ -1,4 +1,7 @@
 import React from 'react';
+import { useStyle } from '../styles/StyleContext';
+import { C } from '../theme';
+import Sprite from './Sprite';
 
 // ─────────────────────────────────────────────────────────────────
 // Íconos dibujados a mano. Reemplazan los emojis de interfaz para
@@ -7,24 +10,36 @@ import React from 'react';
 // Todos heredan el color con `color` (por defecto currentColor).
 // ─────────────────────────────────────────────────────────────────
 
-function Svg({ size = 24, color = 'currentColor', stroke = 2, wobble = false, children, ...rest }) {
-  return (
+// En pixel, los íconos se redibujan sobre una rejilla de 2 px (más fina
+// que la de 3 px de los sprites, para que algo de 16 px siga legible);
+// en neón brillan del color de su trazo. En el resto se dibujan tal cual.
+function Svg({ size = 24, color = 'currentColor', stroke = 2, wobble = false, children, style, ...rest }) {
+  const { style: active } = useStyle();
+  const svg = (
     <svg
       viewBox="0 0 24 24"
       width={size}
       height={size}
       fill="none"
-      stroke={color}
-      strokeWidth={stroke}
+      stroke={color === 'currentColor' && active.art.kind === 'pixel' ? C.ink : color}
+      strokeWidth={active.art.kind === 'pixel' ? Math.max(stroke, 2.4) : stroke}
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={wobble ? 'pg-wobble' : undefined}
+      className={`pg-icon${wobble ? ' pg-wobble' : ''}`}
       aria-hidden="true"
+      shapeRendering={active.art.kind === 'pixel' ? 'crispEdges' : undefined}
+      style={{ color: color === 'currentColor' ? undefined : color, ...style }}
       {...rest}
     >
       {children}
     </svg>
   );
+  // Por debajo de 20 px una rejilla de 2 px deja el ícono ilegible: ahí
+  // se dibuja el vector tal cual, con bordes nítidos.
+  if (active.art.kind === 'pixel' && size >= 20) {
+    return <Sprite art={svg} w={size} h={size} pixel={2} kind="icon" style={style} />;
+  }
+  return svg;
 }
 
 // Tazón con comida (Alimentar)
@@ -335,9 +350,99 @@ export function IconTower(props) {
   );
 }
 
+
+// Paleta de pintor: cambiar el estilo visual
+export function IconPalette(props) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3 C17.5 3 21 6.6 21 11 C21 14 18.8 14.6 16.8 13.9 C14.8 13.2 14 15.2 15.3 17.2 C16.6 19.4 14.6 21 12 21 C6.9 21 3 17 3 12 C3 7 6.9 3 12 3 Z" fill={props.fill || 'none'} />
+      <circle cx="7.6" cy="10.4" r="1.3" />
+      <circle cx="11.2" cy="7" r="1.3" />
+      <circle cx="15.6" cy="8.2" r="1.3" />
+      <circle cx="8.6" cy="15.2" r="1.3" />
+    </Svg>
+  );
+}
+
+// Reproducir / pausar / siguiente (música)
+export function IconPlay(props) {
+  return (
+    <Svg {...props}>
+      <path d="M8 5.5 L18.5 12 L8 18.5 Z" fill={props.fill || 'none'} />
+    </Svg>
+  );
+}
+export function IconPause(props) {
+  return (
+    <Svg {...props}>
+      <rect x="6.5" y="5.5" width="3.6" height="13" rx="1" fill={props.fill || 'none'} />
+      <rect x="13.9" y="5.5" width="3.6" height="13" rx="1" fill={props.fill || 'none'} />
+    </Svg>
+  );
+}
+export function IconNext(props) {
+  return (
+    <Svg {...props}>
+      <path d="M5.5 6 L13.5 12 L5.5 18 Z" fill={props.fill || 'none'} />
+      <path d="M17.5 6 v12" />
+    </Svg>
+  );
+}
+
+// Parlante con y sin sonido
+export function IconSpeaker(props) {
+  return (
+    <Svg {...props}>
+      <path d="M4 9.5 h3.5 L12 5.5 v13 L7.5 14.5 H4 Z" fill={props.fill || 'none'} />
+      <path d="M15.5 9 q2 3 0 6 M18 6.8 q3.6 5.2 0 10.4" />
+    </Svg>
+  );
+}
+export function IconMute(props) {
+  return (
+    <Svg {...props}>
+      <path d="M4 9.5 h3.5 L12 5.5 v13 L7.5 14.5 H4 Z" fill={props.fill || 'none'} />
+      <path d="M15.5 9.5 l5 5 M20.5 9.5 l-5 5" />
+    </Svg>
+  );
+}
+
+// Flechas en círculo: cambiar entre diseños
+export function IconSwap(props) {
+  return (
+    <Svg {...props}>
+      <path d="M5 10 a7 7 0 0 1 12.5 -3.5 L19 8.5" />
+      <path d="M19 4.5 v4 h-4" />
+      <path d="M19 14 a7 7 0 0 1 -12.5 3.5 L5 15.5" />
+      <path d="M5 19.5 v-4 h4" />
+    </Svg>
+  );
+}
+
+// Trofeo (récords)
+export function IconTrophy(props) {
+  return (
+    <Svg {...props}>
+      <path d="M7.5 4 h9 v5 a4.5 4.5 0 0 1 -9 0 Z" fill={props.fill || 'none'} />
+      <path d="M7.5 5.5 H4.5 a3 3 0 0 0 3.4 4.2 M16.5 5.5 h3 a3 3 0 0 1 -3.4 4.2" />
+      <path d="M12 13.5 v3.5 M8.5 20 h7 l-1 -3 h-5 Z" />
+    </Svg>
+  );
+}
+
+// Llamita (racha)
+export function IconFlame(props) {
+  return (
+    <Svg {...props}>
+      <path d="M12 21 C7.5 21 5.5 17.5 6.5 14 C7.3 11.4 9.5 10.5 9.5 7 C12.5 9 13.5 11 13 13 C14.5 12 15 10 14.5 7.5 C17.5 9.5 19 12.5 18 16 C17.2 19 15 21 12 21 Z" fill={props.fill || 'none'} />
+    </Svg>
+  );
+}
+
 export default {
   IconBowl, IconTub, IconBall, IconFrame, IconMusic, IconHeart,
   IconCookie, IconEnvelope, IconBack, IconClose, IconSparkle, IconPaw, IconPencil, IconGift,
   IconCamera, IconCoin, IconShirt, IconBag, IconDoor, IconChevronRight,
   IconCards, IconCatch, IconPuzzle, IconMole, IconSnake, IconRoad, IconTower,
+  IconPalette, IconPlay, IconPause, IconNext, IconSpeaker, IconMute, IconSwap, IconTrophy, IconFlame,
 };

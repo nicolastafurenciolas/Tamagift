@@ -53,7 +53,24 @@ export const DEFAULT_GAME_STATE = {
   // Racha de días seguidos entrando a jugar.
   streak: 0,
   lastStreakDay: null,
+  // Partidas de hoy por juego ({ [gameId]: { day, n } }): repetir el
+  // mismo juego muchas veces el mismo día paga menos.
+  playsToday: {},
+  // ── Estado de la mascota en este dispositivo ───────────────────
+  // Hambre y amor con la hora del último cálculo. Antes no se guardaban:
+  // al recargar volvían a los valores del servidor (el amor siempre en
+  // 60) y lo ganado bañándola o jugando se perdía.
+  vitals: null,          // { hunger, love, hungerAt, loveAt, mood }
+  lastBathCoinsAt: 0,    // el baño paga monedas como mucho cada 30 min
+  // Estilo visual elegido por quien recibe (si no, el de quien regaló).
+  style: null,
 };
+
+// Cuántas partidas de `gameId` van hoy (antes de esta).
+export function playsTodayFor(state, gameId) {
+  const e = (state.playsToday || {})[gameId];
+  return e && e.day === todayKey() ? e.n : 0;
+}
 
 // ── Minijuegos: récords, bonus diario y racha ───────────────────────
 
@@ -89,6 +106,7 @@ export function registerPlay(state, gameId, score) {
   if (isNewRecord(state, gameId, score)) records[gameId] = score;
 
   const lastPlayedDay = { ...(state.lastPlayedDay || {}), [gameId]: today };
+  const playsToday = { ...(state.playsToday || {}), [gameId]: { day: today, n: playsTodayFor(state, gameId) + 1 } };
 
   // Racha: sube si el último día jugado fue ayer, se reinicia si se
   // saltó uno o más días, y no hace nada si ya se jugó hoy.
@@ -99,7 +117,7 @@ export function registerPlay(state, gameId, score) {
     lastStreakDay = today;
   }
 
-  return { ...state, records, lastPlayedDay, streak, lastStreakDay };
+  return { ...state, records, lastPlayedDay, playsToday, streak, lastStreakDay };
 }
 
 // ── Migraciones ─────────────────────────────────────────────────────
