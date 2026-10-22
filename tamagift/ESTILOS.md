@@ -67,6 +67,9 @@ nada, el estilo es **Pixel art**.
 ## Páginas de revisión (solo en `npm run dev`)
 
 - `/estilos` — el mismo arte en los seis estilos (`?solo=pixel` para uno).
+- `/hoja?estilo=<id>` — hoja completa de un estilo: cuartos, ánimos,
+  estilos de partida, cada pieza de personalización, muebles, colores,
+  paredes, pisos, decoración, comida, interfaz y minijuegos.
 - `/dev/<pantalla>?estilo=<id>` — el juego con una mascota de prueba y un
   cuarto amoblado, directo en una pantalla: `main`, `comer`, `decorar`,
   `estilo`, `apertura`, `games`, `shop`, `bathroom`, `memoria`,
