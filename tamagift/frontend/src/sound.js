@@ -310,6 +310,17 @@ const SOUNDS = {
   timbre: () => { note({ freq: 880, dur: 0.32, gain: 0.3 }); note({ freq: 698, dur: 0.5, gain: 0.3, delay: 0.3 }); },
   unbox: () => { noise({ dur: 0.18, gain: 0.14, freq: 900, q: 0.8, sweep: 600 }); [784, 988, 1175, 1568].forEach((f, i) => note({ freq: f, dur: 0.12, gain: 0.22, delay: 0.12 + i * 0.06 })); crackle(0.6); },
   style: () => { [392, 523, 659, 784].forEach((f, i) => note({ freq: f, dur: 0.26, gain: 0.22, delay: i * 0.05 })); },
+  // ── Minijuegos ──
+  // Simón dice: cada botón es una nota (do, mi, sol, do agudo)
+  simon0: () => note({ freq: 523, dur: 0.32, gain: 0.3 }),
+  simon1: () => note({ freq: 659, dur: 0.32, gain: 0.3 }),
+  simon2: () => note({ freq: 784, dur: 0.32, gain: 0.3 }),
+  simon3: () => note({ freq: 1047, dur: 0.32, gain: 0.28 }),
+  // Cocina: cuchillo, chisporroteo, cuchara y campanita del horno
+  chop: () => { noise({ dur: 0.06, gain: 0.22, freq: 2400, q: 1.2, sweep: -900 }); note({ freq: 180, dur: 0.05, gain: 0.14 }); },
+  sizzle: () => noise({ dur: 0.7, gain: 0.1, freq: 3200, q: 0.5, sweep: 600 }),
+  stir: () => noise({ dur: 0.18, gain: 0.08, freq: 900, q: 0.8, sweep: 300 }),
+  ding: () => { note({ freq: 1568, dur: 0.5, gain: 0.22 }); note({ freq: 2093, dur: 0.6, gain: 0.14, delay: 0.02 }); },
 };
 
 /** Reproduce un efecto por nombre. Nunca lanza: si el navegador no deja

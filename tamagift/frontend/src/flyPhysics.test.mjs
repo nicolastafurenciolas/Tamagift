@@ -6,7 +6,7 @@
 // si la gravedad, los choques o el puntaje funcionan sería jugar a ojo.
 
 import assert from 'node:assert/strict';
-import { FLY, createFlyState, flapState, stepFly } from './flyPhysics.js';
+import { FLY, createFlyState, flapState, stepFly, gapFor } from './flyPhysics.js';
 
 const DT = 1 / 60;
 const midGap = () => (FLY.H - FLY.GAP) / 2;   // hueco centrado, camino libre
@@ -155,6 +155,38 @@ test('los tubos que salen de pantalla se descartan', () => {
   s.petY = midGap() + FLY.GAP / 2;
   stepFly(s, DT, midGap);
   assert.equal(s.pipes.length, 0, 'no se acumulan tubos viejos en memoria');
+});
+
+test('el hueco se achica con el puntaje, con tope', () => {
+  assert.equal(gapFor(0), FLY.GAP);
+  assert.ok(gapFor(10) < FLY.GAP);
+  assert.equal(gapFor(999), FLY.MIN_GAP);
+});
+
+test('pasar por una estrella la recoge una sola vez', () => {
+  const s = createFlyState();
+  s.started = true;
+  const gapY = midGap();
+  s.pipes = [{ x: FLY.PET_X - FLY.PIPE_W / 2, gapY, gap: FLY.GAP, scored: true, star: { dy: FLY.GAP / 2, taken: false } }];
+  s.spawnIn = 999;
+  for (let i = 0; i < 10; i++) { s.petY = gapY + FLY.GAP / 2; s.vel = 0; stepFly(s, DT, midGap); }
+  assert.equal(s.stars, 1);
+});
+
+test('los tubos que se mueven no se salen del cielo', () => {
+  const s = createFlyState();
+  s.started = true;
+  s.score = 30;
+  s.spawnIn = 0;
+  const rnd = () => 0.1; // siempre se mueve y siempre trae estrella
+  let minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i < 400; i++) {
+    s.petY = FLY.H / 2; s.vel = 0; s.dead = false;
+    stepFly(s, DT, midGap, rnd);
+    s.pipes.forEach((p) => { minY = Math.min(minY, p.gapY); maxY = Math.max(maxY, p.gapY + (p.gap || FLY.GAP)); });
+  }
+  assert.ok(s.pipes.some((p) => p.amp), 'hay tubos que se mueven');
+  assert.ok(minY >= 30 && maxY <= FLY.H - 30, `entre ${minY} y ${maxY}`);
 });
 
 console.log(`\n${passed} pruebas OK`);

@@ -20,6 +20,8 @@ import {
 } from './icons';
 import { MiniMeter, RoundBtn, ActionButton, Modal } from './ui';
 import { GAME_META, replayFactor } from './game/meta';
+import { applyGameResult, progressOf } from '../gameProgress';
+import CookingGame from './game/CookingGame';
 import { GamesMenu, GameResult } from './game/GamesMenu';
 import MemoryGame, { buildCardPool } from './game/MemoryGame';
 import CatchGame from './game/CatchGame';
@@ -145,6 +147,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
   const [unboxOpen, setUnboxOpen] = useState(false);
   const [paintJob, setPaintJob] = useState(null);
   const [replayKey, setReplayKey] = useState(0);
+  const [startLevel, setStartLevel] = useState(null);
   const cameraRef = useRef(ROOM.W / 2);
   const timers = useRef([]);
   const later = useCallback((fn, ms) => { timers.current.push(setTimeout(fn, ms)); }, []);
@@ -417,24 +420,34 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
   }
 
   // ── Fin de minijuego ─────────────────────────────────────────────
-  function finishGame(gameId, score) {
+  // `extra` lo manda el juego: nivel y estrellas, lo que pasó en la partida
+  // (para el reto del día) y, en la Cocina, los platos (`dishes`).
+  function finishGame(gameId, score, extra = {}) {
     const meta = GAME_META[gameId];
     if (!meta) return;
     play('win');
     const g = gameRef.current;
     const bonus = isDailyBonusReady(g, gameId);
     const factor = replayFactor(gameId, playsTodayFor(g, gameId));
-    const base = Math.max(0, Math.round(meta.coins(score) * factor));
+    const base = Math.max(0, Math.round(meta.coins(score, extra) * factor));
     const coins = bonus ? base * DAILY_BONUS_MULTIPLIER : base;
     const record = (g.records || {})[gameId];
     // Un 0 no es récord (salvo en los juegos donde gana el que hace menos).
-    const beat = (meta.lowerIsBetter || score > 0) && isNewRecord(g, gameId, score);
-    setGame((st) => ({ ...registerPlay(st, gameId, score), coins: st.coins + coins }));
-    if (meta.love) addLove(meta.love);
+    const beat = !meta.levels && (meta.lowerIsBetter || score > 0) && isNewRecord(g, gameId, score);
+    const { info } = applyGameResult(g, gameId, score, extra);
+    const challengeCoins = (info.challenge && info.challenge.reward) || 0;
+    setGame((st) => {
+      const next = applyGameResult(st, gameId, score, extra).state;
+      const cooked = { ...(next.cooked || {}) };
+      (extra.dishes || []).forEach((d) => { cooked[d.id] = (cooked[d.id] || 0) + (d.n || 1); });
+      return { ...registerPlay(next, gameId, score), cooked, coins: st.coins + coins + challengeCoins };
+    });
+    if (meta.love && (!meta.levels || extra.won)) addLove(meta.love);
     if (gameId === 'atrapar') addHunger(Math.min(10, score));
-    setGameResult({ gameId, score, coins, record, isRecord: beat, bonus, reduced: factor < 1 });
+    setGameResult({ gameId, score, coins, challengeCoins, record, isRecord: beat, bonus, reduced: factor < 1, extra, info });
   }
-  function replayGame() { play('pop'); setGameResult(null); setReplayKey((k) => k + 1); }
+  // `next`: nivel con el que arranca el juego al volver a abrirse.
+  function replayGame(next) { play('pop'); setStartLevel(next || null); setGameResult(null); setReplayKey((k) => k + 1); }
   function exitGame() {
     const r = gameResult;
     setGameResult(null);
@@ -512,30 +525,32 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
         />
       )}
 
-      {screen === 'games' && <GamesMenu game={game} onBack={() => { play('swoosh'); setScreen('main'); }} onPlay={(id) => { play('swoosh'); setReplayKey((k) => k + 1); setScreen(id); }} />}
+      {screen === 'games' && <GamesMenu game={game} onBack={() => { play('swoosh'); setScreen('main'); }} onPlay={(id) => { play('swoosh'); setStartLevel(null); setReplayKey((k) => k + 1); setScreen(id); }} />}
 
-      {screen === 'memoria' && <MemoryGame key={replayKey} cardPool={buildCardPool(pet)} onBack={back} onComplete={(s) => finishGame('memoria', s)} />}
-      {screen === 'atrapar' && <CatchGame key={replayKey} look={look} foods={pet.food_preferences || []} onBack={back} onComplete={(s) => finishGame('atrapar', s)} />}
+      {screen === 'memoria' && <MemoryGame key={replayKey} pet={pet} cardPool={buildCardPool(pet)} progress={progressOf(game, 'memoria')} startLevel={startLevel} onBack={back} onComplete={(s, x) => finishGame('memoria', s, x)} />}
+      {screen === 'atrapar' && <CatchGame key={replayKey} look={look} foods={pet.food_preferences || []} rank={progressOf(game, 'atrapar').rank} onBack={back} onComplete={(s, x) => finishGame('atrapar', s, x)} />}
       {screen === 'rompecabezas' && (
         <SlidingPuzzle
           key={replayKey}
-          photoUrl={(pet.photos || []).find((p) => p.used_for === 'puzzle' && p.url)?.url || (pet.photos || []).find((p) => p.url)?.url || null}
-          onBack={back} onComplete={(s) => finishGame('rompecabezas', s)}
+          photos={(pet.photos || []).filter((p) => p.url).sort((a, b) => (a.used_for === 'puzzle' ? -1 : 0) - (b.used_for === 'puzzle' ? -1 : 0)).map((p) => p.url)}
+          progress={progressOf(game, 'rompecabezas')} startLevel={startLevel}
+          onBack={back} onComplete={(s, x) => finishGame('rompecabezas', s, x)}
         />
       )}
-      {screen === 'topos' && <WhackGame key={replayKey} onBack={back} onComplete={(s) => finishGame('topos', s)} targets={whackTargets} />}
+      {screen === 'topos' && <WhackGame key={replayKey} rank={progressOf(game, 'topos').rank} onBack={back} onComplete={(s, x) => finishGame('topos', s, x)} targets={whackTargets} />}
       {screen === 'serpiente' && (
         <SnakeGame
-          key={replayKey} onBack={back} onComplete={(s) => finishGame('serpiente', s)} look={look}
+          key={replayKey} onBack={back} onComplete={(s, x) => finishGame('serpiente', s, x)} look={look} rank={progressOf(game, 'serpiente').rank}
           treat={foodSpriteFor(((pet.food_preferences || []).find((f) => f.preference === 'gusta') || {}).food_name || 'fresa')}
         />
       )}
-      {screen === 'cruzar' && <CrossingGame key={replayKey} look={look} onBack={back} onComplete={(s) => finishGame('cruzar', s)} />}
-      {screen === 'torre' && <TowerGame key={replayKey} onBack={back} onComplete={(s) => finishGame('torre', s)} />}
-      {screen === 'trivia' && <TriviaGame key={replayKey} pet={pet} onBack={back} onComplete={(s) => finishGame('trivia', s)} />}
-      {screen === 'simon' && <SimonGame key={replayKey} onBack={back} onComplete={(s) => finishGame('simon', s)} />}
-      {screen === 'volar' && <FlyGame key={replayKey} look={look} onBack={back} onComplete={(s) => finishGame('volar', s)} />}
-      {screen === 'golosinas' && <Match3Game key={replayKey} pet={pet} onBack={back} onComplete={(s) => finishGame('golosinas', s)} />}
+      {screen === 'cruzar' && <CrossingGame key={replayKey} look={look} rank={progressOf(game, 'cruzar').rank} onBack={back} onComplete={(s, x) => finishGame('cruzar', s, x)} />}
+      {screen === 'torre' && <TowerGame key={replayKey} rank={progressOf(game, 'torre').rank} onBack={back} onComplete={(s, x) => finishGame('torre', s, x)} />}
+      {screen === 'trivia' && <TriviaGame key={replayKey} pet={pet} onBack={back} onComplete={(s, x) => finishGame('trivia', s, x)} />}
+      {screen === 'simon' && <SimonGame key={replayKey} rank={progressOf(game, 'simon').rank} onBack={back} onComplete={(s, x) => finishGame('simon', s, x)} />}
+      {screen === 'volar' && <FlyGame key={replayKey} look={look} rank={progressOf(game, 'volar').rank} onBack={back} onComplete={(s, x) => finishGame('volar', s, x)} />}
+      {screen === 'golosinas' && <Match3Game key={replayKey} pet={pet} progress={progressOf(game, 'golosinas')} startLevel={startLevel} onBack={back} onComplete={(s, x) => finishGame('golosinas', s, x)} />}
+      {screen === 'cocina' && <CookingGame key={replayKey} look={look} progress={progressOf(game, 'cocina')} startLevel={startLevel} onBack={back} onComplete={(s, x) => finishGame('cocina', s, x)} />}
 
       <GameResult result={gameResult} onReplay={replayGame} onExit={exitGame} />
 

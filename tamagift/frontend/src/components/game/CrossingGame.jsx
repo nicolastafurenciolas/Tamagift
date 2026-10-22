@@ -4,6 +4,7 @@ import { Screen, ScreenHeader, Badge, Hearts, Board } from '../ui';
 import { play } from '../../sound';
 import Sprite from '../Sprite';
 import { Car } from '../../gameArt';
+import { truckSvg } from '../../art/minigames';
 import { PetSprite, UISprite, useElementWidth } from './common';
 import { useFinish } from './meta';
 
@@ -14,12 +15,41 @@ const LANES = 7;
 const COLS = 7;
 const CAR_COLORS = ['#D8697F', '#E2A845', '#8FC7EE', '#C3A7EA', '#7FA894', '#EE7BC8'];
 
-export default function CrossingGame({ look, onBack, onComplete }) {
+// Carros de cada carril: a veces dos por carril, y desde el segundo cruce
+// algún camión largo y lento que tapa más calle.
+function makeCars(level, rank) {
+  const k = 1 + 0.08 * (rank - 1) + 0.09 * level;
+  const out = [];
+  for (let i = 0; i < LANES - 1; i++) {
+    const lane = i + 1;
+    const dir = i % 2 === 0 ? 1 : -1;
+    const truck = level >= 1 && Math.random() < 0.22;
+    const speed = (truck ? 0.7 : 0.9 + Math.random() * 0.8 + i * 0.12) * k;
+    const pos = Math.random() * COLS;
+    out.push({ lane, pos, dir, speed, len: truck ? 2 : 1 });
+    if (!truck && level >= 2 && Math.random() < 0.35) out.push({ lane, pos: (pos + COLS / 2 + 0.5) % (COLS + 1), dir, speed, len: 1 });
+  }
+  return out;
+}
+
+// Monedas sueltas en la calle: se recogen pasando por encima.
+function makeCoins() {
+  const out = [];
+  const n = 2 + Math.floor(Math.random() * 2);
+  while (out.length < n) {
+    const c = { lane: 1 + Math.floor(Math.random() * (LANES - 1)), col: Math.floor(Math.random() * COLS) };
+    if (!out.some((o) => o.lane === c.lane && o.col === c.col)) out.push(c);
+  }
+  return out;
+}
+
+export default function CrossingGame({ look, onBack, onComplete, rank = 1 }) {
   const [row, setRow] = useState(LANES);
   const [col, setCol] = useState(Math.floor(COLS / 2));
-  const [cars, setCars] = useState(() => Array.from({ length: LANES - 1 }, (_, i) => ({
-    lane: i + 1, pos: Math.random() * COLS, dir: i % 2 === 0 ? 1 : -1, speed: 0.9 + Math.random() * 0.8 + i * 0.12,
-  })));
+  const [cars, setCars] = useState(() => makeCars(0, rank));
+  const [coins, setCoins] = useState(makeCoins);
+  const [coinCount, setCoinCount] = useState(0);
+  const stats = useRef({ coins: 0, hits: 0 });
   const [crossings, setCrossings] = useState(0);
   const [lives, setLives] = useState(3);
   // play | hit | scored (llegó y está volviendo al inicio) | done
@@ -54,8 +84,9 @@ export default function CrossingGame({ look, onBack, onComplete }) {
     if (state !== 'play') return;
     const r = rowRef.current;
     if (r === 0 || r === LANES) return;
-    if (cars.some((c) => c.lane === r && Math.abs(c.pos - colRef.current) < 0.72)) {
+    if (cars.some((c) => c.lane === r && colRef.current > c.pos - 0.72 && colRef.current < c.pos + (c.len - 1) + 0.72)) {
       play('bad');
+      stats.current.hits += 1;
       setState('hit');
       setLives((v) => v - 1);
       later(() => {
@@ -69,7 +100,7 @@ export default function CrossingGame({ look, onBack, onComplete }) {
   useEffect(() => {
     if (lives > 0) return;
     setState('done');
-    finish(crossRef.current, 700);
+    finish(crossRef.current, 700, { stats: { ...stats.current } });
   }, [lives, finish]);
 
   function move(dr, dc) {
@@ -78,13 +109,23 @@ export default function CrossingGame({ look, onBack, onComplete }) {
     if (stateRef.current !== 'play') return;
     play('pop');
     const next = Math.max(0, Math.min(LANES, rowRef.current + dr));
+    const nextCol = Math.max(0, Math.min(COLS - 1, colRef.current + dc));
     setRow(next);
-    setCol((c) => Math.max(0, Math.min(COLS - 1, c + dc)));
+    setCol(nextCol);
+    setCoins((prev) => {
+      const hit = prev.find((c) => c.lane === next && c.col === nextCol);
+      if (!hit) return prev;
+      play('coin');
+      stats.current.coins += 1;
+      setCoinCount(stats.current.coins);
+      return prev.filter((c) => c !== hit);
+    });
     if (next === 0) {
       play('good');
       crossRef.current += 1;
       setCrossings(crossRef.current);
-      setCars((prev) => prev.map((c) => ({ ...c, speed: c.speed * 1.09 })));
+      setCars(makeCars(crossRef.current, rank));
+      setCoins(makeCoins());
       setState('scored');
       later(() => {
         setRow(LANES);
@@ -114,12 +155,15 @@ export default function CrossingGame({ look, onBack, onComplete }) {
   const cellPx = boardW / COLS;
   const carW = Math.round(cellPx * 1.5);
   const carH = Math.round(carW * 30 / 64);
+  const truckW = Math.round(cellPx * 2.6);
+  const truckH = Math.round(truckW * 40 / 110);
 
   return (
     <Screen>
       <ScreenHeader title="Cruzar la calle" subtitle="Desliza para moverte · toca para avanzar" onBack={onBack} />
       <div style={{ display: 'flex', gap: 18, marginBottom: 8, alignItems: 'center' }}>
         <Badge label="Cruces" value={crossings} />
+        <Badge label="Monedas" value={coinCount} color={C.amber} />
         <Hearts lives={lives} size={18} />
       </div>
       <Board
@@ -154,12 +198,19 @@ export default function CrossingGame({ look, onBack, onComplete }) {
             </div>
           );
         })}
+        {coins.map((c) => (
+          <div key={`${c.lane}-${c.col}`} style={{ position: 'absolute', left: `${(c.col / COLS) * 100}%`, top: `${(c.lane / (LANES + 1)) * 100}%`, width: `${cellW}%`, height: `${laneH}%`, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'pg-breathe 1s ease-in-out infinite' }}>
+            <UISprite name="moneda" size={Math.round(cellPx * 0.5)} />
+          </div>
+        ))}
         {cars.map((c, i) => (
           <div key={i} style={{
-            position: 'absolute', left: `${(c.pos / COLS) * 100}%`, top: `${(c.lane / (LANES + 1)) * 100 + laneH * 0.12}%`,
-            width: carW, height: carH, transform: c.dir < 0 ? 'scaleX(-1)' : undefined,
+            position: 'absolute', left: `${(c.pos / COLS) * 100}%`, top: `${(c.lane / (LANES + 1)) * 100 + laneH * (c.len > 1 ? 0.04 : 0.12)}%`,
+            width: c.len > 1 ? truckW : carW, height: c.len > 1 ? truckH : carH, transform: c.dir < 0 ? 'scaleX(-1)' : undefined,
           }}>
-            <Sprite art={<Car color={CAR_COLORS[c.lane % CAR_COLORS.length]} />} cacheKey={`car-${c.lane % CAR_COLORS.length}`} w={carW} h={carH} />
+            {c.len > 1
+              ? <Sprite markup={truckSvg(CAR_COLORS[(c.lane + 2) % CAR_COLORS.length])} cacheKey={`truck-${(c.lane + 2) % CAR_COLORS.length}`} w={truckW} h={truckH} />
+              : <Sprite art={<Car color={CAR_COLORS[c.lane % CAR_COLORS.length]} />} cacheKey={`car-${c.lane % CAR_COLORS.length}`} w={carW} h={carH} />}
           </div>
         ))}
         <div style={{

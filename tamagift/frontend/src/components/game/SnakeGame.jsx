@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { C } from '../../theme';
 import { Screen, ScreenHeader, HeaderTag, Board } from '../ui';
 import { play } from '../../sound';
-import { PetSprite, FoodSprite } from './common';
+import { PetSprite, FoodSprite, UISprite } from './common';
 import { useFinish } from './meta';
 
 // ── Serpiente golosa ──────────────────────────────────────────────
@@ -21,12 +21,17 @@ function randomCell(exclude) {
   return cell;
 }
 
-export default function SnakeGame({ onBack, onComplete, treat, look }) {
+export default function SnakeGame({ onBack, onComplete, treat, look, rank = 1 }) {
   const startSnake = [{ x: 5, y: 5 }, { x: 4, y: 5 }, { x: 3, y: 5 }];
   const [snake, setSnake] = useState(startSnake);
   const [food, setFood] = useState(() => randomCell(startSnake));
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
+  // Golosina dorada: aparece cada 5 comidas y dura poco; vale 3.
+  const [golden, setGolden] = useState(null);
+  const goldenRef = useRef(null);
+  const eatenRef = useRef(0);
+  const stats = useRef({ golden: 0 });
   // No arranca hasta el primer gesto: antes empezaba sola y, si la
   // persona todavía estaba leyendo, chocaba contra la pared y perdía.
   const [started, setStarted] = useState(false);
@@ -60,7 +65,7 @@ export default function SnakeGame({ onBack, onComplete, treat, look }) {
     setStarted(true);
   }
 
-  const tickMs = Math.max(110, TICK_MS - score * 7);
+  const tickMs = Math.max(100, TICK_MS - (rank - 1) * 8 - eatenRef.current * 7);
 
   useEffect(() => {
     if (gameOver || !started) return undefined;
@@ -77,23 +82,41 @@ export default function SnakeGame({ onBack, onComplete, treat, look }) {
       }
       movedDir.current = dir;
       const ate = foodRef.current.x === nx && foodRef.current.y === ny;
+      const g = goldenRef.current;
+      const ateGold = g && g.x === nx && g.y === ny;
       const next = [{ x: nx, y: ny }, ...prev];
-      if (!ate) next.pop();
+      if (!ate && !ateGold) next.pop();
       snakeRef.current = next;
       setSnake(next);
+      if (ateGold) {
+        play('coin');
+        stats.current.golden += 1;
+        scoreRef.current += 3;
+        setScore(scoreRef.current);
+        goldenRef.current = null;
+        setGolden(null);
+      }
       if (ate) {
         play('good');
         scoreRef.current += 1;
+        eatenRef.current += 1;
         setScore(scoreRef.current);
         const f = randomCell(next);
         foodRef.current = f;
         setFood(f);
+        if (eatenRef.current % 5 === 0 && !goldenRef.current) {
+          const gc = randomCell([...next, f]);
+          const token = Date.now();
+          goldenRef.current = { ...gc, token };
+          setGolden(goldenRef.current);
+          setTimeout(() => { if (goldenRef.current && goldenRef.current.token === token) { goldenRef.current = null; setGolden(null); } }, 6000);
+        }
       }
     }, tickMs);
     return () => clearInterval(id);
   }, [gameOver, tickMs, started]);
 
-  useEffect(() => { if (gameOver) finish(scoreRef.current, 500); }, [gameOver, finish]);
+  useEffect(() => { if (gameOver) finish(scoreRef.current, 500, { stats: { ...stats.current } }); }, [gameOver, finish]);
 
   const touchRef = useRef(null);
   function onStart(e) {
@@ -148,8 +171,17 @@ export default function SnakeGame({ onBack, onComplete, treat, look }) {
         }}>
           <FoodSprite food={treat} size={cell} />
         </div>
+        {golden && (
+          <div style={{
+            position: 'absolute', left: golden.x * cell, top: golden.y * cell, width: cell, height: cell, zIndex: 2,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'pg-breathe 0.6s ease-in-out infinite',
+            filter: `drop-shadow(0 0 5px ${C.amber}) drop-shadow(0 0 2px #fff)`,
+          }}>
+            <UISprite name="estrella" size={cell} />
+          </div>
+        )}
         {!started && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 4, pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', left: 0, right: 0, top: '72%', display: 'flex', justifyContent: 'center', zIndex: 4, pointerEvents: 'none' }}>
             <span style={{ fontFamily: 'var(--pg-font-display)', fontSize: 14, fontWeight: 700, color: C.ink, background: C.glass, padding: '7px 14px', borderRadius: 999 }}>Desliza para empezar</span>
           </div>
         )}

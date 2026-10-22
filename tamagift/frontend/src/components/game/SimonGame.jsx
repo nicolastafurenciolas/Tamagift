@@ -11,9 +11,9 @@ import { useFinish } from './meta';
 
 // Nota de cada botón (do, mi, sol, do agudo): así la secuencia también
 // se puede recordar de oído.
-const PAD_SOUND = ['tap', 'good', 'coin', 'pop'];
+const PAD_SOUND = ['simon0', 'simon1', 'simon2', 'simon3'];
 
-export default function SimonGame({ onBack, onComplete }) {
+export default function SimonGame({ onBack, onComplete, rank = 1 }) {
   const [sequence, setSequence] = useState([]);
   const [step, setStep] = useState(0);
   const [active, setActive] = useState(null);
@@ -36,7 +36,7 @@ export default function SimonGame({ onBack, onComplete }) {
 
   function showSequence(seq) {
     setPhaseBoth('showing');
-    const speed = Math.max(280, 620 - seq.length * 22);
+    const speed = Math.max(260, 620 - (rank - 1) * 18 - seq.length * 22);
     seq.forEach((pad, i) => {
       later(() => { setActive(pad); play(PAD_SOUND[pad]); }, i * speed + 350);
       later(() => setActive(null), i * speed + speed * 0.6 + 350);
