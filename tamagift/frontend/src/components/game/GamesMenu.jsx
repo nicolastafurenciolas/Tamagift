@@ -7,6 +7,9 @@ import { LEVEL_GAMES, isLevelGame, progressOf, totalStars, dailyChallenge, isCha
 import { GAME_META, GAME_LIST, NEW_GAMES } from './meta';
 import { StarRow } from './levelUi';
 import { IconTarget } from './gameIcons';
+import Sprite from '../Sprite';
+import { BUGS } from '../../worldEvents';
+import { BUG_ART } from '../../art/room/world';
 
 // ── Menú de minijuegos ────────────────────────────────────────────
 // En dos columnas. Cada tarjeta dice cómo vas (nivel y estrellas, o
@@ -90,7 +93,33 @@ export function GamesMenu({ game, onBack, onPlay }) {
           <GameCard key={g.id} id={g.id} title={GAME_META[g.id].title} desc={g.desc} icon={g.icon} color={g.color} game={game} onClick={() => onPlay(g.id)} />
         ))}
       </div>
+      <BugAlbum bugs={game.bugs || {}} />
     </Screen>
+  );
+}
+
+// Álbum de bichitos: los que pasan volando por el cuarto (de día unos,
+// de noche otros). Los que faltan se ven como sombra.
+function BugAlbum({ bugs }) {
+  const got = BUGS.filter((b) => bugs[b.id]).length;
+  return (
+    <div className="pg-card" style={{ width: '100%', maxWidth: 340, padding: '10px 12px', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <span style={{ fontFamily: FONT.display, fontSize: 13, fontWeight: 800, color: C.ink }}>Álbum de bichitos</span>
+        <span style={{ fontFamily: FONT.display, fontSize: 11.5, fontWeight: 700, color: C.inkSoft }}>{got} de {BUGS.length}</span>
+      </div>
+      <p style={{ fontSize: 11, color: C.inkFaint, margin: '2px 0 8px' }}>Atrápalos cuando pasen volando por el cuarto. Algunos solo salen de noche.</p>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${BUGS.length}, 1fr)`, gap: 4 }}>
+        {BUGS.map((b) => (
+          <div key={b.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: C.paperDeep, display: 'grid', placeItems: 'center', filter: bugs[b.id] ? 'none' : 'brightness(0) opacity(0.25)' }}>
+              <Sprite markup={BUG_ART[b.id]()} cacheKey={`bug-${b.id}`} w={38} h={38} />
+            </div>
+            <span style={{ fontFamily: FONT.display, fontSize: 9, fontWeight: 700, color: bugs[b.id] ? C.ink : C.inkFaint, textAlign: 'center', lineHeight: 1.05 }}>{bugs[b.id] ? b.label : '¿?'}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
