@@ -9,6 +9,7 @@ import { FUN } from './fun.js';
 import { PLANTS } from './plants.js';
 import { RUGS } from './rugs.js';
 import { WALL_ITEMS, POSTER_FRAME, posterFrameDraw } from './wall.js';
+import { VIBE_FURNITURE } from './vibes.js';
 
 export const FURNITURE_CATEGORIES = [
   { id: 'camas', name: 'Camas' },
@@ -21,7 +22,7 @@ export const FURNITURE_CATEGORIES = [
   { id: 'pared', name: 'Para la pared' },
 ];
 
-const ALL = [...REST, ...STORAGE, ...FUN, ...PLANTS, ...RUGS, ...WALL_ITEMS];
+const ALL = [...REST, ...STORAGE, ...FUN, ...PLANTS, ...RUGS, ...WALL_ITEMS, ...VIBE_FURNITURE];
 
 // Los dibujos están hechos en unidades cómodas; en el cuarto se ven un
 // 25% más grandes, para que la mochi quepa en la cama y en el sofá.

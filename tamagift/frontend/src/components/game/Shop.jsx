@@ -9,8 +9,9 @@ import { lookOf } from '../../petLook';
 import { DECOR_CATALOG } from '../../shopCatalog';
 import {
   FURNITURE, FURNITURE_CATEGORIES, WALL_STYLES, FLOOR_STYLES, FURNITURE_PAINTS,
-  findWall, findFloor, wallSwatchSvg, floorSwatchSvg, ownsWall, ownsFloor,
+  findWall, findFloor, wallSwatchSvg, floorSwatchSvg, ownsWall, ownsFloor, vibesOf,
 } from '../../roomCatalog';
+import { VIBES } from '../../art/mochi';
 import { ModularPetStep, useDesignerState } from '../PetDesigner';
 import { FramedPoster } from './posters';
 import { FashionShop, Salon } from './Fashion';
@@ -90,6 +91,54 @@ function PaintRow({ value, onPick }) {
           }}
         />
       ))}
+    </div>
+  );
+}
+
+// Fila de estilos de persona para filtrar (solo los que tienen algo).
+export function VibeRow({ items, value, onChange }) {
+  const present = VIBES.filter((v) => items.some((it) => vibesOf(it).includes(v.id)));
+  if (!present.length) return null;
+  return (
+    <TabRow style={{ padding: '0 2px 8px' }}>
+      {[{ id: 'todo', label: 'Todo' }, ...present].map((v) => (
+        <button
+          key={v.id} onClick={() => { play('pop'); onChange(v.id); }} className="pg-focus"
+          style={{ flexShrink: 0, padding: '5px 10px', borderRadius: 999, fontFamily: FONT.display, fontSize: 11, fontWeight: 700, cursor: 'pointer', background: value === v.id ? C.lavender : 'transparent', color: value === v.id ? C.onAccent : C.lavender, border: `1.5px solid ${C.lavender}`, whiteSpace: 'nowrap' }}
+        >
+          {v.label}
+        </button>
+      ))}
+    </TabRow>
+  );
+}
+const byVibe = (vibe) => (it) => vibe === 'todo' || vibesOf(it).includes(vibe);
+
+// Adorno del catálogo: vista grande, pintura (si se puede) y compra.
+function DecorShopCard({ item, owned, paint, canAfford, onBuy, onRepaint }) {
+  const [choice, setChoice] = useState('natural');
+  const active = owned ? (paint || 'natural') : choice;
+  return (
+    <div className="pg-card" style={{ padding: 9, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div style={{ height: 100, borderRadius: 12, background: C.paperDeep, border: `1.5px solid ${C.line}`, display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
+        <Sprite markup={item.svg(active)} cacheKey={`decor-${item.id}-${active}`} w={86} h={86} />
+      </div>
+      <div style={{ fontFamily: FONT.display, fontSize: 12.5, fontWeight: 700, color: C.ink, lineHeight: 1.15, margin: '6px 0 2px', minHeight: 29 }}>{item.name}</div>
+      <div style={{ fontSize: 10.5, color: C.inkFaint, lineHeight: 1.2 }}>{item.place === 'sobre' ? 'Va encima de muebles o colgado' : 'Va en el piso'}</div>
+      {item.paintable && <PaintRow value={active} onPick={(id) => (owned ? onRepaint(id) : setChoice(id))} />}
+      <button
+        onClick={() => { if (!owned) onBuy(active); }} disabled={owned || !canAfford} className="pg-focus"
+        style={{
+          marginTop: 7, padding: '7px 6px', borderRadius: 999, fontFamily: FONT.display, fontSize: 12, fontWeight: 700,
+          cursor: owned || !canAfford ? 'default' : 'pointer',
+          background: owned ? C.surfaceAlt : canAfford ? C.rose : C.track,
+          color: owned ? C.inkSoft : canAfford ? C.onAccent : C.inkFaint,
+          border: `1.5px solid ${owned ? C.line : canAfford ? C.rose : C.track}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+        }}
+      >
+        {owned ? 'Tuyo' : <><IconCoin size={12} color={canAfford ? C.onAccent : C.inkFaint} /> {item.price}</>}
+      </button>
     </div>
   );
 }
@@ -263,6 +312,7 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
   };
 
   const [cat, setCat] = useState('todo');
+  const [vibe, setVibe] = useState('todo');
   function repaintFurniture(item, paintId) {
     setGame((g) => ({
       ...g,
@@ -278,9 +328,16 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
       furniturePaint: { ...(g.furniturePaint || {}), [item.id]: paintId || 'natural' },
     }));
   }
-  function buyDecor(id, price) {
+  function buyDecor(id, price, paintId) {
     if ((game.ownedDecor || []).map(String).includes(String(id))) return;
-    buy(price, (g) => ({ ...g, ownedDecor: [...(g.ownedDecor || []), id] }));
+    buy(price, (g) => ({ ...g, ownedDecor: [...(g.ownedDecor || []), id], ...(paintId ? { decorPaint: { ...(g.decorPaint || {}), [id]: paintId } } : {}) }));
+  }
+  function repaintDecor(id, paintId) {
+    setGame((g) => ({
+      ...g,
+      decorPaint: { ...(g.decorPaint || {}), [id]: paintId },
+      placed: (g.placed || []).map((it) => (it.kind === 'decor' && it.refId === id ? { ...it, paint: paintId } : it)),
+    }));
   }
   function buyPoster(p, paintId) {
     if ((game.ownedPosters || []).includes(p.id)) return;
@@ -364,7 +421,8 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
                 <ShopTab key={c.id} active={cat === c.id} onClick={() => { play('pop'); setCat(c.id); }}>{c.name}</ShopTab>
               ))}
             </TabRow>
-            {FURNITURE.filter((it) => cat === 'todo' || it.cat === cat).map((item) => (
+            <VibeRow items={FURNITURE} value={vibe} onChange={setVibe} />
+            {FURNITURE.filter((it) => (cat === 'todo' || it.cat === cat) && byVibe(vibe)(it)).map((item) => (
               <FurnitureShopCard
                 key={item.id} item={item} owned={(game.ownedFurniture || []).includes(item.id)} ownedPaint={game.furniturePaint?.[item.id]}
                 canAfford={coins >= item.price} onBuy={(paintId) => buyFurniture(item, paintId)} onRepaint={(paintId) => repaintFurniture(item, paintId)}
@@ -388,18 +446,16 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
                 />
               );
             })}
-            <p style={{ fontFamily: FONT.display, fontSize: 12, fontWeight: 700, color: C.inkSoft, margin: '14px 0 8px' }}>Del catálogo</p>
-            {DECOR_CATALOG.map((item) => {
-              const owned = (game.ownedDecor || []).includes(item.id);
-              return (
-                <ShopItemCard
-                  key={item.id} image={<Sprite markup={item.svg()} cacheKey={`decor-${item.id}`} w={48} h={48} />}
-                  note={item.place === 'sobre' ? 'Se puede poner encima de los muebles' : undefined}
-                  name={item.name} price={item.price} owned={owned}
-                  canAfford={coins >= item.price} actionLabel={owned ? 'Comprado' : 'Comprar'} onAction={() => buyDecor(item.id, item.price)}
+            <p style={{ fontFamily: FONT.display, fontSize: 12, fontWeight: 700, color: C.inkSoft, margin: '14px 0 8px' }}>Del catálogo · por estilo</p>
+            <VibeRow items={DECOR_CATALOG} value={vibe} onChange={setVibe} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 9 }}>
+              {DECOR_CATALOG.filter(byVibe(vibe)).map((item) => (
+                <DecorShopCard
+                  key={item.id} item={item} owned={(game.ownedDecor || []).includes(item.id)} paint={game.decorPaint?.[item.id]}
+                  canAfford={coins >= item.price} onBuy={(paintId) => buyDecor(item.id, item.price, item.paintable ? paintId : null)} onRepaint={(paintId) => repaintDecor(item.id, paintId)}
                 />
-              );
-            })}
+              ))}
+            </div>
           </>
         )}
 

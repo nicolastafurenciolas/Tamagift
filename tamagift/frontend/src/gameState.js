@@ -36,6 +36,7 @@ export const DEFAULT_GAME_STATE = {
   ownedFurniture: [],   // ids de muebles comprados
   furniturePaint: {},   // { [idMueble]: idColorFURNITURE_PAINTS }, elegido antes de comprar
   posterPaint: {},      // { [idPóster]: idColorFURNITURE_PAINTS } del marco
+  decorPaint: {},       // { [idAdorno]: idColorFURNITURE_PAINTS } de los adornos que se pintan
   ownedWalls: ['liso'],    // diseños de pared comprados (el color se elige gratis)
   ownedFloors: ['tablas'],
   equippedOutfit: null, // id ESTABLE de la prenda puesta, o null

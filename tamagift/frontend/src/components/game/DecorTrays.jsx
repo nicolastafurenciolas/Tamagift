@@ -56,7 +56,7 @@ export default function DecorTrays({ posters, customDecor, game, setGame, camera
         ...defaultPlacement(kind, refId, posters, customDecor, {
           centerX: cameraRef ? cameraRef.current : ROOM.W / 2,
           placed: g.placed || [],
-          paint: (kind === 'mueble' ? g.furniturePaint?.[refId] : kind === 'poster' ? g.posterPaint?.[refId] : null) || 'natural',
+          paint: (kind === 'mueble' ? g.furniturePaint?.[refId] : kind === 'poster' ? g.posterPaint?.[refId] : g.decorPaint?.[refId]) || 'natural',
         }),
       }],
     }));
@@ -117,7 +117,7 @@ export default function DecorTrays({ posters, customDecor, game, setGame, camera
               <TrayItem key={id} label={custom ? custom.name : gen.name} active={isPlaced('decor', id)} onClick={() => toggle('decor', id)}>
                 {custom
                   ? <Sprite src={custom.image} w={52} h={52} kind="art" />
-                  : <Sprite markup={gen.svg()} cacheKey={`decor-${gen.id}`} w={50} h={50} />}
+                  : <Sprite markup={gen.svg(game.decorPaint?.[id] || 'natural')} cacheKey={`decor-${gen.id}-${game.decorPaint?.[id] || 'natural'}`} w={50} h={50} />}
               </TrayItem>
             );
           })}

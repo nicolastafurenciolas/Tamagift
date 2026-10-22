@@ -229,7 +229,8 @@ function renderPlacedContent(item, posters, customDecor, pixel) {
   const custom = (customDecor || []).find((d) => String(d.id) === String(item.refId));
   if (custom) return <Sprite src={custom.image} w={sw} h={sh} kind="art" pixel={pixel} />;
   const d = findDecor(item.refId);
-  return d ? <Sprite markup={d.svg()} cacheKey={`decor-${d.id}`} w={sw} h={sh} pixel={pixel} /> : null;
+  const paint = item.paint || 'natural';
+  return d ? <Sprite markup={d.svg(paint)} cacheKey={`decor-${d.id}-${paint}`} w={sw} h={sh} pixel={pixel} /> : null;
 }
 
 // ── El cuarto ────────────────────────────────────────────────────
@@ -453,14 +454,14 @@ export default function Room({
           >
             Quitar
           </SmallBtn>
-          {(sel.kind === 'mueble' || sel.kind === 'poster') && (
+          {(sel.kind === 'mueble' || sel.kind === 'poster' || (sel.kind === 'decor' && (findDecor(sel.refId) || {}).paintable)) && (
             <div className="pg-scroll-x" style={{ display: 'flex', gap: 6, width: '100%', overflowX: 'auto', paddingTop: 4 }}>
               {FURNITURE_PAINTS.map((pt) => (
                 <button
                   key={pt.id} title={pt.name} aria-label={`Pintar ${pt.name}`} className="pg-focus pg-keep-round"
                   onClick={() => {
                     updateSel(setGame, sel.key, (it) => ({ ...it, paint: pt.id }));
-                    const field = sel.kind === 'mueble' ? 'furniturePaint' : 'posterPaint';
+                    const field = sel.kind === 'mueble' ? 'furniturePaint' : sel.kind === 'poster' ? 'posterPaint' : 'decorPaint';
                     setGame((g) => ({ ...g, [field]: { ...(g[field] || {}), [sel.refId]: pt.id } }));
                   }}
                   style={{
