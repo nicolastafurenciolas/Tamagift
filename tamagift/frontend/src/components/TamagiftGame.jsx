@@ -434,6 +434,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
       play('bad');
       setFlicker(Date.now());
       setMood('sorprendido');
+      fireReaction('scare');
       setBubble({ text: '¡Buuu! ¡Ay, qué susto!', tone: 'casual' });
       later(() => { setBubble({ text: 'Jajaja, me asustó de verdad', tone: 'gusta' }); fireReaction('happy'); addVitals({ love: 3 }); }, 1600);
       setGame((st) => endEvent(st));
@@ -464,6 +465,22 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
     if (screen !== 'main' || asleep || !vitals) return;
     if ((isBedtime(clock) && energy < 60) || energy < 20) setBubble({ text: 'Tengo sueño… ¿apagas la luz?', tone: 'casual' });
   }, [phase, energy < 20, screen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Al volver al cuarto con otra ropa o peinado, se luce.
+  const outfitKey = JSON.stringify([game.wear || {}, game.look || {}, game.equippedOutfit || null]);
+  const seenOutfit = useRef(outfitKey);
+  const prevScreen = useRef(screen);
+  useEffect(() => {
+    const from = prevScreen.current;
+    prevScreen.current = screen;
+    if (screen !== 'main') return undefined;
+    const changed = seenOutfit.current !== outfitKey;
+    seenOutfit.current = outfitKey;
+    // solo al volver del vestidor o de la tienda (no al cargar la partida)
+    if (!changed || !['closet', 'shop'].includes(from)) return undefined;
+    const t = setTimeout(() => { fireReaction('dress'); setBubble({ text: '¿Cómo me veo? ¡Me encanta!', tone: 'gusta' }); }, 450);
+    return () => clearTimeout(t);
+  }, [screen, outfitKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Lo que cocinó en la Cocina pasa a la nevera.
   useEffect(() => {
@@ -551,7 +568,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
     } else if (d.kind === 'ropa') {
       const [slot] = d.refId.split(':');
       setGame((g) => ({ ...unpack(g, d), wear: { ...(g.wear || {}), [slot]: d.wear } }));
-      fireReaction('happy');
+      fireReaction('dress');
       setBubble({ text: '¡Me encanta cómo me queda!', tone: 'gusta' });
     } else if (d.kind === 'carta') {
       setGame((g) => unpack(g, d));

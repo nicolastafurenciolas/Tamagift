@@ -62,6 +62,24 @@ const PROFILES = {
   },
 };
 
+// Gestos cortos (comer, alegrarse con ropa nueva, decir que no,
+// asustarse). En pixel solo se desplaza (escalar un sprite rompe los
+// píxeles) y a saltos; en papel también a saltos; en el resto, suave.
+const ACTS = {
+  chew: { px: 'pg-px-chew 0.9s steps(6, end)', soft: 'pg-chew 0.9s ease-in-out' },
+  hop: { px: 'pg-px-hop 0.7s steps(5, end)', soft: 'pg-hop 0.7s cubic-bezier(.34,1.56,.64,1)' },
+  nope: { px: 'pg-px-nope 0.6s steps(6, end)', soft: 'pg-nope 0.6s ease-in-out' },
+  startle: { px: 'pg-px-startle 0.8s steps(8, end)', soft: 'pg-startle 0.8s ease-out' },
+};
+for (const [id, p] of Object.entries(PROFILES)) {
+  p.act = (name) => {
+    const a = ACTS[name];
+    if (!a) return 'none';
+    if (id === 'pixel') return a.px;
+    return id === 'stopmotion' ? a.soft.replace(/ (ease-in-out|ease-out|cubic-bezier\([^)]*\))$/, ' steps(6, end)') : a.soft;
+  };
+}
+
 export function getMotion(id) {
   return PROFILES[id] || PROFILES.calm;
 }

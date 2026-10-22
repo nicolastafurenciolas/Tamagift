@@ -632,6 +632,16 @@ vestidor y en la decoración.
     cada 3 minutos y al volver a la pestaña. Las fotos no se guardan en
     la partida (se piden al servidor al abrir la carta).
 
+## Gestos de la mascota
+
+- La mochi mastica cuando come algo que le gusta, niega con la cabeza
+  cuando no, salta de alegría cuando estrena ropa (al volver del
+  vestidor o de la tienda con otra pinta, o al ponérsela desde la caja,
+  con brillitos y "¿Cómo me veo?") y se asusta con el truco de Halloween.
+- Cada estilo los hace a su manera (`ACTS` en `styles/motion.js`): en
+  pixel solo se desplaza y a saltos (escalar un sprite rompe los
+  píxeles), en papel a cuadros de stop motion y en el resto suave.
+
 ## Resumen de archivos tocados en toda la sesión
 
 **Backend:**

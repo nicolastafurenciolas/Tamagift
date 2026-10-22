@@ -24,7 +24,11 @@ const PARTICLE = {
   clean: { kind: 'bubble', color: '#7FB9DE', n: 6 },
   music: { kind: 'note', color: '#B08DF2', n: 4 },
   dislike: { kind: 'drop', color: '#8FB3C9', n: 3 },
+  dress: { kind: 'sparkle', color: '#FFC94D', n: 9 },
+  scare: { kind: 'drop', color: '#8FB3C9', n: 4 },
 };
+// El gesto que acompaña a cada reacción (ver ACTS en styles/motion.js).
+const ACT = { yum: 'chew', dislike: 'nope', dress: 'hop', scare: 'startle' };
 
 const INK = '#4A3439';
 
@@ -84,6 +88,7 @@ export default function Pet({
   const motion = getMotion(style.motion);
   const [particles, setParticles] = useState([]);
   const [poked, setPoked] = useState(0);
+  const [act, setAct] = useState(null);
   const lastReactionKey = useRef(null);
   const timers = useRef([]);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
@@ -112,6 +117,11 @@ export default function Pet({
     lastReactionKey.current = reaction.key;
     if (reaction.key === 0) return;
     spawn(reaction.type || 'love');
+    const name = ACT[reaction.type];
+    if (name) {
+      setAct({ name, key: reaction.key });
+      timers.current.push(setTimeout(() => setAct((a) => (a && a.key === reaction.key ? null : a)), 950));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reaction]);
 
@@ -158,7 +168,7 @@ export default function Pet({
         </div>
       ))}
 
-      <div style={{ width: '100%', height: '100%', animation: idle ? motion.idle(mood) : 'none', transformOrigin: '50% 88%' }}>
+      <div style={{ width: '100%', height: '100%', animation: act ? motion.act(act.name) : idle ? motion.idle(mood) : 'none', transformOrigin: '50% 88%' }}>
         <div style={{ width: '100%', height: '100%', animation: idle ? motion.sway(mood) : 'none', transformOrigin: '50% 90%' }}>
           <button
             onClick={handlePoke}
