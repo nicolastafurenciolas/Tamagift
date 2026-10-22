@@ -4,15 +4,23 @@ import { Screen, ScreenHeader } from '../ui';
 import { IconTub, IconSparkle } from '../icons';
 import Pet from '../Pet';
 import { UISprite } from './common';
+import Sprite from '../Sprite';
+import { bathBackSvg, bathFrontSvg } from '../../art/room/bath';
+
+// El fondo y el frente de la tina se arman una vez: son siempre iguales.
+const BACK = bathBackSvg();
+const FRONT = bathFrontSvg();
 
 // ── Baño ──────────────────────────────────────────────────────────
+// La mascota está DENTRO de la tina: fondo (pared, piso, tina por dentro)
+// → mascota → frente de la tina con espuma. Todo pasa por el estilo.
 // La escena trabaja en coordenadas fijas de 300×380 y se dibuja escalada
 // (antes medía 300×380 píxeles fijos y en un celular bajo obligaba a
 // hacer scroll). El puntero se normaliza contra el tamaño real.
 
 export const BATH_W = 300;
 export const BATH_H = 380;
-export const PET_CENTER = { x: 150, y: 160 };
+export const PET_CENTER = { x: 150, y: 174 };
 
 export default function Bathroom({
   petName, mood, look, bathProgress, bathDone, spongePos, bubbles, onBack,
@@ -50,17 +58,16 @@ export default function Bathroom({
           style={{
             position: 'relative', width: BATH_W, height: BATH_H, overflow: 'hidden', borderRadius: 28,
             transform: `scale(${scale})`, transformOrigin: '0 0',
-            background: `linear-gradient(180deg, ${C.water2} 0%, ${C.water1} 100%)`,
+            background: C.water2,
             touchAction: 'none',
           }}
           onPointerMove={(e) => onSpongeMove(e, toScene(e))}
           onPointerUp={onSpongeUp}
           onPointerCancel={onSpongeUp}
         >
-          {/* azulejos */}
-          <div style={{ position: 'absolute', inset: 0, backgroundImage: `linear-gradient(${C.grid} 2px, transparent 2px), linear-gradient(90deg, ${C.grid} 2px, transparent 2px)`, backgroundSize: '38px 38px' }} />
-          {/* tina */}
-          <div style={{ position: 'absolute', left: 14, right: 14, bottom: 12, height: '30%', borderRadius: '18px 18px 40px 40px', background: `linear-gradient(180deg, ${C.surface}, ${C.surfaceAlt})`, border: `3px solid ${C.ink}` }} />
+          <div style={{ position: 'absolute', left: 0, top: 0 }}>
+            <Sprite markup={BACK} cacheKey="bath-back" w={BATH_W} h={BATH_H} kind="surface" />
+          </div>
           <div style={{ position: 'absolute', left: PET_CENTER.x - 78, top: PET_CENTER.y - 78, width: 156, height: 156 }}>
             <Pet mood={bathDone ? 'feliz' : mood} look={look} size={156} idle onPoke={() => {}} showShadow={false} />
             {bathProgress > 0 && !bathDone && (
@@ -71,6 +78,9 @@ export default function Bathroom({
                 <UISprite name="burbuja" size={18} style={{ position: 'absolute', right: 34, bottom: 30 }} />
               </div>
             )}
+          </div>
+          <div style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}>
+            <Sprite markup={FRONT} cacheKey="bath-front" w={BATH_W} h={BATH_H} />
           </div>
           {bubbles.map((b) => (
             <div key={b.id} style={{ position: 'absolute', left: b.x - 11, top: b.y - 11, animation: 'pg-bubble-float 0.9s ease-out forwards', pointerEvents: 'none' }}>
