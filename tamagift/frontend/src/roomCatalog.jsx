@@ -30,17 +30,6 @@ export const findWall = (value) => parseWall(value);
 export const findFloor = (value) => parseFloor(value);
 export { wallSvg, floorSvg, wallSwatchSvg, floorSwatchSvg };
 
-// Estilos de persona de un mueble o adorno (ver art/mochi/wardrobe VIBES).
-// Los muebles viejos traen `tags` con nombres de antes: se traducen.
-const TAG_VIBE = {
-  dulce: ['kawaii', 'coquette'], princesa: ['princesa'], elegante: ['princesa', 'academia'], angelical: ['celestial', 'princesa'],
-  aesthetic: ['aesthetic'], hippie: ['cottagecore'], rustico: ['cottagecore'], gotico: ['gotica'], y2k: ['y2k'], punk: ['rockera'], metalero: ['rockera'],
-};
-export function vibesOf(item) {
-  if (item.vibes && item.vibes.length) return item.vibes;
-  return [...new Set((item.tags || []).flatMap((t) => TAG_VIBE[t] || [t]))];
-}
-
 // ¿Tiene comprado este diseño? (las partidas viejas guardan ids sueltos)
 const patternOf = (aliases) => (v) => String(aliases[v] || v || '').split('.')[0];
 const wallPattern = patternOf(WALL_ALIASES);

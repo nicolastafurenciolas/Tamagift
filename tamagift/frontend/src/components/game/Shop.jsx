@@ -9,9 +9,8 @@ import { lookOf } from '../../petLook';
 import { DECOR_CATALOG } from '../../shopCatalog';
 import {
   FURNITURE, FURNITURE_CATEGORIES, WALL_STYLES, FLOOR_STYLES, FURNITURE_PAINTS,
-  findWall, findFloor, wallSwatchSvg, floorSwatchSvg, ownsWall, ownsFloor, vibesOf,
+  findWall, findFloor, wallSwatchSvg, floorSwatchSvg, ownsWall, ownsFloor,
 } from '../../roomCatalog';
-import { VIBES } from '../../art/mochi';
 import { ModularPetStep, useDesignerState } from '../PetDesigner';
 import { FramedPoster } from './posters';
 import { FashionShop, Salon } from './Fashion';
@@ -98,13 +97,17 @@ function PaintRow({ value, onPick }) {
   );
 }
 
-// Fila de estilos de persona para filtrar (solo los que tienen algo).
-export function VibeRow({ items, value, onChange }) {
-  const present = VIBES.filter((v) => items.some((it) => vibesOf(it).includes(v.id)));
-  if (!present.length) return null;
+// Filtro de la deco por dónde va (no por "tipo de persona": las
+// etiquetas de estilo encasillaban y podían espantar).
+const PLACES = [
+  { id: 'todo', label: 'Todo' },
+  { id: 'sobre', label: 'Para mesas y paredes' },
+  { id: 'piso', label: 'Para el piso' },
+];
+function PlaceRow({ value, onChange }) {
   return (
     <TabRow style={{ padding: '0 2px 8px' }}>
-      {[{ id: 'todo', label: 'Todo' }, ...present].map((v) => (
+      {PLACES.map((v) => (
         <button
           key={v.id} onClick={() => { play('pop'); onChange(v.id); }} className="pg-focus"
           style={{ flexShrink: 0, padding: '5px 10px', borderRadius: 999, fontFamily: FONT.display, fontSize: 11, fontWeight: 700, cursor: 'pointer', background: value === v.id ? C.lavender : 'transparent', color: value === v.id ? C.onAccent : C.lavender, border: `1.5px solid ${C.lavender}`, whiteSpace: 'nowrap' }}
@@ -115,7 +118,6 @@ export function VibeRow({ items, value, onChange }) {
     </TabRow>
   );
 }
-const byVibe = (vibe) => (it) => vibe === 'todo' || vibesOf(it).includes(vibe);
 
 // Adorno del catálogo: vista grande, pintura (si se puede) y compra.
 function DecorShopCard({ item, owned, pending, paint, canAfford, onBuy, onRepaint }) {
@@ -352,7 +354,7 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
   };
 
   const [cat, setCat] = useState('todo');
-  const [vibe, setVibe] = useState('todo');
+  const [place, setPlace] = useState('todo');
   function repaintFurniture(item, paintId) {
     setGame((g) => ({
       ...g,
@@ -461,8 +463,7 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
                 <ShopTab key={c.id} active={cat === c.id} onClick={() => { play('pop'); setCat(c.id); }}>{c.name}</ShopTab>
               ))}
             </TabRow>
-            <VibeRow items={FURNITURE} value={vibe} onChange={setVibe} />
-            {FURNITURE.filter((it) => (cat === 'todo' || it.cat === cat) && byVibe(vibe)(it)).map((item) => (
+            {FURNITURE.filter((it) => cat === 'todo' || it.cat === cat).map((item) => (
               <FurnitureShopCard
                 key={item.id} item={item} owned={(game.ownedFurniture || []).includes(item.id)} pending={pendingDelivery(game, 'mueble', item.id)} ownedPaint={game.furniturePaint?.[item.id]}
                 canAfford={coins >= item.price} onBuy={(paintId) => buyFurniture(item, paintId)} onRepaint={(paintId) => repaintFurniture(item, paintId)}
@@ -486,10 +487,10 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
                 />
               );
             })}
-            <p style={{ fontFamily: FONT.display, fontSize: 12, fontWeight: 700, color: C.inkSoft, margin: '14px 0 8px' }}>Del catálogo · por estilo</p>
-            <VibeRow items={DECOR_CATALOG} value={vibe} onChange={setVibe} />
+            <p style={{ fontFamily: FONT.display, fontSize: 12, fontWeight: 700, color: C.inkSoft, margin: '14px 0 8px' }}>Del catálogo</p>
+            <PlaceRow value={place} onChange={setPlace} />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 9 }}>
-              {DECOR_CATALOG.filter(byVibe(vibe)).map((item) => (
+              {DECOR_CATALOG.filter((it) => place === 'todo' || it.place === place).map((item) => (
                 <DecorShopCard
                   key={item.id} item={item} owned={(game.ownedDecor || []).includes(item.id)} pending={pendingDelivery(game, 'decor', item.id)} paint={game.decorPaint?.[item.id]}
                   canAfford={coins >= item.price} onBuy={(paintId) => buyDecor(item.id, item.price, item.paintable ? paintId : null)} onRepaint={(paintId) => repaintDecor(item.id, paintId)}

@@ -9,9 +9,9 @@ import { renderTail, renderPattern, TAILS, PATTERNS } from './tails.js';
 import { HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES } from './accessories.js';
 import { renderHair, renderBrows, hairColors, HAIRSTYLES, HAIR_COLORS, BROWS } from './hair.js';
 import { renderMarks, MARKS } from './marks.js';
-import { renderWear, wearOverflow, WARDROBE, SLOTS, VIBES, findWearable, resolveWear } from './wardrobe/index.js';
+import { renderWear, wearOverflow, WARDROBE, SLOTS, findWearable, resolveWear } from './wardrobe/index.js';
 
-export { WARDROBE, SLOTS, VIBES, findWearable, resolveWear };
+export { WARDROBE, SLOTS, findWearable, resolveWear };
 
 export { SHAPES, EYES, MOUTHS, CHEEKS, EARS, TAILS, PATTERNS, MOODS, HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES, HAIRSTYLES, HAIR_COLORS, BROWS, MARKS };
 

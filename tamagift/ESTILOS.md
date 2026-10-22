@@ -100,7 +100,7 @@ estampados y 46 accesorios de cabeza, cuello y cara.
 ## La mochi vestida y el mundo
 
 - **Vestidor** (`art/mochi/wardrobe/`): cada cosa es
-  `{ id, slot, label, vibes, price, colors, draw }`. Todo se ancla a la
+  `{ id, slot, label, price, colors, draw }` (`vibes` es una nota interna que no se muestra). Todo se ancla a la
   geometría del cuerpo (`kit.js`: `garment`, `neckLine`, `onTop`,
   `headband`…). La receta guarda lo puesto en `wear`
   (`{ cabeza: { id, c1, c2 } }`); los `headAcc`/`neckAcc`/`extraAcc`
@@ -109,7 +109,10 @@ estampados y 46 accesorios de cabeza, cuello y cara.
 - **Peinados** (`art/mochi/hair.js`): casquete + flequillo en una sola
   silueta (los mechones separados se veían cuadriculados en pixel).
 - **Pixel art hecho a mano**: ojos, bocas y mejillas en
-  `pixelStamps.js` / `mochi/faceStamps.js`; comida, objetos e íconos con
+  `pixelStamps.js` / `mochi/faceStamps.js`, y en tamaños grandes (la
+  rejilla es fina: 2 px de pantalla por píxel de arte) en
+  `mochi/bigFace.js`, armados píxel a píxel sin antialias; si la caja es
+  el doble de la pieza más grande, se agranda por un entero; comida, objetos e íconos con
   su propia paleta en `art/pixel/` (`defArt`). Un SVG con
   `data-px-sprite="food.x"` se pinta en pixel con su dibujo hecho a
   mano.

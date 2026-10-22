@@ -823,6 +823,7 @@ function drawStamp(img, W, H, s, o) {
     k: parseColor(el.getAttribute('data-ink') || '#2B1D2E'),
     w: [255, 255, 255, 1],
     e: parseColor(el.getAttribute('data-c1') || '#2B1D2E'),
+    E: mixRgb(parseColor(el.getAttribute('data-c1') || '#2B1D2E'), [255, 255, 255], 0.45),
     b: parseColor(el.getAttribute('data-c2') || '#FF8FA8'),
     r: [146, 52, 72, 1],
     p: [255, 143, 163, 1],
@@ -897,8 +898,9 @@ const KITS = { sticker: kitSticker, lofi: kitLofi, retro: kitRetro, papel: kitPa
 // mochi de 60 px con píxeles de 3 tiene 20 puntos y no se le ve la cara.
 export function pixelSizeFor(style, w, h, pixel) {
   if (pixel) return pixel;
-  const base = style.art.pixel || 3;
-  return Math.min(base, Math.max(1.5, Math.min(w, h) / 40));
+  const base = style.art.pixel || 2;
+  // al menos ~72 píxeles de arte a lo ancho (si no, la cara son dos puntos)
+  return Math.min(base, Math.max(1, Math.min(w, h) / 72));
 }
 
 /**

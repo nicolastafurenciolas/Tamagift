@@ -104,7 +104,7 @@ function thumbView(field, recipe) {
     case 'headAcc': return box(100, g.top + 4, 150);
     case 'neckAcc': return box(100, g.neckY + 8, 120);
     case 'extraAcc': return box(100, fy + 2, 110);
-    case 'tail': return box(130, 140, 130);
+    case 'tail': return undefined;   // la cola entera (recortada se veía cortada)
     case 'hair': return box(100, g.top + 26, 156);
     case 'brows': return box(100, fy - 8, 84);
     case 'marks': return box(100, fy + 2, 100);
@@ -123,7 +123,7 @@ export function PartPicker({ label, field, options, recipe, setRecipe, styleId }
       <div className="flex gap-2.5" style={{ overflowX: 'auto', paddingBottom: 4 }}>
         {list.map((opt) => (
           <MiniThumb key={opt.id} selected={recipe[field] === opt.id} onClick={() => setRecipe((r) => ({ ...r, [field]: opt.id }))} label={opt.label}>
-            <PetArt recipe={{ ...recipe, overlays: undefined, [field]: opt.id }} mood="normal" size={54} view={field === 'body' || field === 'pattern' ? undefined : view} />
+            <PetArt recipe={{ ...recipe, overlays: undefined, [field]: opt.id, ...(view ? { tail: 'ninguna' } : {}) }} mood="normal" size={54} view={field === 'body' || field === 'pattern' ? undefined : view} />
           </MiniThumb>
         ))}
       </div>

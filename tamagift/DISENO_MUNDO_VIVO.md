@@ -101,25 +101,12 @@ Secciones: **Moda** (ropa y accesorios), **Peluquería** (peinados y
 tintes), **Muebles**, **Deco**, **Pared y piso**, **Súper** (comida),
 **Jardín** (semillas), **Pósters** y **Temporada**.
 
-Todo lo de moda y casa se filtra por **estilo de persona** (una cosa
-puede tener varios):
-
-| Estilo | Qué la define |
-|---|---|
-| Kawaii | Pastel, ositos, fresas, conejitos, nubes. |
-| Coquette | Moños, perlas, encaje, rosado y crema, corazones. |
-| Aesthetic | Tonos crema y beige, luces cálidas, velas, plantas, discos, fotos. |
-| Otaku | Anime y manga, figuras, gamer, uniforme marinero, orejas de gato, ramen. |
-| Cottagecore | Flores silvestres, cuadros vichy, mimbre, hongos, pan y té. |
-| Gótica | Negro y vino, encaje, cruces, murciélagos, velas, cristales. |
-| Y2K | Brillos, mariposas, rosado chicle, celular de tapa, discoteca. |
-| Celestial | Luna, estrellas, cristales, tarot, azul noche y dorado. |
-| Gamer | Consola, audífonos, luces RGB, silla gamer. |
-| Deportiva | Ropa de entreno, tenis, balones, yoga. |
-| Playera | Sol, conchas, flores tropicales, tablas de surf. |
-| Dark academia | Café, libros, cuadros, tweed, lámparas de banco. |
-| Princesa | Coronas, tiaras, vestidos, castillos, dorado. |
-| Rockera | Cuero, cadenas, guitarras, estrellas. |
+Hay de todo para muchos gustos (tierno, romántico, gamer, gótico,
+playero, de cocina, de libros, brillante, natural…), pero **sin
+etiquetas**: nada se presenta como "para otakus" o "para coquettes". Las
+etiquetas encasillan y pueden espantar; la tienda se ordena por **qué es
+y dónde va** (cabeza, ropa, en la mano; muebles por tipo; deco para mesas
+y paredes o para el piso), y cada quien arma su mezcla.
 
 Toda prenda y casi todo objeto de casa **deja elegir color** antes y
 después de comprarlo (16 colores de tela + 4 de metal).
@@ -149,7 +136,7 @@ Cada cosa puesta guarda su color.
 
 - **Básicos:** lo que eligió quien regaló más un set inicial gratis; se
   cambian cuando quieras.
-- **De la tienda:** cientos, cada uno con estilos de persona y color.
+- **De la tienda:** más de cien, cada uno con sus colores.
 
 ## 7. Rasgos nuevos de la mochi
 Peinados (flequillo, coletas, moñitos, melena, rulos, ahoge…), más
@@ -158,12 +145,11 @@ más animalitos y colas. Todo anclado a la geometría del cuerpo, igual
 que ahora.
 
 ## 8. Decoración con personalidad
-No solo cosas simples: rincones que cuentan quién es. Ejemplos por
-estilo: tocador con luces (aesthetic/coquette), estante de figuras y
-setup gamer (otaku/gamer), cápsulas y peluches (kawaii), canasta de
-pícnic y hongos (cottagecore), candelabro y bola de cristal (gótica),
-silla mariposa y bola disco (Y2K), proyector de estrellas (celestial),
-caballete (artista), tapete de yoga (deportiva), etc.
+No solo cosas simples: rincones que cuentan quién es. Por ejemplo:
+tocador con luces, estante de figuras y rincón gamer, cápsulas y
+peluches, canasta de pícnic y hongos, candelabro y bola de cristal,
+silla mariposa y bola disco, proyector de estrellas, caballete, tapete
+de yoga… (sin etiquetarlos por "tipo de persona", ver §5).
 
 ## 9. Minijuegos: pocos pero muy buenos
 Principios: partidas de 1-3 minutos, una meta clara, progreso que se

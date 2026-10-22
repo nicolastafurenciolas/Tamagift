@@ -507,7 +507,7 @@ export default function Room({
             <PlacedItem
               key={item.key} item={item} posters={posters} customDecor={customDecor}
               selected={selected === item.key} editing={editing} onPointerDown={onItemPointerDown} pixel={pixel}
-              faded={!!paintJob} sky={world && world.phase === 'manana' ? 'dia' : world && world.phase}
+              faded={false} sky={world && world.phase === 'manana' ? 'dia' : world && world.phase}
             />
           ))}
 
@@ -527,7 +527,7 @@ export default function Room({
           <div
             ref={petRef}
             style={{
-              opacity: paintJob ? 0.25 : 1, transition: 'opacity 0.3s',
+              opacity: 1,
               position: 'absolute', left: 0, top: ROOM.H - ROOM.PET_W - 6,
               width: ROOM.PET_W, height: ROOM.PET_W, willChange: 'transform',
               transformOrigin: '50% 92%',

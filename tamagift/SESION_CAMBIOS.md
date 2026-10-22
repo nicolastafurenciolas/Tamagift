@@ -492,12 +492,12 @@ minijuegos que den ganas de volver; rehacer la comida y los íconos
   5 estampados, cada uno con sus píxeles hechos a mano.
 - **Vestidor** (`art/mochi/wardrobe/`, `wardrobeState.js`,
   `components/game/Fashion.jsx`): 132 cosas en 6 ranuras (cabeza, cara,
-  cuello, ropa, espalda, en la mano), cada una con 1-2 colores teñibles y
-  sus estilos de persona. Tienda con Moda (por ranura y estilo) y
+  cuello, ropa, espalda, en la mano), cada una con 1-2 colores teñibles.
+  Tienda con Moda (por ranura) y
   Peluquería; pantalla Vestir en el dock; kit inicial gratis.
 - **Decoración con personalidad** (`art/room/decorVibes.js`,
-  `furniture/vibes.js`): 42 adornos y 18 muebles nuevos por estilo de
-  persona, casi todos pintables; la tienda filtra por estilo.
+  `furniture/vibes.js`): 42 adornos y 18 muebles nuevos para muchos
+  gustos, casi todos pintables, sin etiquetas de "tipo de persona".
 - **Pedidos** (`deliveries.js`, `components/game/Delivery.jsx`,
   `art/room/door.js`): lo comprado queda en camino; al volver al cuarto
   suena el timbre, la mochi corre a la puerta y aparece la caja; al
@@ -525,6 +525,20 @@ minijuegos que den ganas de volver; rehacer la comida y los íconos
 - **Desarrollo**: `/dev/main?hora=22&clima=lluvia&suceso=visita`,
   `?obra=piso.ajedrez.clasico`, `/arte?set=pelo|vestidor&slot=ropa|…`,
   `/iconos?estilo=pixel`.
+
+## Pixel art con más detalle y arreglos de la tienda
+
+- **Resolución**: el píxel de arte pasa de 3 a 2 px de pantalla (la
+  mochi del cuarto tiene ~100 px de ancho en vez de ~70) y en miniaturas
+  la mochi siempre tiene al menos ~72 px. Ojos, bocas y mejillas grandes
+  hechos píxel a píxel (`art/mochi/bigFace.js`): ojos con contorno,
+  color, brillo y ánimos legibles; bocas con trazo conectado (la "w" ya
+  no se ve como puntitos).
+- **Tienda y vestidor**: las vistas previas muestran la mochi entera (la
+  cola ya no se corta); sin etiquetas de estilo (coquette, otaku…): la
+  ropa se ordena por dónde va y la deco por si va en mesas o en el piso.
+- **Obra**: al pintar la pared, los muebles quedan delante de la pintura
+  (antes se veían transparentes y parecía pintura encima).
 
 ## Resumen de archivos tocados en toda la sesión
 

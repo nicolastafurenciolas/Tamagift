@@ -3,13 +3,17 @@
 //
 //   cabeza · cara · cuello · ropa · espalda · mano
 //
-// Cada cosa: { id, slot, label, vibes, price, colors, draw }. `colors`
+// Cada cosa: { id, slot, label, price, colors, draw }. `colors`
 // son los colores por defecto de sus partes teñibles (0, 1 o 2); quien
 // juega los cambia y se guardan con lo que lleva puesto.
 //
 // En la receta, lo puesto va en `wear`: { cabeza: { id, c1, c2 }, … }.
 // Las recetas viejas usan headAcc / neckAcc / extraAcc: siguen sirviendo
 // (son los accesorios de siempre, que también están en el vestidor).
+//
+// `vibes` es solo una nota interna de qué gustos cubre cada cosa (para
+// cuidar que haya variedad); NO se muestra: encasillar a la gente en
+// "tipos" puede espantar.
 // ─────────────────────────────────────────────────────────────────
 
 import { E, P, G } from '../../svg.js';
@@ -34,27 +38,6 @@ export const SLOTS = [
   { id: 'mano', label: 'En la mano' },
 ];
 export const SLOT_IDS = SLOTS.map((s) => s.id);
-
-// Estilos de persona (ver DISENO_MUNDO_VIVO.md §5). "temporada" son las
-// cosas de fechas especiales.
-export const VIBES = [
-  { id: 'kawaii', label: 'Kawaii' },
-  { id: 'coquette', label: 'Coquette' },
-  { id: 'aesthetic', label: 'Aesthetic' },
-  { id: 'otaku', label: 'Otaku' },
-  { id: 'cottagecore', label: 'Cottagecore' },
-  { id: 'gotica', label: 'Gótica' },
-  { id: 'y2k', label: 'Y2K' },
-  { id: 'celestial', label: 'Celestial' },
-  { id: 'gamer', label: 'Gamer' },
-  { id: 'deportiva', label: 'Deportiva' },
-  { id: 'playera', label: 'Playera' },
-  { id: 'academia', label: 'Dark academia' },
-  { id: 'princesa', label: 'Princesa' },
-  { id: 'rockera', label: 'Rockera' },
-  { id: 'chef', label: 'Cocina' },
-  { id: 'temporada', label: 'Temporada' },
-];
 
 // ── Los accesorios de siempre, como cosas del vestidor ───────────────
 const LEGACY = {

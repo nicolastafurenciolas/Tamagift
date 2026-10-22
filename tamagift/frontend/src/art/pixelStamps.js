@@ -1,4 +1,5 @@
 import { registerFaceStamps } from './mochi/faceStamps.js';
+import { registerBigFace } from './mochi/bigFace.js';
 
 // Piezas de pixel art hechas a mano (ojos, bocas, mejillas).
 // Cada pieza tiene varios tamaños; se usa el más grande que entra en la
@@ -93,6 +94,12 @@ def('motif.flower', [
 
 // Rasgos que se agregaron después (cada módulo registra los suyos).
 registerFaceStamps(def);
+// Tamaños grandes (para la rejilla fina): se SUMAN a los chicos.
+const extend = (name, sizes) => {
+  const add = sizes.map((rows) => ({ rows: typeof rows === 'string' ? rows.trim().split(/\s+/) : rows }));
+  S[name] = [...(S[name] || []), ...add].sort((a, b) => a.rows.length - b.rows.length || a.rows[0].length - b.rows[0].length);
+};
+registerBigFace(extend);
 
 // ── Dibujos enteros hechos a mano (comida, objetos, íconos) ─────────
 // Tienen su propia paleta: cada letra es un color (ver pixel/palette.js;
@@ -150,5 +157,8 @@ export function stampFor(name, w, h) {
   const maxH = Math.max(1, Math.round(h + 0.4)), maxW = Math.max(1, Math.round(w + 0.6));
   let best = sizes[0];
   for (const s of sizes) if (s.rows.length <= maxH && s.rows[0].length <= maxW + 1) best = s;
-  return best;
+  // Si la caja es el doble o más que la pieza más grande, se agranda por
+  // un entero (sigue siendo pixel art parejo y no queda como un puntito).
+  const k = Math.floor(Math.min(maxH / best.rows.length, (maxW + 1) / best.rows[0].length));
+  return k >= 2 ? { ...best, k } : best;
 }

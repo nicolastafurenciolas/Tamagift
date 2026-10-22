@@ -65,7 +65,9 @@ const STYLES = [
     // Lado del "píxel" de arte en px de pantalla. Todo el arte del juego
     // se redibuja sobre esta misma rejilla para que ningún sprite tenga
     // píxeles de distinto tamaño que su vecino.
-    art: { kind: 'pixel', pixel: 3 },
+    // 2 px de pantalla por píxel de arte: más resolución (la mochi del
+    // cuarto tiene ~100 px de ancho) sin dejar de verse pixel art.
+    art: { kind: 'pixel', pixel: 2 },
     motion: 'pixel',
     sound: 'chip',
   },

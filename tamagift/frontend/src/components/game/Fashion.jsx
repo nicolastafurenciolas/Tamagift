@@ -4,7 +4,7 @@ import { Screen, ScreenHeader } from '../ui';
 import { IconCoin, IconBag } from '../icons';
 import { play } from '../../sound';
 import PetArt from '../PetArt';
-import { geometry, SLOTS, VIBES } from '../../art/mochi';
+import { SLOTS } from '../../art/mochi';
 import {
   WARDROBE, HAIRSTYLES, HAIR_COLORS, BROWS, FABRIC_COLORS, HAIR_PRICE, HAIR_COLOR_PRICE, FREE_HAIR_COLORS,
   ownsWear, ownedInSlot, wornNow, ownsHair, ownsHairColor, applyLook,
@@ -20,20 +20,8 @@ import { addDelivery, pendingDelivery } from '../../deliveries';
 //   · ClosetScreen: vestirla con lo que ya tiene y volver a teñir
 // ─────────────────────────────────────────────────────────────────
 
-// Recorte de la vista previa según la ranura (para que se vea lo que importa).
-function viewFor(slot, recipe) {
-  const g = geometry(recipe.body, recipe.chub);
-  const box = (cx, cy, w) => `${(cx - w / 2).toFixed(1)} ${(cy - w / 2).toFixed(1)} ${w} ${w}`;
-  switch (slot) {
-    case 'cabeza': return box(100, g.top + 10, 150);
-    case 'cara': return box(100, g.face.y + 2, 104);
-    case 'cuello': return box(100, g.neckY + 4, 116);
-    case 'ropa': return box(100, 136, 168);
-    case 'mano': return box(128, 136, 140);
-    case 'pelo': return box(100, g.top + 30, 170);
-    default: return '0 0 200 200';
-  }
-}
+// Las vistas previas muestran la mochi entera: recortarla dejaba la
+// cola (o las alas, o lo que lleva en la mano) cortados a la mitad.
 
 function Swatches({ colors, value, onPick, size = 22 }) {
   return (
@@ -49,11 +37,6 @@ function Swatches({ colors, value, onPick, size = 22 }) {
   );
 }
 
-const vibeName = (id) => (VIBES.find((v) => v.id === id) || {}).label || id;
-
-function Pill({ children, tone = C.lavender }) {
-  return <span style={{ fontFamily: FONT.display, fontSize: 9.5, fontWeight: 700, color: tone, border: `1px solid ${tone}`, borderRadius: 999, padding: '1px 6px', whiteSpace: 'nowrap' }}>{children}</span>;
-}
 
 function BuyButton({ owned, worn, pending, price, can, onBuy, onWear, wornLabel = 'Quitármelo' }) {
   const label = pending ? 'En camino' : worn ? wornLabel : owned ? 'Ponérmelo' : null;
@@ -90,13 +73,10 @@ function FashionCard({ item, recipe, game, setGame, baseRecipe, coins, buy }) {
   };
   return (
     <div className="pg-card" style={{ padding: 9, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-      <div style={{ height: 112, borderRadius: 12, background: C.paperDeep, border: `1.5px solid ${C.line}`, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
-        <PetArt recipe={preview} mood="feliz" size={108} view={viewFor(item.slot, preview)} />
+      <div style={{ height: 124, borderRadius: 12, background: C.paperDeep, border: `1.5px solid ${C.line}`, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+        <PetArt recipe={preview} mood="feliz" size={120} />
       </div>
-      <div style={{ fontFamily: FONT.display, fontSize: 12.5, fontWeight: 700, color: C.ink, lineHeight: 1.15, margin: '6px 0 3px', minHeight: 29 }}>{item.label}</div>
-      <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', marginBottom: 5 }}>
-        {item.vibes.slice(0, 2).map((v) => <Pill key={v}>{vibeName(v)}</Pill>)}
-      </div>
+      <div style={{ fontFamily: FONT.display, fontSize: 12.5, fontWeight: 700, color: C.ink, lineHeight: 1.15, margin: '6px 0 5px', minHeight: 29 }}>{item.label}</div>
       {item.colors[0] && <Swatches colors={FABRIC_COLORS} value={c1} onPick={(v) => recolor('c1', v)} size={20} />}
       {item.colors[1] && <div style={{ marginTop: 4 }}><Swatches colors={FABRIC_COLORS} value={c2} onPick={(v) => recolor('c2', v)} size={16} /></div>}
       <BuyButton
@@ -110,25 +90,13 @@ function FashionCard({ item, recipe, game, setGame, baseRecipe, coins, buy }) {
 
 export function FashionShop({ game, setGame, coins, buy, baseLook }) {
   const [slot, setSlot] = useState('ropa');
-  const [vibe, setVibe] = useState('todo');
   const baseRecipe = baseLook && baseLook.recipe;
   if (!baseRecipe) return <p style={{ fontSize: 12.5, color: C.inkSoft, textAlign: 'center' }}>Esta mascota se dibujó a mano, así que no usa la ropa de la tienda.</p>;
-  const items = WARDROBE.filter((w) => w.slot === slot && (vibe === 'todo' || w.vibes.includes(vibe)));
-  const vibesHere = VIBES.filter((v) => WARDROBE.some((w) => w.slot === slot && w.vibes.includes(v.id)));
+  const items = WARDROBE.filter((w) => w.slot === slot);
   return (
     <>
-      <TabRow style={{ padding: '0 2px 6px' }}>
-        {SLOTS.map((s) => <ShopTab key={s.id} active={slot === s.id} onClick={() => { play('pop'); setSlot(s.id); setVibe('todo'); }}>{s.label}</ShopTab>)}
-      </TabRow>
       <TabRow style={{ padding: '0 2px 8px' }}>
-        {[{ id: 'todo', label: 'Todo' }, ...vibesHere].map((v) => (
-          <button
-            key={v.id} onClick={() => { play('pop'); setVibe(v.id); }} className="pg-focus"
-            style={{ flexShrink: 0, padding: '5px 10px', borderRadius: 999, fontFamily: FONT.display, fontSize: 11, fontWeight: 700, cursor: 'pointer', background: vibe === v.id ? C.lavender : 'transparent', color: vibe === v.id ? C.onAccent : C.lavender, border: `1.5px solid ${C.lavender}`, whiteSpace: 'nowrap' }}
-          >
-            {v.label}
-          </button>
-        ))}
+        {SLOTS.map((s) => <ShopTab key={s.id} active={slot === s.id} onClick={() => { play('pop'); setSlot(s.id); }}>{s.label}</ShopTab>)}
       </TabRow>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 9 }}>
         {items.map((it) => <FashionCard key={`${it.slot}:${it.id}`} item={it} recipe={baseRecipe} game={game} setGame={setGame} baseRecipe={baseRecipe} coins={coins} buy={buy} />)}
@@ -185,7 +153,7 @@ export function Salon({ game, setGame, coins, buy, baseLook }) {
           return (
             <div key={h.id} className="pg-card" style={{ padding: 7, display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 0 }}>
               <div style={{ width: '100%', aspectRatio: '1', borderRadius: 10, background: C.paperDeep, border: `1.5px solid ${sel ? C.rose : C.line}`, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
-                <PetArt recipe={prev} mood="normal" size={76} view={viewFor('pelo', prev)} />
+                <PetArt recipe={prev} mood="normal" size={80} />
               </div>
               <div style={{ fontFamily: FONT.display, fontSize: 11, fontWeight: 700, color: C.ink, margin: '4px 0 2px', textAlign: 'center', lineHeight: 1.1, minHeight: 24 }}>{h.label}</div>
               <BuyButton
@@ -251,7 +219,7 @@ export function ClosetScreen({ game, setGame, baseLook, petName, onBack, onShop 
                 key={it.id} onClick={() => { play('place'); setWear(sel ? { id: 'ninguno' } : { id: it.id }); }} className="pg-card pg-focus"
                 style={{ padding: 6, cursor: 'pointer', border: `2px solid ${sel ? C.rose : C.line}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: 0 }}
               >
-                <PetArt recipe={prev} mood="normal" size={72} view={viewFor(slot, prev)} />
+                <PetArt recipe={prev} mood="normal" size={78} />
                 <span style={{ fontFamily: FONT.display, fontSize: 10.5, fontWeight: 700, color: C.ink, lineHeight: 1.1, textAlign: 'center' }}>{it.label}</span>
               </button>
             );
