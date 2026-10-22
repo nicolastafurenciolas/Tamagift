@@ -26,7 +26,7 @@ import { findDecor } from '../shopCatalog';
 // El alto del visor se adapta a la pantalla: en un celular corto se
 // encoge para que el dock de acciones siga entrando sin scroll, pero
 // nunca baja de 230 px para que la mascota no quede diminuta.
-const VIEW_H_MAX = 440;
+const VIEW_H_MAX = 520;
 const VIEW_H_MIN = 230;
 const RESERVED = 310;   // lo que ocupan barra de arriba, dock y márgenes
 // Decorando, debajo del cuarto aparece la bandeja (y la barra del objeto
