@@ -639,8 +639,17 @@ function kitPixel(svg, items, o) {
       if (c[3] < 0.95) {
         // trazo tenue: tiñe lo que hay debajo (como una junta o una veta)
         const a = Math.min(0.8, Math.max(0.25, c[3] * 1.4));
+        // sobre nada (un cordón colgando sobre la pared) no hay qué teñir:
+        // se dibuja con transparencia en escalones, como en un sprite
+        const aloneA = Math.round(Math.min(1, c[3] * 1.8) * 4) / 4;
         for (let p = 0; p < N; p++) {
-          if (d[p * 4 + 3] < 110 || al[p] < 0.99) continue;
+          if (d[p * 4 + 3] < 110) continue;
+          if (al[p] < 0.99) {
+            if (al[p] >= aloneA) continue;
+            col[p * 3] = c[0]; col[p * 3 + 1] = c[1]; col[p * 3 + 2] = c[2];
+            al[p] = aloneA; idx[p] = it.i; isLine[p] = 3;
+            continue;
+          }
           col[p * 3] += (c[0] - col[p * 3]) * a; col[p * 3 + 1] += (c[1] - col[p * 3 + 1]) * a; col[p * 3 + 2] += (c[2] - col[p * 3 + 2]) * a;
         }
         continue;
@@ -694,7 +703,7 @@ function kitPixel(svg, items, o) {
   }
   for (const [i, b] of boxes) {
     const it = items[i];
-    if (!isShapeRole(it.role) || b.n < 8) continue;
+    if (!isShapeRole(it.role) || b.n < 8 || !it.fill) continue;
     const base = it.fill;
     const sh1 = ramp(base, -1), lt1 = ramp(base, 1);
     if (it.role === 'body') {
@@ -731,7 +740,7 @@ function kitPixel(svg, items, o) {
     const i = idx[p];
     if (i < 0 || al[p] < 0.99 || isLine[p]) continue;
     const it = items[i];
-    if (it.role === 'shine' || it.role === 'tone') continue;
+    if (it.role === 'shine' || it.role === 'tone' || !it.fill) continue;
     const base = it.fill;
     let edge = false, inner = false;
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {

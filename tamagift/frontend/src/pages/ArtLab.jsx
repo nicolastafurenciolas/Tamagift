@@ -7,9 +7,11 @@ import { FURNITURE, WALL_STYLES, FLOOR_STYLES, findPaint } from '../roomCatalog'
 import { FOOD_SPRITES, UI_SPRITES } from '../sprites';
 import { PET_STYLES } from '../petStyles';
 import { DEFAULT_RECIPE } from '../PetRecipe';
+import ArtCatalog from './ArtCatalog';
 
 // Laboratorio de arte (solo desarrollo): /arte?set=familia&size=170
-// Muestra la misma mochi dibujada por cada kit de estilo.
+// Muestra un conjunto de piezas dibujado por cada kit de estilo. Sin
+// ?set= abre el catálogo completo.
 
 const FAMILY = [
   { name: 'Nube', r: { ears: 'gato', mouth: 'w', bodyColor: '#FBEEE6', accentColor: '#E9B9A2', innerColor: '#FFFFFF', eyeColor: '#6F6A8A' } },
@@ -45,7 +47,12 @@ function sets(name) {
   return FAMILY;
 }
 
+// Sin ?set= se muestra el catálogo completo (pages/ArtCatalog.jsx).
 export default function ArtLab() {
+  return new URLSearchParams(window.location.search).get('set') ? <LabSet /> : <ArtCatalog />;
+}
+
+function LabSet() {
   const q = new URLSearchParams(window.location.search);
   const set = sets(q.get('set') || 'familia');
   const size = Number(q.get('size') || 150);

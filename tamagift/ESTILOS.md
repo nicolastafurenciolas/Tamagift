@@ -84,6 +84,10 @@ estampados y 46 accesorios de cabeza, cuello y cara.
 
 ## Páginas de revisión (solo en `npm run dev`)
 
+- `/arte` — **catálogo completo**: todo el arte (mochi y sus piezas,
+  accesorios, estilos de partida, cuartos armados, muebles, pinturas,
+  paredes, pisos, decoración, comida, íconos y minijuegos) en los seis
+  estilos, con botones para mostrar u ocultar estilos y elegir tamaño.
 - `/arte?set=<conjunto>&size=150&solo=pixel,neon` — laboratorio de los
   kits: la misma pieza dibujada por cada estilo. Conjuntos: `familia`,
   `animos`, `formas`, `orejas`, `ojos`, `bocas`, `mejillas`, `colas`,
