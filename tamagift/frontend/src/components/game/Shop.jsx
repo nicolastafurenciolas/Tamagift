@@ -16,6 +16,8 @@ import { ModularPetStep, useDesignerState } from '../PetDesigner';
 import { FramedPoster } from './posters';
 import { FashionShop, Salon } from './Fashion';
 import { addDelivery, pendingDelivery } from '../../deliveries';
+import { FOODS, FOOD_KINDS } from '../../foodCatalog';
+import { foodSpriteFor } from '../../sprites';
 
 export const REDESIGN_COST = 1000;
 
@@ -142,6 +144,43 @@ function DecorShopCard({ item, owned, pending, paint, canAfford, onBuy, onRepain
       </button>
     </div>
   );
+}
+
+// ── Súper: comida para la nevera (se guarda al instante) ───────────
+const KIND_ORDER = ['saludable', 'casera', 'dulce', 'chatarra', 'bebida'];
+const KIND_NOTE = {
+  saludable: 'Llena poco y ayuda a bajar de peso',
+  casera: 'Llena mucho y es sana',
+  dulce: 'Da energía, pero engorda',
+  chatarra: 'Llena mucho, pero engorda',
+  bebida: 'Da energía',
+};
+function SuperTab({ game, coins, buy }) {
+  return KIND_ORDER.map((kind) => (
+    <div key={kind} style={{ marginBottom: 12 }}>
+      <p style={{ fontFamily: FONT.display, fontSize: 12.5, fontWeight: 800, color: C.ink, margin: '4px 0 0' }}>{FOOD_KINDS[kind].label}</p>
+      <p style={{ fontSize: 11, color: C.inkFaint, margin: '0 0 6px' }}>{KIND_NOTE[kind]}</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 7 }}>
+        {FOODS.filter((f) => f.kind === kind).map((f) => {
+          const sp = foodSpriteFor(f.id);
+          const have = (game.fridge || {})[f.id] || 0;
+          const can = coins >= f.price;
+          return (
+            <button
+              key={f.id} disabled={!can} className="pg-card pg-focus"
+              onClick={() => buy(f.price, (g) => ({ ...g, fridge: { ...(g.fridge || {}), [f.id]: ((g.fridge || {})[f.id] || 0) + 1 } }))}
+              style={{ position: 'relative', padding: '7px 5px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: can ? 'pointer' : 'default', opacity: can ? 1 : 0.6, minWidth: 0 }}
+            >
+              {have > 0 && <span style={{ position: 'absolute', top: 4, right: 5, fontFamily: FONT.display, fontSize: 10, fontWeight: 800, color: C.sky }}>×{have}</span>}
+              <Sprite art={sp.render()} cacheKey={`food-${sp.id}`} w={40} h={40} />
+              <span style={{ fontFamily: FONT.display, fontSize: 10.5, fontWeight: 700, color: C.ink, lineHeight: 1.1, textAlign: 'center', minHeight: 23 }}>{f.name}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT.display, fontSize: 11, fontWeight: 800, color: C.inkSoft }}><IconCoin size={11} color={C.amber} />{f.price}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  ));
 }
 
 // Póster: se ve enmarcado y el marco se pinta antes (o después) de comprar.
@@ -369,7 +408,7 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
     setGame((g) => ({ ...g, equippedOutfit: g.equippedOutfit === id ? null : id }));
   }
 
-  const TABS = [['moda', 'Moda'], ['peluqueria', 'Peluquería'], ['muebles', 'Muebles'], ['decor', 'Deco'], ['pared', 'Pared'], ['piso', 'Piso'], ['posters', 'Pósters'], ['ropa', 'Trajes'], ['rediseño', 'Rediseño']];
+  const TABS = [['moda', 'Moda'], ['peluqueria', 'Peluquería'], ['super', 'Súper'], ['muebles', 'Muebles'], ['decor', 'Deco'], ['pared', 'Pared'], ['piso', 'Piso'], ['posters', 'Pósters'], ['ropa', 'Trajes'], ['rediseño', 'Rediseño']];
   const photoPosters = (posters || []).filter((p) => p.type === 'photo');
 
   return (
@@ -413,6 +452,7 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
 
         {tab === 'moda' && <FashionShop game={game} setGame={setGame} coins={coins} buy={buy} baseLook={baseLook} />}
         {tab === 'peluqueria' && <Salon game={game} setGame={setGame} coins={coins} buy={buy} baseLook={baseLook} />}
+        {tab === 'super' && <SuperTab game={game} coins={coins} buy={buy} />}
 
         {tab === 'muebles' && (
           <>

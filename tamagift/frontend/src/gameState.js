@@ -38,6 +38,10 @@ export const DEFAULT_GAME_STATE = {
   posterPaint: {},      // { [idPóster]: idColorFURNITURE_PAINTS } del marco
   decorPaint: {},       // { [idAdorno]: idColorFURNITURE_PAINTS } de los adornos que se pintan
   deliveries: [],       // pedidos en camino o en la puerta (ver deliveries.js)
+  // ── Mundo vivo (ver world.js y worldEvents.js) ───────────────────
+  fridge: {},           // { [idComida]: n } lo que hay en la nevera
+  events: {},           // { active, nextAt, lastDay } sucesos
+  bugs: {},             // { [idBichito]: n } el álbum de bichitos
   ownedWalls: ['liso'],    // diseños de pared comprados (el color se elige gratis)
   ownedFloors: ['tablas'],
   equippedOutfit: null, // id ESTABLE de la prenda puesta, o null

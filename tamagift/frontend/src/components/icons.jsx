@@ -465,10 +465,48 @@ export function IconFlame(props) {
   );
 }
 
+// Rayo (energía)
+export function IconBolt(props) {
+  return (
+    <Svg {...props} px="bolt">
+      <path d="M13.5 2.5 L5.5 13.5 H11 L9.5 21.5 L18.5 10 H13 Z" fill={props.fill || 'none'} />
+    </Svg>
+  );
+}
+
+// Gota (limpieza)
+export function IconDrop(props) {
+  return (
+    <Svg {...props} px="drop">
+      <path d="M12 3 C12 3 5.5 10.5 5.5 14.5 a6.5 6.5 0 0 0 13 0 C18.5 10.5 12 3 12 3 Z" fill={props.fill || 'none'} />
+      <path d="M8.8 14.5 a3.2 3.2 0 0 0 2.4 3.1" />
+    </Svg>
+  );
+}
+
+// Bombillo (prender y apagar la luz)
+export function IconBulb(props) {
+  return (
+    <Svg {...props} px="bulb">
+      <path d="M9 17.5 h6 M9.8 20.5 h4.4 M12 3 a6 6 0 0 0 -3.6 10.8 c0.8 0.6 0.6 1.6 0.6 2.7 h6 c0 -1.1 -0.2 -2.1 0.6 -2.7 A6 6 0 0 0 12 3 Z" fill={props.fill || 'none'} />
+    </Svg>
+  );
+}
+
+// Nevera
+export function IconFridge(props) {
+  return (
+    <Svg {...props} px="fridge">
+      <rect x="6" y="2.5" width="12" height="18.5" rx="2" fill={props.fill || 'none'} />
+      <path d="M6 9.5 h12 M15 5 v2.5 M15 12 v4" />
+    </Svg>
+  );
+}
+
 export default {
   IconBowl, IconTub, IconBall, IconFrame, IconMusic, IconHeart,
   IconCookie, IconEnvelope, IconBack, IconClose, IconSparkle, IconPaw, IconPencil, IconGift,
   IconCamera, IconCoin, IconShirt, IconBag, IconDoor, IconChevronRight,
   IconCards, IconCatch, IconPuzzle, IconMole, IconSnake, IconRoad, IconTower,
-  IconPalette, IconPlay, IconPause, IconNext, IconSpeaker, IconMute, IconSwap, IconTrophy, IconFlame,
+  IconPalette, IconPlay, IconPause, IconNext, IconSpeaker, IconMute, IconSwap, IconTrophy, IconFlame, IconBolt, IconDrop, IconBulb, IconFridge,
 };

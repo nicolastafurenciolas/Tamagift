@@ -80,13 +80,19 @@ export function RoundBtn({ children, onClick, label, active, activeColor }) {
 }
 
 // Medidor compacto para superponer sobre la escena.
+const METER = {
+  hunger: { label: 'Hambre', color: () => C.peach },
+  love: { label: 'Amor', color: () => C.rose },
+  energy: { label: 'Energía', color: () => C.amber },
+  clean: { label: 'Limpieza', color: () => C.sky },
+};
 export function MiniMeter({ kind, value, icon: Icon }) {
-  const color = kind === 'hunger' ? C.peach : C.rose;
+  const color = (METER[kind] || METER.love).color();
   const pct = Math.max(0, Math.min(100, value));
   const low = pct <= 20;
   return (
     <div
-      role="meter" aria-label={kind === 'hunger' ? 'Hambre' : 'Amor'} aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}
+      role="meter" aria-label={(METER[kind] || METER.love).label} aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}
       style={{
         display: 'flex', alignItems: 'center', gap: 5,
         background: C.glass, borderRadius: 999,
@@ -95,7 +101,7 @@ export function MiniMeter({ kind, value, icon: Icon }) {
       }}
     >
       {Icon && <Icon size={12} color={color} />}
-      <div style={{ width: 48, height: 6, borderRadius: 999, background: C.track, overflow: 'hidden' }}>
+      <div style={{ width: 40, height: 6, borderRadius: 999, background: C.track, overflow: 'hidden' }}>
         <div style={{ width: `${pct}%`, height: '100%', background: low ? C.roseDeep : color, borderRadius: 999, transition: 'width 0.4s' }} />
       </div>
     </div>

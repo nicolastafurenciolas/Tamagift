@@ -12,19 +12,21 @@ export const WALL_ITEMS = [
       const W = mat(p.wood), C = mat(p.cloth);
       let s = '';
       s += face(rr(14, 14, 136, 122, 4), W.front);
-      // de día con sol; en los estilos de noche (lo-fi, neón), luna y estrellas
-      s += G({ 'data-skip': 'lofi neon' },
-        face(rr(24, 24, 116, 102, 2), SKY, { w: 1.6 })
-        + flat('M25 86h114v39h-114Z', SKY2)
-        + flat('M25 112q20 -14 40 -4t40 -6t34 2v21h-114Z', '#9FD39A')
-        + Cir(110, 48, 10, { fill: '#FFE07A', 'data-r': 'flat' })
-        + flat('M38 58c0 -8 12 -10 16 -4c4 -6 16 -4 16 4Z', '#FFFFFF'));
-      s += G({ 'data-only': 'lofi neon' },
-        face(rr(24, 24, 116, 102, 2), NIGHT, { w: 1.6 })
+      // De día con sol; de noche (la hora del teléfono, `p.night`, o los
+      // estilos de noche lo-fi y neón), luna y estrellas. Al atardecer,
+      // cielo naranja (`p.dusk`).
+      const day = face(rr(24, 24, 116, 102, 2), p.dusk ? '#FFC9A3' : SKY, { w: 1.6 })
+        + flat('M25 86h114v39h-114Z', p.dusk ? '#FFB3B8' : SKY2)
+        + flat('M25 112q20 -14 40 -4t40 -6t34 2v21h-114Z', p.dusk ? '#8FB98A' : '#9FD39A')
+        + Cir(110, p.dusk ? 78 : 48, 10, { fill: p.dusk ? '#FF8F5A' : '#FFE07A', 'data-r': 'flat' })
+        + flat('M38 58c0 -8 12 -10 16 -4c4 -6 16 -4 16 4Z', '#FFFFFF');
+      const night = face(rr(24, 24, 116, 102, 2), NIGHT, { w: 1.6 })
         + flat('M25 86h114v39h-114Z', mix(NIGHT, '#8A7FC0', 0.3))
         + flat('M25 112q20 -14 40 -4t40 -6t34 2v21h-114Z', '#3F5A66')
         + Cir(110, 46, 10, { fill: '#FFF2B0', 'data-r': 'flat' }) + Cir(115, 42, 8.5, { fill: NIGHT, 'data-r': 'flat' })
-        + [[40, 40, 2.2], [56, 58, 1.5], [66, 34, 1.8], [98, 64, 1.5], [128, 34, 1.8], [34, 66, 1.4]].map(([x, y, r]) => Cir(x, y, r, { fill: '#FFF2B0', 'data-r': 'flat' })).join(''));
+        + [[40, 40, 2.2], [56, 58, 1.5], [66, 34, 1.8], [98, 64, 1.5], [128, 34, 1.8], [34, 66, 1.4]].map(([x, y, r]) => Cir(x, y, r, { fill: '#FFF2B0', 'data-r': 'flat' })).join('');
+      if (p.night) s += night;
+      else s += G({ 'data-skip': 'lofi neon' }, day) + G({ 'data-only': 'lofi neon' }, night);
       s += face(rr(79, 24, 6, 102, 1), W.front, { w: 1.6 }) + face(rr(24, 72, 116, 6, 1), W.front, { w: 1.6 });
       s += shine('M30 34l14 -8h6l-14 8Z', { opacity: 0.6 });
       s += box(6, 150, 152, 8, 18, p.wood, { r: 2 });

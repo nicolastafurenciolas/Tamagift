@@ -43,6 +43,12 @@ export function unpack(game, d) {
     case 'piso':
       g = { ...g, ownedFloors: addUnique(g.ownedFloors, d.refId) };
       break;
+    case 'monedas':
+      g = { ...g, coins: (g.coins || 0) + (d.value || 0) };
+      break;
+    case 'comida':
+      g = { ...g, fridge: { ...(g.fridge || {}), [d.refId]: ((g.fridge || {})[d.refId] || 0) + (d.n || 1) } };
+      break;
     default: break;
   }
   return g;

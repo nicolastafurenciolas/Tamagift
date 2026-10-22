@@ -10,6 +10,7 @@ import { findFurniture, findWall, findFloor, wallSvg, floorSvg, FURNITURE_PAINTS
 import { findDecor } from '../shopCatalog';
 import { doorSvg, doormatSvg, parcelSvg, DOOR } from '../art/room/door';
 import { usePaintJob, PaintLayer, PaintTool, PaintHud } from './PaintJob';
+import { NightLayer, WeatherOnWindows, LightSwitch, Zzz, Dirt } from './WorldLayer';
 
 // La puerta de entrada vive a la izquierda del cuarto: nada se puede poner
 // encima (los pedidos y las visitas llegan por ahí).
@@ -157,8 +158,8 @@ function Ambience({ styleId, layer }) {
 
 // Un objeto puesto en el cuarto. `item` trae posición y tamaño; el
 // contenido depende de si es mueble, decoración o póster.
-function PlacedItem({ item, posters, customDecor, selected, editing, onPointerDown, pixel, faded }) {
-  const inner = renderPlacedContent(item, posters, customDecor, pixel);
+function PlacedItem({ item, posters, customDecor, selected, editing, onPointerDown, pixel, faded, sky }) {
+  const inner = renderPlacedContent(item, posters, customDecor, pixel, sky);
   if (!inner) return null;
   const { w, h, foot = 0 } = placedSize(item, posters, customDecor);
   // Los muebles y la decoración del catálogo traen su sombra dibujada;
@@ -224,13 +225,18 @@ function placedSize(item, posters, customDecor) {
   return d ? { w: Math.round(d.w * 1.25), h: Math.round(d.h * 1.25), foot: d.foot * 1.25 } : { w: 92, h: 92 };
 }
 
-function renderPlacedContent(item, posters, customDecor, pixel) {
+function renderPlacedContent(item, posters, customDecor, pixel, sky) {
   const { w, h } = placedSize(item, posters, customDecor);
   const sw = Math.round(w * item.scale), sh = Math.round(h * item.scale);
   if (item.kind === 'mueble') {
     const f = findFurniture(item.refId);
     if (!f) return null;
     const paint = item.paint || 'natural';
+    // las ventanas muestran el cielo de la hora (noche, atardecer)
+    if (f.id === 'ventana' && sky && sky !== 'dia') {
+      const pt = { ...(FURNITURE_PAINTS.find((x) => x.id === paint) || FURNITURE_PAINTS[0]), night: sky === 'noche', dusk: sky === 'tarde' };
+      return <Sprite markup={f.svg(pt)} cacheKey={`furn-${f.id}-${paint}-${sky}`} w={sw} h={sh} pixel={pixel} />;
+    }
     return <Sprite markup={f.svg(paint)} cacheKey={`furn-${f.id}-${paint}`} w={sw} h={sh} pixel={pixel} />;
   }
   if (item.kind === 'poster') {
@@ -256,6 +262,11 @@ export default function Room({
   summon = null,       // { key, x }: la mascota camina hasta x (p. ej. a abrir la puerta)
   paintJob = null,     // { kind: 'pared'|'piso', value, key }: obra en curso
   onPaintDone,
+  world = null,        // { phase, weather, lightsOff }
+  onToggleLights,
+  asleep = false,      // dormida: no camina
+  cleanLevel = 100,    // sucia: manchitas y moscas
+  eventLayer = null,   // sucesos dibujados en coordenadas del mundo
 }) {
   const viewportRef = useRef(null);
   const worldRef = useRef(null);
@@ -333,7 +344,7 @@ export default function Room({
     function tick(now) {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      if (!editing && !paintJob) stepPet(pet.current, dt);
+      if (!editing && !paintJob && !asleep) stepPet(pet.current, dt);
       // Pintando: si el dedo llega al borde, la cámara avanza sola (y sigue
       // pintando por donde pasa).
       const d = drag.current;
@@ -357,7 +368,7 @@ export default function Room({
     }
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [worldViewW, maxCam, editing, paint, zoom, walk, paintJob]);
+  }, [worldViewW, maxCam, editing, paint, zoom, walk, paintJob, asleep]);
 
   // Obra: pintar la pared o enchapar el piso con el dedo (PaintJob.jsx).
   const pj = usePaintJob(paintJob, onPaintDone);
@@ -496,10 +507,12 @@ export default function Room({
             <PlacedItem
               key={item.key} item={item} posters={posters} customDecor={customDecor}
               selected={selected === item.key} editing={editing} onPointerDown={onItemPointerDown} pixel={pixel}
-              faded={!!paintJob}
+              faded={!!paintJob} sky={world && world.phase === 'manana' ? 'dia' : world && world.phase}
             />
           ))}
 
+          {world && <WeatherOnWindows weather={world.weather} placed={placed} />}
+          {onToggleLights && <LightSwitch x={DOOR_X + DOOR.w + 12} y={ROOM.FLOOR_Y - 150} lightsOff={world && world.lightsOff} onToggle={onToggleLights} pixel={pixel} />}
           {parcel && (
             <button
               data-tap onClick={onOpenParcel} aria-label="Abrir el pedido" className="pg-parcel"
@@ -521,8 +534,12 @@ export default function Room({
             }}
           >
             <Pet mood={mood} look={look} size={ROOM.PET_W} onPoke={onPokePet} reaction={reaction} pixel={pixel} />
+            <Dirt level={cleanLevel} />
+            {asleep && <Zzz />}
           </div>
+          {eventLayer}
           <Ambience styleId={style.id} layer="front" />
+          {world && <NightLayer phase={world.phase} lightsOff={world.lightsOff} placed={placed} styleId={style.id} />}
           {paintJob && <PaintTool job={paintJob} at={toolAt} />}
         </div>
         {paintJob && <PaintHud job={paintJob} progress={pj.progress} onCancel={() => onPaintDone && onPaintDone(null)} onFillRest={pj.fillRest} />}
