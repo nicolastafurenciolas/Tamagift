@@ -2,7 +2,7 @@ import React from 'react';
 import Sprite from './Sprite';
 import PetArt from './PetArt';
 import { STYLE_LIST } from '../styles/registry';
-import { findFurniture, findPaint } from '../roomCatalog';
+import { findFurniture } from '../roomCatalog';
 import { FOOD_SPRITES } from '../sprites';
 
 // ─────────────────────────────────────────────────────────────────
@@ -25,7 +25,7 @@ function Preview({ s, look, petSrc, petArt, petKey, size }) {
   return (
     <div style={{ position: 'relative', height: size + 8, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 2 }}>
       {plant && (
-        <Sprite styleId={s.id} art={plant.render(findPaint('natural'))} cacheKey={`pick-${plant.id}`} w={Math.round(size * 0.48)} h={Math.round(size * 0.6)} />
+        <Sprite styleId={s.id} markup={plant.svg('natural')} cacheKey={`pick-${plant.id}`} w={Math.round(size * 0.48)} h={Math.round(size * 0.66)} />
       )}
       {pet}
       <Sprite styleId={s.id} art={FOOD_SPRITES[0].render()} cacheKey="pick-food" w={Math.round(size * 0.34)} h={Math.round(size * 0.34)} />

@@ -187,8 +187,8 @@ export async function buildTestPet() {
 export function testGameState() {
   return {
     coins: 9999,
-    ownedFurniture: ['cama', 'sofa', 'estanteria', 'tocadiscos', 'alfombra', 'planta', 'ventana', 'guirnalda', 'repisa'],
-    ownedWalls: ['crema', 'rayas', 'lunares', 'ladrillo', 'carbon', 'vinotinto', 'neon', 'medianoche'],
-    ownedFloors: ['madera', 'nogal', 'ajedrez', 'terracota', 'alfombrado', 'piedra'],
+    ownedFurniture: ['cama', 'sofa', 'estanteria', 'tocadiscos', 'alfombra', 'planta', 'ventana', 'guirnalda', 'repisa', 'lampara', 'escritorio', 'silla', 'cucha', 'alfombraOsito'],
+    ownedWalls: ['liso', 'rayas', 'lunares', 'flores', 'ladrillo', 'zocalo', 'estrellas', 'damasco'],
+    ownedFloors: ['tablas', 'espiga', 'ajedrez', 'baldosa', 'alfombra', 'losas'],
   };
 }

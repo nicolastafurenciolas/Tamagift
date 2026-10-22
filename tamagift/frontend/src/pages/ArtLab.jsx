@@ -3,11 +3,21 @@ import { drawArt } from '../art/kit';
 import { mochiSvg, SHAPES, MOODS, HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES, EARS, EYES, MOUTHS, TAILS, PATTERNS, CHEEKS } from '../art/mochi';
 import { STYLE_LIST } from '../styles/registry';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { FURNITURE, WALL_STYLES, FLOOR_STYLES, findPaint } from '../roomCatalog';
+import { FURNITURE } from '../roomCatalog';
 import { FOOD_SPRITES, UI_SPRITES } from '../sprites';
 import { PET_STYLES } from '../petStyles';
 import { DEFAULT_RECIPE } from '../PetRecipe';
 import ArtCatalog from './ArtCatalog';
+import { WALLS, wallSvg } from '../art/room/walls';
+import { FLOORS, floorSvg } from '../art/room/floors';
+import { FURNITURE_DEFS } from '../art/room/furniture';
+import { DECOR_DEFS } from '../art/room/decor';
+
+const innerOf = (svg) => svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
+// Un rincón del cuarto (pared + piso) a escala del juego.
+export function cornerSvg(wall, floor, extra = '', W = 480) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} 430" width="${W}" height="430"><g>${innerOf(wallSvg(wall, W, 320))}</g><g transform="translate(0 320)">${innerOf(floorSvg(floor, W, 110))}</g>${extra}</svg>`;
+}
 
 // Laboratorio de arte (solo desarrollo): /arte?set=familia&size=170
 // Muestra un conjunto de piezas dibujado por cada kit de estilo. Sin
@@ -35,14 +45,36 @@ function sets(name) {
   if (name === 'colas') return cyc(TAILS, 'tail');
   if (name === 'estampados') return cyc(PATTERNS, 'pattern', { accentColor: '#E9799A', accentAlt: '#7FC8F8' });
   if (name === 'mejillas') return cyc(CHEEKS, 'cheeks');
+  const q = new URLSearchParams(window.location.search);
+  if (name === 'paredes2') {
+    const t = Number(q.get('t') || 0);
+    return WALLS.map((p) => ({ name: `${p.name} · ${(p.tints[t] || p.tints[0]).name}`, kind: 'surface', w: 384, h: 344, markup: cornerSvg(`${p.id}.${(p.tints[t] || p.tints[0]).id}`, q.get('piso') || 'tablas.miel') }));
+  }
+  if (name === 'pisos2') {
+    const t = Number(q.get('t') || 0);
+    return FLOORS.map((p) => ({ name: `${p.name} · ${(p.tints[t] || p.tints[0]).name}`, kind: 'surface', w: 384, h: 344, markup: cornerSvg(q.get('pared') || 'liso.crema', `${p.id}.${(p.tints[t] || p.tints[0]).id}`) }));
+  }
+  if (name === 'muebles3') {
+    // cada mueble en un rincón del cuarto, con una mochi al lado para la escala
+    const paint = q.get('pintura') || 'natural';
+    const cat = q.get('cat');
+    const pet = innerOf(mochiSvg(FAMILY[0].r, 'normal'));
+    return FURNITURE_DEFS.filter((f) => !cat || f.cat === cat).map((f) => {
+      const onWall = f.place === 'pared';
+      const x = 190 - f.w / 2, y = onWall ? 210 - f.h : (f.layer === 'suelo' ? 418 - f.h : 404 - f.h);
+      const extra = `<g transform="translate(${x} ${y}) scale(${f.w / f.vw})">${innerOf(f.svg(paint))}</g><g transform="translate(330 224)">${pet}</g>`;
+      return { name: f.name, kind: 'surface', w: 384, h: 344, markup: cornerSvg(q.get('pared') || 'liso.crema', q.get('piso') || 'tablas.miel', extra) };
+    });
+  }
   if (name === 'presets') return PET_STYLES.map((p) => ({ name: p.label, r: { ...DEFAULT_RECIPE, ...p.recipe } }));
   if (name === 'muebles') {
     const paint = new URLSearchParams(window.location.search).get('pintura') || 'natural';
-    return FURNITURE.map((f) => ({ name: f.name, markup: renderToStaticMarkup(f.render(findPaint(paint))), w: f.w, h: f.h }));
+    return FURNITURE.map((f) => ({ name: f.name, markup: f.svg(paint), w: f.w, h: f.h }));
   }
-  if (name === 'paredes') return WALL_STYLES.map((st) => ({ name: st.name, kind: 'surface', w: 400, h: 160, markup: renderToStaticMarkup(<svg viewBox="0 0 400 160" width="400" height="160"><rect width="400" height="160" fill={st.base} />{st.render && st.render(400, 160)}</svg>) }));
-  if (name === 'pisos') return FLOOR_STYLES.map((st) => ({ name: st.name, kind: 'surface', w: 400, h: 110, markup: renderToStaticMarkup(<svg viewBox="0 0 400 110" width="400" height="110"><rect width="400" height="110" fill={st.base} />{st.render && st.render(400, 110)}</svg>) }));
+  if (name === 'paredes') return sets('paredes2');
+  if (name === 'pisos') return sets('pisos2');
   if (name === 'comida') return FOOD_SPRITES.map((f) => ({ name: f.id, markup: renderToStaticMarkup(f.render()), w: 100, h: 100 }));
+  if (name === 'deco') return DECOR_DEFS.map((d) => ({ name: d.name, markup: d.svg(), w: d.w, h: d.h }));
   if (name === 'ui') return Object.entries(UI_SPRITES).map(([k, r]) => ({ name: k, markup: renderToStaticMarkup(r()), w: 90, h: 90 }));
   return FAMILY;
 }
@@ -66,7 +98,7 @@ function LabSet() {
         const t0 = performance.now();
         let res;
         if (c.markup) {
-          const k = Math.min(size * 1.6 / c.w, size * 1.6 / c.h, c.kind === 'surface' ? 1 : 3);
+          const k = c.w === 384 ? 1 : Math.min(size * 1.6 / c.w, size * 1.6 / c.h, c.kind === 'surface' ? 1 : 3);
           res = drawArt({ markup: c.markup, styleId: st.id, w: Math.round(c.w * k), h: Math.round(c.h * k), kind: c.kind || 'art' });
         } else res = drawArt({ markup: mochiSvg(c.r, c.mood || 'normal'), styleId: st.id, w: size, h: size, kind: 'pet' });
         return { ...c, res, ms: Math.round(performance.now() - t0) };

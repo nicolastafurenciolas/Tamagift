@@ -6,7 +6,7 @@ import {
   HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES, MOODS as ALL_MOODS,
 } from '../art/mochi';
 import { PET_STYLES } from '../petStyles';
-import { FURNITURE, WALL_STYLES, FLOOR_STYLES, FURNITURE_PAINTS, findPaint, findFurniture, findWall, findFloor } from '../roomCatalog';
+import { FURNITURE, WALL_STYLES, FLOOR_STYLES, FURNITURE_PAINTS, findFurniture, findWall, findFloor, wallSvg, floorSvg, wallSwatchSvg, floorSwatchSvg } from '../roomCatalog';
 import { DECOR_CATALOG } from '../shopCatalog';
 import { Car, Candy, SimonPad, SIMON_PADS, Pipe } from '../gameArt';
 import { FOOD_SPRITES, UI_SPRITES } from '../sprites';
@@ -65,16 +65,16 @@ function RoomScene({ s, wallId, floorId, items, label }) {
       <div style={{ width: worldW * zoom, height: ROOM.H * zoom, position: 'relative', overflow: 'hidden', borderRadius: 10 }}>
         <div style={{ position: 'absolute', left: 0, top: 0, width: worldW, height: ROOM.H, transform: `scale(${zoom})`, transformOrigin: '0 0' }}>
           <div style={{ position: 'absolute', left: 0, top: 0 }}>
-            <Sprite styleId={s.id} art={surfaceArt(wall, worldW, ROOM.FLOOR_Y)} cacheKey={`hoja-wall-${wall.id}-${worldW}`} w={worldW} h={ROOM.FLOOR_Y} kind="surface" fit="cover" pixel={pixel} />
+            <Sprite styleId={s.id} markup={wallSvg(wall.value, worldW, ROOM.FLOOR_Y)} cacheKey={`hoja-wall-${wall.value}-${worldW}`} w={worldW} h={ROOM.FLOOR_Y} kind="surface" fit="cover" pixel={pixel} />
           </div>
           <div style={{ position: 'absolute', left: 0, top: ROOM.FLOOR_Y }}>
-            <Sprite styleId={s.id} art={surfaceArt(floor, worldW, ROOM.H - ROOM.FLOOR_Y)} cacheKey={`hoja-floor-${floor.id}-${worldW}`} w={worldW} h={ROOM.H - ROOM.FLOOR_Y} kind="surface" fit="cover" pixel={pixel} />
+            <Sprite styleId={s.id} markup={floorSvg(floor.value, worldW, ROOM.H - ROOM.FLOOR_Y)} cacheKey={`hoja-floor-${floor.value}-${worldW}`} w={worldW} h={ROOM.H - ROOM.FLOOR_Y} kind="surface" fit="cover" pixel={pixel} />
           </div>
           {items.map(([id, x, y, paint]) => {
             const f = findFurniture(id);
             return (
               <div key={id + x} style={{ position: 'absolute', left: x - f.w / 2, top: y - f.h }}>
-                <Sprite styleId={s.id} art={f.render(findPaint(paint))} cacheKey={`furn-${f.id}-${paint}`} w={f.w} h={f.h} pixel={pixel} />
+                <Sprite styleId={s.id} markup={f.svg(paint)} cacheKey={`furn-${f.id}-${paint}`} w={f.w} h={f.h} pixel={pixel} />
               </div>
             );
           })}
@@ -127,7 +127,7 @@ function StyleSheet({ s }) {
       <Section s={s} title="Muebles">
         {FURNITURE.map((f) => (
           <Cell key={f.id} s={s} label={f.name} w={Math.max(70, Math.round(f.w * 0.5))}>
-            <Sprite styleId={sid} art={f.render(findPaint('natural'))} cacheKey={`furn-${f.id}-natural`} w={Math.round(f.w * 0.5)} h={Math.round(f.h * 0.5)} />
+            <Sprite styleId={sid} markup={f.svg('natural')} cacheKey={`furn-${f.id}-natural`} w={Math.round(f.w * 0.5)} h={Math.round(f.h * 0.5)} />
           </Cell>
         ))}
       </Section>
@@ -135,7 +135,7 @@ function StyleSheet({ s }) {
       <Section s={s} title="Colores de muebles (sofá)">
         {FURNITURE_PAINTS.map((p) => (
           <Cell key={p.id} s={s} label={p.id} w={100}>
-            <Sprite styleId={sid} art={findFurniture('sofa').render(p)} cacheKey={`furn-sofa-${p.id}`} w={96} h={63} />
+            <Sprite styleId={sid} markup={findFurniture('sofa').svg(p.id)} cacheKey={`furn-sofa-${p.id}`} w={96} h={61} />
           </Cell>
         ))}
       </Section>
@@ -143,7 +143,7 @@ function StyleSheet({ s }) {
       <Section s={s} title="Paredes">
         {WALL_STYLES.map((w) => (
           <Cell key={w.id} s={s} label={w.name} w={100}>
-            <Sprite styleId={sid} art={surfaceArt(w, 120, 120)} cacheKey={`swatch-${w.id}`} w={96} h={96} kind="surface" fit="cover" style={{ borderRadius: 8, overflow: 'hidden' }} />
+            <Sprite styleId={sid} markup={wallSwatchSvg(`${w.id}.${w.tints[0].id}`)} cacheKey={`swatch-pared-${w.id}.${w.tints[0].id}`} w={96} h={96} kind="surface" fit="cover" style={{ borderRadius: 8, overflow: 'hidden' }} />
           </Cell>
         ))}
       </Section>
@@ -151,13 +151,13 @@ function StyleSheet({ s }) {
       <Section s={s} title="Pisos">
         {FLOOR_STYLES.map((f) => (
           <Cell key={f.id} s={s} label={f.name} w={100}>
-            <Sprite styleId={sid} art={surfaceArt(f, 120, 120)} cacheKey={`swatch-${f.id}`} w={96} h={96} kind="surface" fit="cover" style={{ borderRadius: 8, overflow: 'hidden' }} />
+            <Sprite styleId={sid} markup={floorSwatchSvg(`${f.id}.${f.tints[0].id}`)} cacheKey={`swatch-piso-${f.id}.${f.tints[0].id}`} w={96} h={96} kind="surface" fit="cover" style={{ borderRadius: 8, overflow: 'hidden' }} />
           </Cell>
         ))}
       </Section>
 
       <Section s={s} title="Decoración, comida e interfaz">
-        {DECOR_CATALOG.map((d) => <Cell key={d.id} s={s} label={d.name} w={70}><Sprite styleId={sid} art={d.render()} cacheKey={`decor-${d.id}`} w={64} h={64} /></Cell>)}
+        {DECOR_CATALOG.map((d) => <Cell key={d.id} s={s} label={d.name} w={70}><Sprite styleId={sid} markup={d.svg()} cacheKey={`decor-${d.id}`} w={64} h={64} /></Cell>)}
         {FOOD_SPRITES.map((f) => <Cell key={f.id} s={s} label={f.name} w={60}><Sprite styleId={sid} art={f.render()} cacheKey={`food-${f.id}`} w={54} h={54} /></Cell>)}
         {Object.entries(UI_SPRITES).map(([k, r]) => <Cell key={k} s={s} label={k} w={54}><Sprite styleId={sid} art={r()} cacheKey={`ui-${k}`} w={48} h={48} /></Cell>)}
       </Section>

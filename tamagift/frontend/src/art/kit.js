@@ -108,12 +108,19 @@ function readPaint(svg, v) {
   return parseColor(v);
 }
 
-function collect(svg) {
+// `data-only="pixel"` dibuja la pieza solo en esos kits; `data-skip`
+// la saltea en esos. Sirve para detalles que un estilo dibuja a su modo
+// (la luz de la pared: degradado suave en vectorial, bandas en pixel).
+function collect(svg, kitName) {
   const items = [];
+  const drop = [];
   const walk = (node, ctx) => {
-    for (const ch of node.children) {
+    for (const ch of [...node.children]) {
       const tag = ch.tagName;
       if (SKIP.has(tag)) continue;
+      const only = ch.getAttribute('data-only');
+      const sk = ch.getAttribute('data-skip');
+      if ((only && !only.split(' ').includes(kitName)) || (sk && sk.split(' ').includes(kitName))) { drop.push(ch); continue; }
       const cs = getComputedStyle(ch);
       if (cs.display === 'none') continue;
       const op = ctx.op * parseFloat(cs.opacity || 1);
@@ -132,6 +139,7 @@ function collect(svg) {
     }
   };
   walk(svg, { op: 1, clips: [], role: null, skip: [] });
+  drop.forEach((el) => el.remove());
   items.forEach((it, i) => { it.i = i; });
   return items;
 }
@@ -214,7 +222,10 @@ function setStroke(el, color, it) {
   const a = it.stroke ? it.stroke[3] / (it.op || 1) : 1;
   if (a < 0.98) el.setAttribute('stroke-opacity', +a.toFixed(3));
 }
-const isShapeRole = (r) => r === 'body' || r === 'part';
+// `face`: una cara de un mueble (la de arriba o la de adelante). Lleva
+// contorno como una pieza, pero los kits no le inventan volumen: la luz
+// ya viene dibujada (arriba más clara, adelante más oscura).
+const isShapeRole = (r) => r === 'body' || r === 'part' || r === 'face';
 
 // ── STICKER ──────────────────────────────────────────────────────
 function kitSticker(svg, items, o) {
@@ -229,7 +240,7 @@ function kitSticker(svg, items, o) {
       const b = bbox(el);
       el.setAttribute('fill', hex(base));
       el.setAttribute('stroke', 'none');
-      const big = it.role === 'body' || (b.width * b.height > vbA * 0.05 && o.kind !== 'icon');
+      const big = it.role === 'body' || (it.role === 'part' && b.width * b.height > vbA * 0.05 && o.kind !== 'icon');
       let last = el;
       if (big) {
         const g = mk('g', { 'clip-path': clipOf(defs, el) });
@@ -282,7 +293,9 @@ function kitLofi(svg, items, o) {
       const base = lofiGrade(it.fill);
       if (isShapeRole(it.role)) {
         const id = uid('lg');
-        const g = mk('radialGradient', { id, cx: '34%', cy: '26%', r: '82%' });
+        const g = it.role === 'face'
+          ? mk('linearGradient', { id, x1: 0, y1: 0, x2: 0.25, y2: 1 })
+          : mk('radialGradient', { id, cx: '34%', cy: '26%', r: '82%' });
         const light = mixRgb(ramp(base, 1), [255, 205, 150], 0.18);
         const dark = mixRgb(ramp(base, -1.4), [36, 28, 64], 0.25);
         g.innerHTML = `<stop offset="0" stop-color="${hex(light)}"/><stop offset="0.55" stop-color="${hex(base)}"/><stop offset="1" stop-color="${hex(dark)}"/>`;
@@ -365,7 +378,7 @@ function kitRetro(svg, items, o) {
       el.replaceWith(shift);
       shift.appendChild(el);
       let last = shift;
-      if (it.role === 'body' || b.width * b.height > vbA * 0.05) {
+      if (it.role === 'body' || (it.role === 'part' && b.width * b.height > vbA * 0.05)) {
         const g = mk('g', { 'clip-path': clipOf(defs, el), transform: shift.getAttribute('transform') });
         g.appendChild(cloneShape(el, { fill: dots(base), stroke: 'none' }));
         const lit = mk('g', { transform: `translate(${-b.width * 0.08} ${-b.height * 0.11})` });
@@ -456,7 +469,7 @@ function kitPapel(svg, items, o) {
       target.setAttribute('fill', hex(base));
       if (it.fill[3] < 1) target.setAttribute('fill-opacity', it.fill[3]);
       if (it.role !== 'shine') target.setAttribute('filter', `url(#${sid})`);
-      if (isShapeRole(it.role) && o.kind !== 'surface') {
+      if (isShapeRole(it.role) && it.role !== 'face' && o.kind !== 'surface') {
         const b = bbox(target);
         const rot = ((seed % 5) - 2) * 0.6;
         const t = target.getAttribute('transform') || '';
@@ -522,6 +535,16 @@ function kitNeon(svg, items, o) {
     // el cuerpo conserva algo de su color (una mochi rosada sigue siendo
     // rosada en la oscuridad), las piezas un poco menos
     const night = it.role === 'body' ? 0.64 : it.role === 'flat' ? 0.7 : 0.76;
+    if (o.kind === 'surface' && it.role === 'flat') {
+      // paredes y pisos: de noche, oscuros y con el color apenas; solo los
+      // motivos chicos (lunares, flores, estrellas) se encienden un poco
+      const bb = bbox(el);
+      const big = bb.width * bb.height > o.vb.width * o.vb.height * 0.2;
+      el.setAttribute('fill', hex(mixRgb(it.fill, NIGHT, big ? 0.86 : 0.78)));
+      if (it.fill[3] < 1) el.setAttribute('fill-opacity', it.fill[3]);
+      el.setAttribute('stroke', 'none');
+      continue;
+    }
     el.setAttribute('fill', darkSmall ? '#FFF2FC' : hex(mixRgb(it.fill, NIGHT, night)));
     const w = (isShapeRole(it.role) ? 2.1 : 1.3) * o.u;
     const col = darkSmall ? '#FF8AD8' : hex(n);
@@ -855,7 +878,7 @@ export function drawArt({ markup, styleId, w, h, kind = 'art', pixel, fit }) {
     const vb = svg.viewBox.baseVal;
     const scale = fit === 'cover' ? Math.max(w / vb.width, h / vb.height) : Math.min(w / vb.width, h / vb.height);
     const o = { vb, kind, u: 1 / scale, gw, gh };
-    const items = collect(svg);
+    const items = collect(svg, kitName);
     if (kitName === 'pixel') {
       const cv = kitPixel(svg, items, o);
       return { url: cv.toDataURL('image/png'), cssW: w, cssH: h, pixelated: true };

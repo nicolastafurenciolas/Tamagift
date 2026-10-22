@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useLayoutEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from 'react';
 import { C, FONT } from '../theme';
 import Pet from './Pet';
 import Sprite from './Sprite';
@@ -6,7 +6,7 @@ import { useStyle } from '../styles/StyleContext';
 import { getMotion } from '../styles/motion';
 import { PosterArt } from './game/posters';
 import { ROOM } from '../gameState';
-import { findFurniture, findWall, findFloor, findPaint } from '../roomCatalog';
+import { findFurniture, findWall, findFloor, wallSvg, floorSvg, FURNITURE_PAINTS } from '../roomCatalog';
 import { findDecor } from '../shopCatalog';
 
 // ─────────────────────────────────────────────────────────────────
@@ -106,75 +106,23 @@ export function stepCamera(cam, p, dt, worldViewW, maxCam, editing, now) {
 }
 
 // ── Piezas del decorado ──────────────────────────────────────────
-// La pared y el piso llevan luz propia: sin esto el cuarto es un par de
-// rectángulos de color plano con rayas encima, que es justo lo que se
-// veía como "hecho en Paint".
+// Pared y piso salen de src/art/room (misma perspectiva que los
+// muebles) y pasan por el motor de estilos como superficies.
 
-function wallArt(wall) {
-  const w = ROOM.W, h = ROOM.FLOOR_Y;
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-      <defs>
-        {/* La luz entra por arriba: la pared se oscurece hacia abajo. */}
-        <linearGradient id="wl" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.20" />
-          <stop offset="0.55" stopColor="#FFFFFF" stopOpacity="0.02" />
-          <stop offset="1" stopColor="#4A3439" stopOpacity="0.16" />
-        </linearGradient>
-        <linearGradient id="wv" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#4A3439" stopOpacity="0.14" />
-          <stop offset="0.06" stopColor="#4A3439" stopOpacity="0" />
-          <stop offset="0.94" stopColor="#4A3439" stopOpacity="0" />
-          <stop offset="1" stopColor="#4A3439" stopOpacity="0.14" />
-        </linearGradient>
-      </defs>
-      <rect x="0" y="0" width={w} height={h} fill={wall.base} />
-      {wall.render && wall.render(w, h)}
-      <rect x="0" y="0" width={w} height={h} fill="url(#wl)" />
-      <rect x="0" y="0" width={w} height={h} fill="url(#wv)" />
-      {/* Rodapié: el corte entre pared y piso. */}
-      <rect x="0" y={h - 26} width={w} height="26" fill="#4A3439" opacity="0.10" />
-      <rect x="0" y={h - 20} width={w} height="20" fill="#F6EFE6" />
-      <rect x="0" y={h - 20} width={w} height="4" fill="#FFFFFF" opacity="0.7" />
-      <rect x="0" y={h - 6} width={w} height="6" fill="#4A3439" opacity="0.22" />
-      <rect x="0" y={h - 2} width={w} height="2" fill="#4A3439" opacity="0.35" />
-    </svg>
-  );
-}
-
-function floorArt(floor) {
-  const w = ROOM.W, h = ROOM.H - ROOM.FLOOR_Y;
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-      <defs>
-        <linearGradient id="fl" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#4A3439" stopOpacity="0.30" />
-          <stop offset="0.35" stopColor="#4A3439" stopOpacity="0.06" />
-          <stop offset="1" stopColor="#FFFFFF" stopOpacity="0.16" />
-        </linearGradient>
-      </defs>
-      <rect x="0" y="0" width={w} height={h} fill={floor.base} />
-      {floor.render && floor.render(w, h)}
-      <rect x="0" y="0" width={w} height={h} fill="url(#fl)" />
-      <rect x="0" y="0" width={w} height="14" fill="#4A3439" opacity="0.18" />
-      <rect x="0" y="0" width={w} height="3" fill="#4A3439" opacity="0.3" />
-    </svg>
-  );
-}
-
-// La pared y el piso pasan por el motor de estilos como superficies.
-function Wall({ wall, pixel }) {
+function Wall({ value, pixel }) {
+  const markup = useMemo(() => wallSvg(value, ROOM.W, ROOM.FLOOR_Y), [value]);
   return (
     <div style={{ position: 'absolute', left: 0, top: 0 }}>
-      <Sprite art={wallArt(wall)} cacheKey={`wall-${wall.id}`} w={ROOM.W} h={ROOM.FLOOR_Y} kind="surface" fit="cover" pixel={pixel} />
+      <Sprite markup={markup} cacheKey={`wall-${value}`} w={ROOM.W} h={ROOM.FLOOR_Y} kind="surface" fit="cover" pixel={pixel} />
     </div>
   );
 }
 
-function Floor({ floor, pixel }) {
+function Floor({ value, pixel }) {
+  const markup = useMemo(() => floorSvg(value, ROOM.W, ROOM.H - ROOM.FLOOR_Y), [value]);
   return (
     <div style={{ position: 'absolute', left: 0, top: ROOM.FLOOR_Y }}>
-      <Sprite art={floorArt(floor)} cacheKey={`floor-${floor.id}`} w={ROOM.W} h={ROOM.H - ROOM.FLOOR_Y} kind="surface" fit="cover" pixel={pixel} />
+      <Sprite markup={markup} cacheKey={`floor-${value}`} w={ROOM.W} h={ROOM.H - ROOM.FLOOR_Y} kind="surface" fit="cover" pixel={pixel} />
     </div>
   );
 }
@@ -203,8 +151,9 @@ function PlacedItem({ item, posters, customDecor, selected, editing, onPointerDo
   const inner = renderPlacedContent(item, posters, customDecor, pixel);
   if (!inner) return null;
   const { w, h } = placedSize(item, posters, customDecor);
-  const f = item.kind === 'mueble' ? findFurniture(item.refId) : null;
-  const onFloor = !(item.kind === 'poster' || (f && f.place === 'pared'));
+  // Los muebles y la decoración del catálogo traen su sombra dibujada;
+  // solo lo que subió quien regaló necesita una.
+  const onFloor = item.kind === 'decor' && (customDecor || []).some((d) => String(d.id) === String(item.refId));
   const sw = w * item.scale;
   return (
     <>
@@ -258,7 +207,8 @@ function placedSize(item, posters, customDecor) {
     const base = 110;
     return { w: base, h: base / (ratio || 1) };
   }
-  return { w: 92, h: 92 };
+  const d = findDecor(item.refId);
+  return d ? { w: Math.round(d.w * 1.25), h: Math.round(d.h * 1.25) } : { w: 92, h: 92 };
 }
 
 function renderPlacedContent(item, posters, customDecor, pixel) {
@@ -268,7 +218,7 @@ function renderPlacedContent(item, posters, customDecor, pixel) {
     const f = findFurniture(item.refId);
     if (!f) return null;
     const paint = item.paint || 'natural';
-    return <Sprite art={f.render(findPaint(paint))} cacheKey={`furn-${f.id}-${paint}`} w={sw} h={sh} pixel={pixel} />;
+    return <Sprite markup={f.svg(paint)} cacheKey={`furn-${f.id}-${paint}`} w={sw} h={sh} pixel={pixel} />;
   }
   if (item.kind === 'poster') {
     const p = (posters || []).find((x) => String(x.id) === String(item.refId));
@@ -289,7 +239,7 @@ function renderPlacedContent(item, posters, customDecor, pixel) {
   const custom = (customDecor || []).find((d) => String(d.id) === String(item.refId));
   if (custom) return <Sprite src={custom.image} w={sw} h={sh} kind="art" pixel={pixel} />;
   const d = findDecor(item.refId);
-  return d ? <Sprite art={d.render()} cacheKey={`decor-${d.id}`} w={sw} h={sh} pixel={pixel} /> : null;
+  return d ? <Sprite markup={d.svg()} cacheKey={`decor-${d.id}`} w={sw} h={sh} pixel={pixel} /> : null;
 }
 
 // ── El cuarto ────────────────────────────────────────────────────
@@ -435,9 +385,10 @@ export default function Room({
   }, []);
 
   const placed = game.placed || [];
-  // Se dibujan de atrás hacia adelante: lo que está más abajo en el
-  // piso tapa a lo que está más arriba. Da profundidad gratis.
-  const sorted = [...placed].sort((a, b) => a.y - b.y);
+  // Se dibujan de atrás hacia adelante: primero las alfombras (siempre
+  // debajo de todo), después muebles y cuadros según qué tan adelante
+  // estén, y al final lo chico que va encima de los muebles.
+  const sorted = [...placed].sort((a, b) => layerOf(a) - layerOf(b) || a.y - b.y);
   const sel = placed.find((p) => p.key === selected) || null;
 
   return (
@@ -464,8 +415,8 @@ export default function Room({
           ref={worldRef}
           style={{ position: 'absolute', left: 0, top: 0, width: ROOM.W, height: ROOM.H, transformOrigin: '0 0', willChange: 'transform' }}
         >
-          <Wall wall={findWall(game.wall)} pixel={pixel} />
-          <Floor floor={findFloor(game.floor)} pixel={pixel} />
+          <Wall value={findWall(game.wall).value} pixel={pixel} />
+          <Floor value={findFloor(game.floor).value} pixel={pixel} />
           <Ambience styleId={style.id} layer="back" />
 
           {sorted.map((item) => (
@@ -512,6 +463,24 @@ export default function Room({
           >
             Quitar
           </SmallBtn>
+          {sel.kind === 'mueble' && (
+            <div className="pg-scroll-x" style={{ display: 'flex', gap: 6, width: '100%', overflowX: 'auto', paddingTop: 4 }}>
+              {FURNITURE_PAINTS.map((pt) => (
+                <button
+                  key={pt.id} title={pt.name} aria-label={`Pintar ${pt.name}`} className="pg-focus pg-keep-round"
+                  onClick={() => {
+                    updateSel(setGame, sel.key, (it) => ({ ...it, paint: pt.id }));
+                    setGame((g) => ({ ...g, furniturePaint: { ...(g.furniturePaint || {}), [sel.refId]: pt.id } }));
+                  }}
+                  style={{
+                    width: 26, height: 26, flexShrink: 0, borderRadius: '50%', padding: 0, cursor: 'pointer',
+                    background: `linear-gradient(135deg, ${pt.wood} 50%, ${pt.cloth} 50%)`,
+                    border: (sel.paint || 'natural') === pt.id ? `2.5px solid ${C.ink}` : `1.5px solid ${C.line}`,
+                  }}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -540,6 +509,20 @@ function updateSel(setGame, key, fn) {
   setGame((g) => ({ ...g, placed: g.placed.map((it) => (it.key === key ? fn(it) : it)) }));
 }
 
+// Capa de dibujo: alfombras abajo de todo; lo que va "sobre" un mueble,
+// arriba de todo.
+function layerOf(item) {
+  if (item.kind === 'mueble') {
+    const f = findFurniture(item.refId);
+    return f && f.layer === 'suelo' ? 0 : 1;
+  }
+  if (item.kind === 'decor') {
+    const d = findDecor(item.refId);
+    return d && d.place === 'sobre' ? 2 : 1;
+  }
+  return 1;
+}
+
 function labelFor(item, posters, customDecor) {
   if (item.kind === 'mueble') return (findFurniture(item.refId) || {}).name || 'Mueble';
   if (item.kind === 'poster') return 'Póster';
@@ -555,11 +538,15 @@ export function clampPlacement(item, posters, customDecor) {
   const { w, h } = placedSize(item, posters, customDecor);
   const sw = w * item.scale, sh = h * item.scale;
   const f = item.kind === 'mueble' ? findFurniture(item.refId) : null;
+  const d = item.kind === 'decor' ? findDecor(item.refId) : null;
   const onWall = item.kind === 'poster' || (f && f.place === 'pared');
+  const anywhere = d && d.place === 'sobre';   // encima de una mesa, una repisa…
   const x = clamp(item.x, sw / 2 + 8, ROOM.W - sw / 2 - 8);
-  const y = onWall
-    ? clamp(item.y, ROOM.WALL_PAD + sh, ROOM.FLOOR_Y - 14)
-    : clamp(item.y, ROOM.FLOOR_Y + 8, ROOM.H - 34);
+  let y;
+  if (onWall) y = clamp(item.y, ROOM.WALL_PAD + sh, ROOM.FLOOR_Y - 14);
+  else if (anywhere) y = clamp(item.y, ROOM.WALL_PAD + sh, ROOM.H - 30);
+  else if (f && f.layer === 'suelo') y = clamp(item.y, ROOM.FLOOR_Y + 30, ROOM.H - 4);
+  else y = clamp(item.y, ROOM.FLOOR_Y + 8, ROOM.H - 34);
   return { ...item, x, y };
 }
 
@@ -570,7 +557,7 @@ export function defaultPlacement(kind, refId, posters, customDecor, opts = {}) {
   const { centerX = ROOM.W / 2, placed = [], paint = 'natural' } = opts;
   const f = kind === 'mueble' ? findFurniture(refId) : null;
   const onWall = kind === 'poster' || (f && f.place === 'pared');
-  const y = onWall ? ROOM.FLOOR_Y - 110 : ROOM.H - 60;
+  const y = onWall ? ROOM.FLOOR_Y - 110 : (f && f.layer === 'suelo') ? ROOM.H - 12 : ROOM.H - 60;
   const { w } = placedSize({ kind, refId, scale: 1 }, posters, customDecor);
 
   // Se prueban posiciones alternando a un lado y al otro del centro.

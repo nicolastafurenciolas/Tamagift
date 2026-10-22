@@ -6,7 +6,7 @@ import {
   HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES,
 } from '../art/mochi';
 import { STYLE_LIST, getStyle } from '../styles/registry';
-import { FURNITURE, WALL_STYLES, FLOOR_STYLES, FURNITURE_PAINTS, findPaint, findFurniture, findWall, findFloor } from '../roomCatalog';
+import { FURNITURE, FURNITURE_CATEGORIES, WALL_STYLES, FLOOR_STYLES, FURNITURE_PAINTS, findFurniture, wallSvg, floorSvg } from '../roomCatalog';
 import { FOOD_SPRITES, UI_SPRITES } from '../sprites';
 import { DECOR_CATALOG } from '../shopCatalog';
 import { Car, Candy, SimonPad, SIMON_PADS, Pipe } from '../gameArt';
@@ -37,26 +37,30 @@ const preset = (id) => ({ ...DEFAULT_RECIPE, ...(PET_STYLES.find((p) => p.id ===
 const svgOf = (el) => renderToStaticMarkup(el);
 const pet = (name, r, mood = 'normal') => ({ name, type: 'pet', r, mood });
 const art = (name, el, w, h, kind = 'art') => ({ name, type: 'art', markup: typeof el === 'string' ? el : svgOf(el), w, h, kind });
-const surface = (st, w, h) => svgOf(<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}><rect width={w} height={h} fill={st.base} />{st.render && st.render(w, h)}</svg>);
+const wallOf = (p, t = 0) => `${p.id}.${(p.tints[t] || p.tints[0]).id}`;
 
 // Las piezas se muestran sobre mochis distintas (cambia el animalito y el
 // ancho), así se ve que cada accesorio cae bien en cualquiera.
 const onFamily = (list, key, extra = {}) => list.filter((x) => x.id !== 'ninguno' && x.id !== 'ninguna')
   .map((a, i) => pet(a.label, { ...FAMILY[i % FAMILY.length].r, body: SHAPES[i % 4].id, [key]: a.id, ...extra }));
 
+// Cuartos armados como lo haría alguien jugando: pared, piso, alfombra,
+// muebles al fondo y cosas colgadas.
 const ROOMS = [
-  { name: 'Cuarto dulce', wall: 'crema', floor: 'madera', left: 'cama', right: 'planta', hang: 'ventana', paintL: 'pastel', paintR: 'natural', r: FAMILY[0].r },
-  { name: 'Cuarto de lunares', wall: 'lunares', floor: 'alfombrado', left: 'sofa', right: 'tocadiscos', hang: 'guirnalda', paintL: 'pastel', paintR: 'blanco', r: FAMILY[1].r },
-  { name: 'Cuarto rockero', wall: 'ladrillo', floor: 'piedra', left: 'guitarra', right: 'estanteria', hang: 'repisa', paintL: 'negro', paintR: 'nogal', r: preset('rockero') },
-  { name: 'Cabaña', wall: 'madera', floor: 'terracota', left: 'bau', right: 'planta', hang: 'ventana', paintL: 'nogal', paintR: 'bosque', r: FAMILY[2].r },
-  { name: 'Cuarto gótico', wall: 'vinotinto', floor: 'ajedrez', left: 'ataud', right: 'espejo', hang: 'guirnalda', paintL: 'negro', paintR: 'vino', r: preset('gotico') },
-  { name: 'Cuarto y2k', wall: 'neon', floor: 'nogal', left: 'escritorio', right: 'pesas', hang: 'repisa', paintL: 'neon', paintR: 'neon', r: preset('y2k') },
+  { name: 'Cuarto dulce', wall: 'zocalo.rosa', floor: 'tablas.miel', rug: ['alfombra', 'pastel'], left: ['cama', 'pastel'], right: ['planta', 'menta'], hang: ['ventana', 'blanco'], r: FAMILY[0].r },
+  { name: 'Rincón de lectura', wall: 'flores.crema', floor: 'espiga.miel', rug: ['alfombraRect', 'arena'], left: ['estanteria', 'natural'], right: ['sillon', 'nogal'], hang: ['cuadro', 'natural'], r: FAMILY[2].r },
+  { name: 'Cuarto rockero', wall: 'ladrillo.rojo', floor: 'losas.gris', rug: ['alfombraRect', 'negro'], left: ['guitarra', 'carbon'], right: ['tocadiscos', 'negro'], hang: ['letrero', 'neon'], r: preset('rockero') },
+  { name: 'Cabaña', wall: 'tablas.miel', floor: 'baldosa.terracota', rug: ['alfombra', 'bosque'], left: ['bau', 'nogal'], right: ['arbolito', 'arena'], hang: ['ventana', 'nogal'], r: FAMILY[3].r },
+  { name: 'Cuarto gótico', wall: 'damasco.vino', floor: 'ajedrez.clasico', rug: ['alfombraCorazon', 'negro'], left: ['ataud', 'negro'], right: ['espejo', 'vino'], hang: ['ventanaRedonda', 'negro'], r: preset('gotico') },
+  { name: 'Cuarto y2k', wall: 'rejilla.fucsia', floor: 'alfombra.lila', rug: ['alfombraOsito', 'lila'], left: ['tele', 'neon'], right: ['pufPera', 'neon'], hang: ['banderines', 'neon'], r: preset('y2k') },
+  { name: 'Cuarto de juegos', wall: 'nubes.dia', floor: 'alfombra.azul', rug: ['alfombraCorazon', 'cielo'], left: ['cajaJuguetes', 'cielo'], right: ['rascador', 'menta'], hang: ['corcho', 'natural'], r: FAMILY[5].r },
+  { name: 'Estudio', wall: 'rayas.celeste', floor: 'tablas.cenizo', rug: ['alfombraRect', 'blanco'], left: ['escritorio', 'blanco'], right: ['lamparaArco', 'arena'], hang: ['reloj', 'blanco'], r: FAMILY[4].r },
 ];
 
 function sections(S) {
   const furn = (f, paint = 'natural') => {
     const k = Math.min((S * 1.25) / f.h, (S * 1.9) / f.w);
-    return art(f.name, f.render(findPaint(paint)), Math.round(f.w * k), Math.round(f.h * k));
+    return art(f.name, f.svg(paint), Math.round(f.w * k), Math.round(f.h * k));
   };
   const sofa = findFurniture('sofa');
   return [
@@ -74,11 +78,13 @@ function sections(S) {
     { id: 'cara', title: 'Detalles de la cara', items: onFamily(EXTRA_ACCESSORIES, 'extraAcc') },
     { id: 'partida', title: 'Estilos de partida', items: PET_STYLES.map((p) => pet(p.label, { ...DEFAULT_RECIPE, ...p.recipe })) },
     { id: 'cuartos', title: 'Cuartos armados', items: ROOMS.map((r) => ({ ...r, type: 'room' })) },
-    { id: 'muebles', title: 'Muebles', items: FURNITURE.map((f) => furn(f)) },
-    { id: 'pinturas', title: 'Pinturas de muebles (sofá)', items: FURNITURE_PAINTS.map((p) => ({ ...furn(sofa, p.id), name: p.id })) },
-    { id: 'paredes', title: 'Paredes', items: WALL_STYLES.map((st) => art(st.name, surface(st, 400, 160), Math.round(S * 2.2), Math.round(S * 0.88), 'surface')) },
-    { id: 'pisos', title: 'Pisos', items: FLOOR_STYLES.map((st) => art(st.name, surface(st, 400, 110), Math.round(S * 2.2), Math.round(S * 0.6), 'surface')) },
-    { id: 'decoracion', title: 'Decoración', items: DECOR_CATALOG.map((d) => art(d.name, d.render(), Math.round(S * 0.75), Math.round(S * 0.75))) },
+    ...FURNITURE_CATEGORIES.map((c) => ({ id: `muebles-${c.id}`, title: `Muebles · ${c.name}`, items: FURNITURE.filter((f) => f.cat === c.id).map((f) => furn(f)) })),
+    { id: 'pinturas', title: 'Colores de muebles (sofá)', items: FURNITURE_PAINTS.map((p) => ({ ...furn(sofa, p.id), name: p.name })) },
+    { id: 'paredes', title: 'Paredes', items: WALL_STYLES.map((st) => art(st.name, wallSvg(wallOf(st), 440, 220), Math.round(S * 2.2), Math.round(S * 1.1), 'surface')) },
+    { id: 'colores', title: 'Colores de pared (pintura lisa y rayas)', items: [WALL_STYLES[0], WALL_STYLES[1]].flatMap((st) => st.tints.map((t, i) => art(`${st.name} · ${t.name}`, wallSvg(wallOf(st, i), 220, 160), Math.round(S * 1.1), Math.round(S * 0.8), 'surface'))) },
+    { id: 'pisos', title: 'Pisos', items: FLOOR_STYLES.map((st) => art(st.name, floorSvg(wallOf(st), 440, 110), Math.round(S * 2.2), Math.round(S * 0.55), 'surface')) },
+    { id: 'maderas', title: 'Colores de piso (tablas)', items: FLOOR_STYLES[0].tints.map((t, i) => art(t.name, floorSvg(wallOf(FLOOR_STYLES[0], i), 220, 110), Math.round(S * 1.1), Math.round(S * 0.55), 'surface')) },
+    { id: 'decoracion', title: 'Decoración', items: DECOR_CATALOG.map((d) => art(d.name, d.svg(), Math.round(d.w * S / 100), Math.round(d.h * S / 100))) },
     { id: 'comida', title: 'Comida', items: FOOD_SPRITES.map((f) => art(f.id, f.render(), Math.round(S * 0.62), Math.round(S * 0.62))) },
     { id: 'iconos', title: 'Íconos y objetos', items: Object.entries(UI_SPRITES).map(([k, r]) => art(k, r(), Math.round(S * 0.52), Math.round(S * 0.52))) },
     {
@@ -117,13 +123,13 @@ function drawRoom(rm, styleId, S) {
   const pixel = st.art.kind === 'pixel' ? st.art.pixel / zoom : undefined;
   const d = (markup, w, h, kind = 'art') => drawArt({ markup, styleId, w, h, kind, pixel, fit: kind === 'surface' ? 'cover' : undefined });
   const layers = [];
-  layers.push({ ...d(surface(findWall(rm.wall), RW, ROOM.FLOOR_Y), RW, ROOM.FLOOR_Y, 'surface'), x: 0, y: 0 });
-  layers.push({ ...d(surface(findFloor(rm.floor), RW, ROOM.H - ROOM.FLOOR_Y), RW, ROOM.H - ROOM.FLOOR_Y, 'surface'), x: 0, y: ROOM.FLOOR_Y });
-  const hang = findFurniture(rm.hang);
-  layers.push({ ...d(svgOf(hang.render(findPaint('natural'))), hang.w, hang.h), x: RW / 2 - hang.w / 2, y: 196 - hang.h });
-  const L = findFurniture(rm.left), R = findFurniture(rm.right);
-  layers.push({ ...d(svgOf(L.render(findPaint(rm.paintL))), L.w, L.h), x: 190 - L.w / 2, y: 404 - L.h });
-  layers.push({ ...d(svgOf(R.render(findPaint(rm.paintR))), R.w, R.h), x: 710 - R.w / 2, y: 404 - R.h });
+  layers.push({ ...d(wallSvg(rm.wall, RW, ROOM.FLOOR_Y), RW, ROOM.FLOOR_Y, 'surface'), x: 0, y: 0 });
+  layers.push({ ...d(floorSvg(rm.floor, RW, ROOM.H - ROOM.FLOOR_Y), RW, ROOM.H - ROOM.FLOOR_Y, 'surface'), x: 0, y: ROOM.FLOOR_Y });
+  const put = ([id, paint], cx, base) => { const f = findFurniture(id); layers.push({ ...d(f.svg(paint), f.w, f.h), x: cx - f.w / 2, y: base - f.h }); };
+  put(rm.rug, RW / 2, ROOM.H - 6);
+  put(rm.hang, RW / 2, 236);
+  put(rm.left, 200, 404);
+  put(rm.right, 700, 404);
   layers.push({ ...d(mochiSvg(rm.r, 'feliz'), ROOM.PET_W, ROOM.PET_W, 'pet'), x: RW / 2 - ROOM.PET_W / 2, y: ROOM.H - ROOM.PET_W - 6 });
   return { room: true, layers, zoom, cssW: RW * zoom, cssH: ROOM.H * zoom };
 }

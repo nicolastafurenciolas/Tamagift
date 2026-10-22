@@ -66,6 +66,25 @@ def('cheek.rayitas.normal', ['w.w', 'BwBw', 'BwBwB .BBB.']);
 def('cheek.brillos.normal', ['..w BB.', '...w. ..... .BBB.']);
 def('cheek.sombras.normal', ['dd', 'ddd', 'dddd']);
 
+// ── Motivos de paredes y objetos ─────────────────────────────────
+// e = color principal (data-c1), b = segundo color (data-c2), w = brillo
+def('motif.heart', [
+  '.e.e. eeeee eeeee .eee. ..e..',
+  '.ee.ee. ewweeee eweeeee eeeeeee .eeeee. ..eee.. ...e...',
+  '.eee.eee. eewweeeee ewweeeeee eweeeeeee eeeeeeeee .eeeeeee. ..eeeee.. ...eee... ....e....',
+]);
+def('motif.dot', ['ee ee', '.e. eee .e.', '.ee. ewee eeee .ee.', '.eee. eweee eeeee eeeee .eee.', '..ee.. .eeee. eweeee eeeeee .eeee. ..ee..']);
+def('motif.star', [
+  '.e. eee .e.',
+  '..e.. .eee. eeeee .e.e.',
+  '...e... ..eee.. eeeeeee .eeeee. ..eee.. .ee.ee. .e...e.',
+]);
+def('motif.flower', [
+  '.e. ebe .e.',
+  '.e.e. eeeee .ebe. eeeee .e.e.',
+  '.ee.ee. eeeeeee .eebee. eebbbee .eebee. eeeeeee .ee.ee.',
+]);
+
 // Elige la pieza: por nombre exacto, si no por estilo genérico del
 // mismo ánimo, si no la normal de ese estilo.
 export function stampFor(name, w, h) {

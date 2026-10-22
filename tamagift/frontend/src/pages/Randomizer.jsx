@@ -7,7 +7,7 @@ import {
   HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES,
 } from '../art/mochi';
 import { PET_STYLES } from '../petStyles';
-import { FURNITURE, WALL_STYLES, FLOOR_STYLES, FURNITURE_PAINTS, findPaint } from '../roomCatalog';
+import { FURNITURE, WALL_STYLES, FLOOR_STYLES, FURNITURE_PAINTS, wallSvg, floorSvg } from '../roomCatalog';
 import { STYLE_LIST, getStyle } from '../styles/registry';
 import { getMotion } from '../styles/motion';
 import { useStyle } from '../styles/StyleContext';
@@ -28,7 +28,7 @@ import { C, FONT, SHADOW } from '../theme';
 const INTERVAL = 3000;
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const MOODS = ['normal', 'feliz', 'enojado'];
-const FLOOR_FURNITURE = FURNITURE.filter((f) => f.place !== 'pared');
+const FLOOR_FURNITURE = FURNITURE.filter((f) => f.place !== 'pared' && f.layer !== 'suelo');
 const WALL_FURNITURE = FURNITURE.filter((f) => f.place === 'pared');
 
 const ROOM_W = 900;
@@ -37,9 +37,7 @@ const ZOOM = 0.64;
 const petArt = (recipe, mood) => (
   <svg viewBox="0 0 200 200" width="200" height="200"><PetRecipeMarkup recipe={recipe} mood={mood} /></svg>
 );
-const surfaceArt = (st, w, h) => (
-  <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}><rect width={w} height={h} fill={st.base} />{st.render && st.render(w, h)}</svg>
-);
+const pickTint = (p) => `${p.id}.${pick(p.tints).id}`;
 
 // En pixel, el cuarto está escalado: hay que corregir el tamaño de píxel
 // para que se vea igual que en el juego.
@@ -62,7 +60,7 @@ function makeCombo(prevStyle) {
   const right = pick(FLOOR_FURNITURE.filter((f) => f.id !== left.id));
   return {
     id: seq, recipe, styleId,
-    wall: pick(WALL_STYLES), floor: pick(FLOOR_STYLES),
+    wall: pickTint(pick(WALL_STYLES)), floor: pickTint(pick(FLOOR_STYLES)),
     left, right, hang: pick(WALL_FURNITURE),
     paintL: pick(FURNITURE_PAINTS).id, paintR: pick(FURNITURE_PAINTS).id,
     mood: pick(MOODS),
@@ -75,14 +73,14 @@ function prefetch(c) {
   const jobs = [
     { art: petArt(c.recipe, c.mood), key: `rnd-pet-${c.id}-${c.mood}`, w: ROOM.PET_W, h: ROOM.PET_W, kind: 'pet', pixel: pixelOf(c.styleId) },
     ...MOODS.map((m) => ({ art: petArt(c.recipe, m), key: `rnd-pet-${c.id}-${m}-mini`, w: 84, h: 84, kind: 'pet' })),
-    { art: surfaceArt(c.wall, ROOM_W, ROOM.FLOOR_Y), key: `rnd-wall-${c.wall.id}`, w: ROOM_W, h: ROOM.FLOOR_Y, kind: 'surface', fit: 'cover', pixel: pixelOf(c.styleId) },
-    { art: surfaceArt(c.floor, ROOM_W, ROOM.H - ROOM.FLOOR_Y), key: `rnd-floor-${c.floor.id}`, w: ROOM_W, h: ROOM.H - ROOM.FLOOR_Y, kind: 'surface', fit: 'cover', pixel: pixelOf(c.styleId) },
-    { art: c.left.render(findPaint(c.paintL)), key: `furn-${c.left.id}-${c.paintL}`, w: c.left.w, h: c.left.h, pixel: pixelOf(c.styleId) },
-    { art: c.right.render(findPaint(c.paintR)), key: `furn-${c.right.id}-${c.paintR}`, w: c.right.w, h: c.right.h, pixel: pixelOf(c.styleId) },
-    { art: c.hang.render(findPaint('natural')), key: `furn-${c.hang.id}-natural`, w: c.hang.w, h: c.hang.h, pixel: pixelOf(c.styleId) },
+    { markup: wallSvg(c.wall, ROOM_W, ROOM.FLOOR_Y), key: `rnd-wall-${c.wall}`, w: ROOM_W, h: ROOM.FLOOR_Y, kind: 'surface', fit: 'cover', pixel: pixelOf(c.styleId) },
+    { markup: floorSvg(c.floor, ROOM_W, ROOM.H - ROOM.FLOOR_Y), key: `rnd-floor-${c.floor}`, w: ROOM_W, h: ROOM.H - ROOM.FLOOR_Y, kind: 'surface', fit: 'cover', pixel: pixelOf(c.styleId) },
+    { markup: c.left.svg(c.paintL), key: `furn-${c.left.id}-${c.paintL}`, w: c.left.w, h: c.left.h, pixel: pixelOf(c.styleId) },
+    { markup: c.right.svg(c.paintR), key: `furn-${c.right.id}-${c.paintR}`, w: c.right.w, h: c.right.h, pixel: pixelOf(c.styleId) },
+    { markup: c.hang.svg('natural'), key: `furn-${c.hang.id}-natural`, w: c.hang.w, h: c.hang.h, pixel: pixelOf(c.styleId) },
   ];
   return Promise.all(jobs.map((j) => renderArt({
-    markup: renderToStaticMarkup(j.art), sourceKey: `k:${j.key}`, w: j.w, h: j.h, kind: j.kind || 'art', fit: j.fit, pixel: j.pixel, styleId: c.styleId,
+    markup: j.markup || renderToStaticMarkup(j.art), sourceKey: `k:${j.key}`, w: j.w, h: j.h, kind: j.kind || 'art', fit: j.fit, pixel: j.pixel, styleId: c.styleId,
   }).catch(() => null)));
 }
 
@@ -178,19 +176,19 @@ export default function Randomizer() {
       <div className="pg-sticker" style={{ width: ROOM_W * ZOOM, height: ROOM.H * ZOOM, position: 'relative', overflow: 'hidden', borderRadius: 22, maxWidth: '96vw' }}>
         <div style={{ position: 'absolute', left: 0, top: 0, width: ROOM_W, height: ROOM.H, transform: `scale(${ZOOM})`, transformOrigin: '0 0' }}>
           <div style={{ position: 'absolute', left: 0, top: 0 }}>
-            <Sprite styleId={sid} art={surfaceArt(c.wall, ROOM_W, ROOM.FLOOR_Y)} cacheKey={`rnd-wall-${c.wall.id}`} w={ROOM_W} h={ROOM.FLOOR_Y} kind="surface" fit="cover" pixel={pixel} />
+            <Sprite styleId={sid} markup={wallSvg(c.wall, ROOM_W, ROOM.FLOOR_Y)} cacheKey={`rnd-wall-${c.wall}`} w={ROOM_W} h={ROOM.FLOOR_Y} kind="surface" fit="cover" pixel={pixel} />
           </div>
           <div style={{ position: 'absolute', left: 0, top: ROOM.FLOOR_Y }}>
-            <Sprite styleId={sid} art={surfaceArt(c.floor, ROOM_W, ROOM.H - ROOM.FLOOR_Y)} cacheKey={`rnd-floor-${c.floor.id}`} w={ROOM_W} h={ROOM.H - ROOM.FLOOR_Y} kind="surface" fit="cover" pixel={pixel} />
+            <Sprite styleId={sid} markup={floorSvg(c.floor, ROOM_W, ROOM.H - ROOM.FLOOR_Y)} cacheKey={`rnd-floor-${c.floor}`} w={ROOM_W} h={ROOM.H - ROOM.FLOOR_Y} kind="surface" fit="cover" pixel={pixel} />
           </div>
           <div style={{ position: 'absolute', left: ROOM_W / 2 - c.hang.w / 2, top: 200 - c.hang.h }}>
-            <Sprite styleId={sid} art={c.hang.render(findPaint('natural'))} cacheKey={`furn-${c.hang.id}-natural`} w={c.hang.w} h={c.hang.h} pixel={pixel} />
+            <Sprite styleId={sid} markup={c.hang.svg('natural')} cacheKey={`furn-${c.hang.id}-natural`} w={c.hang.w} h={c.hang.h} pixel={pixel} />
           </div>
           <div style={{ position: 'absolute', left: 190 - c.left.w / 2, top: 404 - c.left.h }}>
-            <Sprite styleId={sid} art={c.left.render(findPaint(c.paintL))} cacheKey={`furn-${c.left.id}-${c.paintL}`} w={c.left.w} h={c.left.h} pixel={pixel} />
+            <Sprite styleId={sid} markup={c.left.svg(c.paintL)} cacheKey={`furn-${c.left.id}-${c.paintL}`} w={c.left.w} h={c.left.h} pixel={pixel} />
           </div>
           <div style={{ position: 'absolute', left: 710 - c.right.w / 2, top: 404 - c.right.h }}>
-            <Sprite styleId={sid} art={c.right.render(findPaint(c.paintR))} cacheKey={`furn-${c.right.id}-${c.paintR}`} w={c.right.w} h={c.right.h} pixel={pixel} />
+            <Sprite styleId={sid} markup={c.right.svg(c.paintR)} cacheKey={`furn-${c.right.id}-${c.paintR}`} w={c.right.w} h={c.right.h} pixel={pixel} />
           </div>
           <div style={{ position: 'absolute', left: ROOM_W / 2 - ROOM.PET_W / 2, top: ROOM.H - ROOM.PET_W - 6, animation: 'pg-pop-in 0.35s ease-out' }}>
             <div style={{ animation: motion.idle(c.mood), transformOrigin: '50% 88%' }}><Sprite styleId={sid} art={petArt(c.recipe, c.mood)} cacheKey={`rnd-pet-${c.id}-${c.mood}`} w={ROOM.PET_W} h={ROOM.PET_W} kind="pet" pixel={pixel} /></div>

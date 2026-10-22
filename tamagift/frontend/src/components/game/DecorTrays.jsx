@@ -5,7 +5,7 @@ import { play } from '../../sound';
 import Sprite from '../Sprite';
 import { newPlacementKey, ROOM } from '../../gameState';
 import { findDecor } from '../../shopCatalog';
-import { findFurniture, findPaint } from '../../roomCatalog';
+import { findFurniture } from '../../roomCatalog';
 import { defaultPlacement } from '../Room';
 import { ShopTab, TabRow } from './Shop';
 import { PosterArt } from './posters';
@@ -100,7 +100,7 @@ export default function DecorTrays({ posters, customDecor, game, setGame, camera
             const paint = game.furniturePaint?.[f.id] || 'natural';
             return (
               <TrayItem key={f.id} label={f.name} active={isPlaced('mueble', f.id)} onClick={() => toggle('mueble', f.id)}>
-                <Sprite art={f.render(findPaint(paint))} cacheKey={`furn-${f.id}-${paint}`} w={52} h={52} />
+                <Sprite markup={f.svg(paint)} cacheKey={`furn-${f.id}-${paint}`} w={52} h={52} />
               </TrayItem>
             );
           })}
@@ -117,7 +117,7 @@ export default function DecorTrays({ posters, customDecor, game, setGame, camera
               <TrayItem key={id} label={custom ? custom.name : gen.name} active={isPlaced('decor', id)} onClick={() => toggle('decor', id)}>
                 {custom
                   ? <Sprite src={custom.image} w={52} h={52} kind="art" />
-                  : <Sprite art={gen.render()} cacheKey={`decor-${gen.id}`} w={50} h={50} />}
+                  : <Sprite markup={gen.svg()} cacheKey={`decor-${gen.id}`} w={50} h={50} />}
               </TrayItem>
             );
           })}

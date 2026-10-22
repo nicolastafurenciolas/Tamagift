@@ -33,11 +33,11 @@ export const DEFAULT_GAME_STATE = {
   ownedOutfits: [],     // ids ESTABLES (Outfit.id del backend) de las prendas que se poseen
   ownedFurniture: [],   // ids de muebles comprados
   furniturePaint: {},   // { [idMueble]: idColorFURNITURE_PAINTS }, elegido antes de comprar
-  ownedWalls: ['crema'],
-  ownedFloors: ['madera'],
+  ownedWalls: ['liso'],    // diseños de pared comprados (el color se elige gratis)
+  ownedFloors: ['tablas'],
   equippedOutfit: null, // id ESTABLE de la prenda puesta, o null
-  wall: 'crema',
-  floor: 'madera',
+  wall: 'liso.crema',      // "diseño.color" (los ids viejos se siguen entendiendo)
+  floor: 'tablas.miel',
   // Todo lo que está puesto en el cuarto, con su posición libre.
   // { key, kind: 'mueble'|'decor'|'poster', refId, x, y, scale, flip, paint }
   placed: [],

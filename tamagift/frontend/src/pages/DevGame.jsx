@@ -31,16 +31,19 @@ export default function DevGame() {
         const base = testGameState();
         localStorage.setItem(`tamagift:gamestate:${SLUG}`, JSON.stringify({
           ...base,
-          ownedDecor: ['planta', 'libros', 'osito'],
+          ownedDecor: ['planta', 'libros', 'osito', 'lampara', 'velas', 'cojin'],
+          wall: 'zocalo.crema',
+          floor: 'tablas.miel',
           placed: [
-            { key: 'd1', kind: 'mueble', refId: 'cama', x: 330, y: 404, scale: 1, flip: 1, paint: 'natural' },
+            { key: 'd5', kind: 'mueble', refId: 'alfombraOsito', x: 820, y: 418, scale: 1, flip: 1, paint: 'natural' },
+            { key: 'd1', kind: 'mueble', refId: 'cama', x: 300, y: 404, scale: 1, flip: 1, paint: 'natural' },
             { key: 'd2', kind: 'mueble', refId: 'estanteria', x: 560, y: 396, scale: 1, flip: 1, paint: 'natural' },
-            { key: 'd3', kind: 'mueble', refId: 'planta', x: 1010, y: 400, scale: 1, flip: 1, paint: 'natural' },
-            { key: 'd4', kind: 'mueble', refId: 'ventana', x: 800, y: 200, scale: 1, flip: 1, paint: 'natural' },
-            { key: 'd5', kind: 'mueble', refId: 'alfombra', x: 800, y: 420, scale: 1, flip: 1, paint: 'natural' },
-            { key: 'd6', kind: 'mueble', refId: 'guirnalda', x: 560, y: 120, scale: 1, flip: 1, paint: 'natural' },
-            { key: 'd7', kind: 'decor', refId: 'osito', x: 1150, y: 410, scale: 1, flip: 1 },
-            { key: 'd8', kind: 'mueble', refId: 'sofa', x: 1330, y: 404, scale: 1, flip: 1, paint: 'natural' },
+            { key: 'd3', kind: 'mueble', refId: 'planta', x: 1030, y: 400, scale: 1, flip: 1, paint: 'menta' },
+            { key: 'd4', kind: 'mueble', refId: 'ventana', x: 820, y: 250, scale: 1, flip: 1, paint: 'natural' },
+            { key: 'd6', kind: 'mueble', refId: 'guirnalda', x: 430, y: 140, scale: 1, flip: 1, paint: 'natural' },
+            { key: 'd8', kind: 'mueble', refId: 'sofa', x: 1300, y: 404, scale: 1, flip: 1, paint: 'natural' },
+            { key: 'd9', kind: 'mueble', refId: 'lampara', x: 1500, y: 400, scale: 1, flip: 1, paint: 'natural' },
+            { key: 'd7', kind: 'decor', refId: 'osito', x: 1140, y: 410, scale: 1, flip: 1 },
           ],
           petX: 800,
         }));
