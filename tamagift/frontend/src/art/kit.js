@@ -28,7 +28,7 @@
 
 import { getStyle, COLOR_KEYS } from '../styles/registry.js';
 import { parseColor, hex, rgba, mixRgb, ramp, lum, rgbToHsl, hslToRgb, nearestOf, rng, inkOf } from './color.js';
-import { stampFor } from './pixelStamps.js';
+import { stampFor, artStampSizes } from './pixelStamps.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 const SKIP = new Set(['defs', 'clipPath', 'mask', 'pattern', 'linearGradient', 'radialGradient', 'filter', 'symbol', 'title', 'desc', 'style', 'metadata', 'marker']);
@@ -830,16 +830,20 @@ function drawStamp(img, W, H, s, o) {
     g: [255, 214, 102, 1],
   };
   const rows = st.rows;
+  // Dibujos enteros: su propia paleta y agrandados por un entero.
+  const own = st.pal ? paletteOf(st.pal) : null;
+  const k = st.k || 1;
   const h = rows.length, w = rows[0].length;
-  const x0 = Math.round(s.x - w / 2 + (st.dx || 0)), y0 = Math.round(s.y - h / 2 + (st.dy || 0));
-  for (let r = 0; r < h; r++) for (let c = 0; c < w; c++) {
-    const ch = rows[r][flip ? w - 1 - c : c];
+  const x0 = Math.round(s.x - (w * k) / 2 + (st.dx || 0)), y0 = Math.round(s.y - (h * k) / 2 + (st.dy || 0));
+  for (let r = 0; r < h * k; r++) for (let c = 0; c < w * k; c++) {
+    const ch = rows[Math.floor(r / k)][flip ? w - 1 - Math.floor(c / k) : Math.floor(c / k)];
     if (ch === '.' || ch === ' ') continue;
     const x = x0 + c, y = y0 + r;
     if (x < 0 || y < 0 || x >= W || y >= H) continue;
     const p = (y * W + x) * 4;
     let col;
-    if (ch === 'd' || ch === 'l') {
+    if (own) col = own[ch];
+    else if (ch === 'd' || ch === 'l') {
       // un tono más oscuro/claro de lo que hay debajo (para mejillas suaves)
       const u = [img.data[p], img.data[p + 1], img.data[p + 2]];
       col = ch === 'd' ? ramp(u, -1) : ramp(u, 1);
@@ -850,6 +854,39 @@ function drawStamp(img, W, H, s, o) {
     if (!col) continue;
     img.data[p] = col[0]; img.data[p + 1] = col[1]; img.data[p + 2] = col[2]; img.data[p + 3] = 255;
   }
+}
+
+// Paleta de un dibujo hecho a mano, ya convertida a números (una vez).
+const palCache = new WeakMap();
+function paletteOf(pal) {
+  let p = palCache.get(pal);
+  if (!p) {
+    p = {};
+    for (const [ch, c] of Object.entries(pal)) p[ch] = parseColor(c);
+    palCache.set(pal, p);
+  }
+  return p;
+}
+
+// Un dibujo entero hecho a mano, pintado tal cual en su propio lienzo
+// (el navegador lo agranda con bordes duros). Se elige el tamaño más
+// grande que entra con al menos 1.3 píxeles de pantalla por píxel de
+// arte; si ninguno, el más chico.
+function drawWholeStamp(name, w, h) {
+  const sizes = artStampSizes(name);
+  if (!sizes) return null;
+  const m = Math.min(w, h);
+  let st = sizes[0];
+  for (const s of sizes) if (s.rows.length * 1.3 <= m + 0.01) st = s;
+  const n = st.rows.length;
+  const cw = Math.max(n, Math.round((n * w) / m)), ch = Math.max(n, Math.round((n * h) / m));
+  const cv = document.createElement('canvas');
+  cv.width = cw; cv.height = ch;
+  const ctx = cv.getContext('2d');
+  const img = ctx.createImageData(cw, ch);
+  drawStamp(img, cw, ch, { it: { el: { getAttribute: () => null }, px: name }, x: cw / 2, y: ch / 2, w: n, h: n }, {});
+  ctx.putImageData(img, 0, 0);
+  return { url: cv.toDataURL('image/png'), cssW: w, cssH: h, pixelated: true };
 }
 
 // ── API ──────────────────────────────────────────────────────────
@@ -871,6 +908,12 @@ export function pixelSizeFor(style, w, h, pixel) {
 export function drawArt({ markup, styleId, w, h, kind = 'art', pixel, fit }) {
   const style = getStyle(styleId);
   const kitName = style.art.kind;
+  // En pixel, un dibujo que tiene versión hecha a mano se pinta con ella.
+  if (kitName === 'pixel') {
+    const m = /^<svg[^>]*\sdata-px-sprite="([^"]+)"/.exec(markup);
+    const whole = m && drawWholeStamp(m[1], w, h);
+    if (whole) return whole;
+  }
   const px = kitName === 'pixel' ? pixelSizeFor(style, w, h, pixel) : 1;
   const gw = Math.max(4, Math.round(w / px)), gh = Math.max(4, Math.round(h / px));
   const svg = mount(resolveVars(markup, styleId), kitName === 'pixel' ? gw : w, kitName === 'pixel' ? gh : h, fit);
