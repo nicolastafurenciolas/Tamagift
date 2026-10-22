@@ -49,9 +49,9 @@ export default function SnakeGame({ onBack, onComplete, treat, look, rank = 1 })
   const [cell, setCell] = useState(24);
   useEffect(() => {
     const calc = () => {
-      const byW = (Math.min(window.innerWidth, 380) - 40) / COLS;
+      const byW = (Math.min(window.innerWidth, 420) - 32) / COLS;
       const byH = (window.innerHeight - 300) / ROWS;
-      setCell(Math.max(18, Math.floor(Math.min(byW, byH, 28))));
+      setCell(Math.max(18, Math.floor(Math.min(byW, byH, 32))));
     };
     calc();
     window.addEventListener('resize', calc);
@@ -66,6 +66,7 @@ export default function SnakeGame({ onBack, onComplete, treat, look, rank = 1 })
   }
 
   const tickMs = Math.max(100, TICK_MS - (rank - 1) * 8 - eatenRef.current * 7);
+  const headPad = Math.round(cell * 0.32);
 
   useEffect(() => {
     if (gameOver || !started) return undefined;
@@ -188,8 +189,10 @@ export default function SnakeGame({ onBack, onComplete, treat, look, rank = 1 })
         {snake.map((s, i) => {
           if (i === 0) {
             return (
-              <div key="head" style={{ position: 'absolute', left: s.x * cell - 4, top: s.y * cell - 4, width: cell + 8, height: cell + 8, zIndex: 3, transition: 'left 0.08s linear, top 0.08s linear' }}>
-                <PetSprite look={look} mood="feliz" size={cell + 8} flip={dir.x < 0} />
+              // La cabeza sobresale de su casilla: del tamaño exacto la
+              // mochi era una manchita.
+              <div key="head" style={{ position: 'absolute', left: s.x * cell - headPad, top: s.y * cell - headPad, width: cell + headPad * 2, height: cell + headPad * 2, zIndex: 3, transition: 'left 0.08s linear, top 0.08s linear' }}>
+                <PetSprite look={look} mood="feliz" size={cell + headPad * 2} flip={dir.x < 0} />
               </div>
             );
           }

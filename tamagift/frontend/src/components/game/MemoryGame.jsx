@@ -64,7 +64,7 @@ function CardFace({ content, size }) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
         <FoodSprite food={content.food || FOOD_SPRITES[0]} size={Math.round(size * 0.52)} />
-        <div style={{ fontSize: 9.5, fontWeight: 700, color: C.ink, lineHeight: 1.1, maxWidth: size - 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{content.label}</div>
+        <div style={{ fontSize: 10.5, fontWeight: 700, color: C.ink, lineHeight: 1.1, maxWidth: size - 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{content.label}</div>
       </div>
     );
   }

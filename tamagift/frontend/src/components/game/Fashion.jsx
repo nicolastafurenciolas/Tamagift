@@ -134,7 +134,7 @@ export function Salon({ game, setGame, coins, buy, baseLook }) {
                 onClick={() => (own ? (play('pop'), setLook({ hairColor: c })) : buy(HAIR_COLOR_PRICE, (g) => ({ ...g, ownedHairColors: [...(g.ownedHairColors || []), c], look: { ...(g.look || {}), hairColor: c } })))}
                 style={{ position: 'relative', width: 30, height: 30, borderRadius: '50%', padding: 0, cursor: 'pointer', background: c, border: sel ? `3px solid ${C.ink}` : `1.5px solid ${C.line}`, opacity: own ? 1 : 0.85 }}
               >
-                {!own && <span style={{ position: 'absolute', right: -5, bottom: -6, background: C.amberSoft, border: `1px solid ${C.amber}`, borderRadius: 999, fontSize: 8.5, fontFamily: FONT.display, fontWeight: 800, color: C.ink, padding: '0 3px' }}>{HAIR_COLOR_PRICE}</span>}
+                {!own && <span style={{ position: 'absolute', right: -5, bottom: -6, background: C.amberSoft, border: `1px solid ${C.amber}`, borderRadius: 999, fontSize: 10, fontFamily: FONT.display, fontWeight: 800, color: C.ink, padding: '0 4px' }}>{HAIR_COLOR_PRICE}</span>}
               </button>
             );
           })}

@@ -25,7 +25,7 @@ export const ROOM = {
 // migración nueva a MIGRATIONS (ver abajo) — así una partida guardada
 // con una versión vieja se pone al día sola, sin importar cuánto tiempo
 // haya pasado ni cuántas migraciones le falten por aplicar.
-export const CURRENT_GAME_VERSION = 2;
+export const CURRENT_GAME_VERSION = 3;
 
 export const DEFAULT_GAME_STATE = {
   version: CURRENT_GAME_VERSION,
@@ -84,6 +84,8 @@ export const DEFAULT_GAME_STATE = {
   lastBathCoinsAt: 0,    // el baño paga monedas como mucho cada 30 min
   // Estilo visual elegido por quien recibe (si no, el de quien regaló).
   style: null,
+  // Guía de bienvenida: el paso en que va (0…) o 'listo'.
+  tutorial: 0,
 };
 
 // Cuántas partidas de `gameId` van hoy (antes de esta).
@@ -169,6 +171,12 @@ const MIGRATIONS = {
   // 1 → 2: los accesorios de la vieja pestaña "Accesorios" (headAcc,
   // neckAcc, extraAcc y un solo color) pasan al vestidor por ranuras.
   1: (state) => migrateOldAccessories(state),
+  // 2 → 3: llega la guía de bienvenida. Quien ya venía jugando no la
+  // necesita.
+  2: (state) => {
+    if (typeof state.tutorial !== 'string') state.tutorial = 'listo';
+    return state;
+  },
 };
 
 function migrate(state) {
@@ -181,14 +189,42 @@ function migrate(state) {
   return state;
 }
 
+// El cuarto el día que llega: una ventana, una camita, una alfombra y
+// una planta, alrededor de donde aparece la mascota. Antes llegaba a un
+// cuarto vacío y la primera impresión era la de un juego sin terminar.
+// Son suyas: se pueden mover, pintar o guardar.
+export function newGameState() {
+  return {
+    ...DEFAULT_GAME_STATE,
+    ownedFurniture: ['ventana', 'cama', 'alfombra', 'planta'],
+    placed: [
+      { key: 'inicio-alfombra', kind: 'mueble', refId: 'alfombra', x: 800, y: 420, scale: 1, flip: 1, paint: 'natural' },
+      { key: 'inicio-ventana', kind: 'mueble', refId: 'ventana', x: 800, y: 250, scale: 1, flip: 1, paint: 'natural' },
+      { key: 'inicio-cama', kind: 'mueble', refId: 'cama', x: 560, y: 404, scale: 1, flip: 1, paint: 'natural' },
+      { key: 'inicio-planta', kind: 'mueble', refId: 'planta', x: 1050, y: 400, scale: 1, flip: 1, paint: 'menta' },
+    ],
+  };
+}
+
+// Una partida guardada (de este dispositivo o del servidor), completada
+// con lo que le falte y puesta al día. Sin partida, una nueva.
+export function hydrateGameState(raw) {
+  if (!raw || typeof raw !== 'object') return newGameState();
+  return migrate({ ...DEFAULT_GAME_STATE, ...raw });
+}
+
 export function loadGameState(slug) {
   try {
     const raw = localStorage.getItem(KEY(slug));
-    if (!raw) return { ...DEFAULT_GAME_STATE, placed: [] };
-    return migrate({ ...DEFAULT_GAME_STATE, ...JSON.parse(raw) });
+    return hydrateGameState(raw ? JSON.parse(raw) : null);
   } catch (e) {
-    return { ...DEFAULT_GAME_STATE, placed: [] };
+    return newGameState();
   }
+}
+
+// ¿Este dispositivo ya tenía una partida guardada?
+export function hasStoredGameState(slug) {
+  try { return !!localStorage.getItem(KEY(slug)); } catch (e) { return false; }
 }
 
 export function saveGameState(slug, state) {

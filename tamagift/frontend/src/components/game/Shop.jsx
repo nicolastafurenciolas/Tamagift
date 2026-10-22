@@ -129,7 +129,7 @@ function DecorShopCard({ item, owned, pending, paint, canAfford, onBuy, onRepain
         <Sprite markup={item.svg(active)} cacheKey={`decor-${item.id}-${active}`} w={86} h={86} />
       </div>
       <div style={{ fontFamily: FONT.display, fontSize: 12.5, fontWeight: 700, color: C.ink, lineHeight: 1.15, margin: '6px 0 2px', minHeight: 29 }}>{item.name}</div>
-      <div style={{ fontSize: 10.5, color: C.inkFaint, lineHeight: 1.2 }}>{item.place === 'sobre' ? 'Va encima de muebles o colgado' : 'Va en el piso'}</div>
+      <div style={{ fontSize: 11.5, color: C.inkFaint, lineHeight: 1.2 }}>{item.place === 'sobre' ? 'Va encima de muebles o colgado' : 'Va en el piso'}</div>
       {item.paintable && <PaintRow value={active} onPick={(id) => (owned ? onRepaint(id) : setChoice(id))} />}
       <button
         onClick={() => { if (!owned && !pending) onBuy(active); }} disabled={owned || pending || !canAfford} className="pg-focus"
@@ -173,9 +173,9 @@ function SuperTab({ game, coins, buy }) {
               onClick={() => buy(f.price, (g) => ({ ...g, fridge: { ...(g.fridge || {}), [f.id]: ((g.fridge || {})[f.id] || 0) + 1 } }))}
               style={{ position: 'relative', padding: '7px 5px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: can ? 'pointer' : 'default', opacity: can ? 1 : 0.6, minWidth: 0 }}
             >
-              {have > 0 && <span style={{ position: 'absolute', top: 4, right: 5, fontFamily: FONT.display, fontSize: 10, fontWeight: 800, color: C.sky }}>×{have}</span>}
+              {have > 0 && <span style={{ position: 'absolute', top: 4, right: 5, fontFamily: FONT.display, fontSize: 11, fontWeight: 800, color: C.sky }}>×{have}</span>}
               <Sprite art={sp.render()} cacheKey={`food-${sp.id}`} w={40} h={40} />
-              <span style={{ fontFamily: FONT.display, fontSize: 10.5, fontWeight: 700, color: C.ink, lineHeight: 1.1, textAlign: 'center', minHeight: 23 }}>{f.name}</span>
+              <span style={{ fontFamily: FONT.display, fontSize: 11.5, fontWeight: 700, color: C.ink, lineHeight: 1.1, textAlign: 'center', minHeight: 25 }}>{f.name}</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT.display, fontSize: 11, fontWeight: 800, color: C.inkSoft }}><IconCoin size={11} color={C.amber} />{f.price}</span>
             </button>
           );

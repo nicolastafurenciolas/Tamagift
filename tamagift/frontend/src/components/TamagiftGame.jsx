@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { lookOf, parseRecipe } from '../petLook';
 import { C, FONT, SHADOW } from '../theme';
-import { loadPet, feedPetRemote, redesignPetRemote, setActiveDesignRemote, setPetStyleRemote } from '../api';
+import { loadPet, feedPetRemote, redesignPetRemote, setActiveDesignRemote, setPetStyleRemote, fetchGameSave, pushGameSave } from '../api';
 import {
   loadGameState, saveGameState, ROOM, registerPlay, isDailyBonusReady, isNewRecord,
-  DAILY_BONUS_MULTIPLIER, playsTodayFor,
+  DAILY_BONUS_MULTIPLIER, playsTodayFor, hydrateGameState, hasStoredGameState,
 } from '../gameState';
+import { CloudSync } from '../cloudSave';
 import Room, { defaultPlacement, DOOR_SPOT } from './Room';
 import MusicBar from './MusicBar';
 import Sprite from './Sprite';
@@ -49,6 +50,7 @@ import WorldEvents, { LetterModal } from './game/WorldEvents';
 import { IconBolt, IconDrop, IconFridge } from './icons';
 import { buildPosterList } from './game/posters';
 import { OpeningScreen, CinematicScreen, LoadErrorScreen } from './game/Scenes';
+import Tutorial, { TUTORIAL_STEPS, TUTORIAL_REWARD } from './game/Tutorial';
 
 // ─────────────────────────────────────────────────────────────────
 // El juego de quien recibe el regalo: el cuarto con la mascota, el
@@ -92,7 +94,7 @@ const DEMO_PET = {
 };
 
 const MOOD_LABEL = {
-  normal: { text: 'tranquilo', color: C.sage },
+  normal: { text: 'tranquila', color: C.sage },
   feliz: { text: 'feliz', color: C.rose },
   enojado: { text: 'de mal humor', color: C.amber },
   triste: { text: 'triste', color: C.sky },
@@ -132,9 +134,17 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
   const [loadState, setLoadState] = useState('loading');
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [game, setGame] = useState(() => loadGameState(slug));
+  // (antes de que el efecto de abajo guarde la partida nueva)
+  const [hadLocal] = useState(() => hasStoredGameState(slug));
   const gameRef = useRef(game);
   gameRef.current = game;
-  useEffect(() => { saveGameState(slug, game); }, [game, slug]);
+  // La partida se guarda en el dispositivo y, si el regalo está en el
+  // servidor, también allá (ver cloudSave.js).
+  const syncRef = useRef(null);
+  useEffect(() => {
+    saveGameState(slug, game);
+    if (syncRef.current) syncRef.current.changed(game);
+  }, [game, slug]);
 
   // Hambre, amor y ánimo, con la hora del último descuento.
   const [vitals, setVitals] = useState(null);
@@ -178,6 +188,35 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
   useEffect(() => { if (musicRef.current) musicRef.current.setVolume(musicVolume / 100); }, [musicVolume, pet]);
   const onMusicState = useCallback((s) => setMusic(s), []);
 
+  // Llegó una partida más nueva, jugada en otro dispositivo.
+  const adoptRemoteRef = useRef(null);
+  adoptRemoteRef.current = (state) => {
+    gameRef.current = state;
+    setGame(state);
+    if (state.vitals) setVitals(tickVitals(state.vitals));
+    if (isStyleId(state.style)) setStyleId(state.style);
+    setBubble({ text: 'Traje lo que jugaste en el otro dispositivo', tone: 'gusta' });
+  };
+
+  // Al esconder o cerrar la pestaña se sube lo que falte; al volver, se
+  // mira si mientras tanto se jugó en otro dispositivo.
+  useEffect(() => {
+    const onVisibility = () => {
+      const sync = syncRef.current;
+      if (!sync) return;
+      if (document.visibilityState === 'hidden') sync.flush({ keepalive: true });
+      else sync.pull();
+    };
+    const onPageHide = () => { if (syncRef.current) syncRef.current.flush({ keepalive: true }); };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', onPageHide);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', onPageHide);
+      if (syncRef.current) { syncRef.current.flush({ keepalive: true }); syncRef.current.stop(); syncRef.current = null; }
+    };
+  }, []);
+
   // ── Carga ─────────────────────────────────────────────────────────
   useEffect(() => {
     let alive = true;
@@ -186,6 +225,19 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
       const { pet: data, mode } = await loadPet(slug);
       if (!alive) return;
       if (mode === 'error' || mode === 'missing') { setLoadState(mode); return; }
+      // La partida: la de este dispositivo o la del servidor, la más nueva.
+      if (mode === 'live') {
+        if (syncRef.current) syncRef.current.stop();
+        const sync = new CloudSync(slug, {
+          api: { fetchSave: fetchGameSave, pushSave: pushGameSave },
+          hydrate: hydrateGameState,
+          onRemote: (state) => adoptRemoteRef.current(state),
+        });
+        const chosen = await sync.start(gameRef.current, hadLocal);
+        if (!alive) { sync.stop(); return; }
+        syncRef.current = sync;
+        if (chosen !== gameRef.current) { gameRef.current = chosen; setGame(chosen); }
+      }
       const p = data || DEMO_PET;
       setPet(p);
       setLoadState(data ? mode : 'demo');
@@ -276,6 +328,28 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
     if (off) setBubble({ text: 'Buenas noches… zzz', tone: 'casual' });
     else setBubble({ text: (vitals.energy ?? 80) < 40 ? '¡Ay! Todavía tengo sueño…' : '¡Buenos días! Dormí rico', tone: 'gusta' });
   }
+  // ── Guía de bienvenida (la primera vez que se abre el regalo) ────
+  const [guideReady, setGuideReady] = useState(false);
+  useEffect(() => {
+    if (!opened) return undefined;
+    const t = setTimeout(() => setGuideReady(true), 900);
+    return () => clearTimeout(t);
+  }, [opened]);
+  const tutorialStep = typeof game.tutorial === 'number' ? game.tutorial : null;
+  const tutorialActive = guideReady && tutorialStep != null && !!TUTORIAL_STEPS[tutorialStep] && screen === 'main' && !cinematicAvailable;
+  // `from`: el paso desde el que se avanza (así dos toques seguidos no
+  // se saltan uno).
+  function tutorialNext(from) {
+    const last = from >= TUTORIAL_STEPS.length - 1;
+    setGame((g) => (g.tutorial !== from ? g : { ...g, tutorial: last ? 'listo' : from + 1 }));
+    if (last) { awardCoins(TUTORIAL_REWARD, 'bienvenida'); fireReaction('love'); }
+    else play('pop');
+  }
+  function tutorialSkip() {
+    setGame((g) => ({ ...g, tutorial: 'listo' }));
+    awardCoins(TUTORIAL_REWARD, 'bienvenida');
+  }
+
   // sueño: de noche y cansada lo pide
   useEffect(() => {
     if (screen !== 'main' || asleep || !vitals) return;
@@ -303,7 +377,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
       const ev = g.events || {};
       const now = Date.now();
       if (ev.active && ev.active.until < now) { setGame((st) => endEvent(st)); return; }
-      if (asleep || decorating || paintJob) return;
+      if (asleep || decorating || paintJob || tutorialActive) return;
       if (!ev.nextAt) { setGame((st) => ({ ...st, events: { ...(st.events || {}), nextAt: now + 25000 } })); return; }
       const next = rollEvent(g, pet, { now });
       if (!next) return;
@@ -321,7 +395,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
     tick();
     const id = setInterval(tick, 5000);
     return () => clearInterval(id);
-  }, [screen, opened, pet, asleep, decorating, !!paintJob]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [screen, opened, pet, asleep, decorating, !!paintJob, tutorialActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function resolveEvent(result) {
     const ev = (gameRef.current.events || {}).active;
@@ -452,6 +526,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
   // ── Comer ────────────────────────────────────────────────────────
   function feed(food) {
     if (asleep) { setBubble({ text: 'Zzz… está dormida. Prende la luz para despertarla.', tone: 'casual' }); return; }
+    if (tutorialActive && TUTORIAL_STEPS[tutorialStep].waitFor === 'feed') { const from = tutorialStep; later(() => tutorialNext(from), 1500); }
     play('eat');
     later(() => play(food.preference === 'no_gusta' ? 'yuck' : 'yum'), 620);
     setFlyingFood({ key: Date.now(), food });
@@ -801,7 +876,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
           )}
 
           {/* El cuarto, de borde a borde. Medidores y burbuja encima. */}
-          <div style={{ position: 'relative', width: '100%', marginBottom: 10 }}>
+          <div data-tut="room" style={{ position: 'relative', width: '100%', marginBottom: 10 }}>
             <Room
               petName={pet.name} mood={displayMood} look={look}
               posters={posters} customDecor={pet.decor_items || []}
@@ -813,7 +888,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
               paintJob={paintJob} onPaintDone={(job) => { if (job) { setGame((g) => ({ ...g, [job.kind === 'pared' ? 'wall' : 'floor']: job.value })); fireReaction('happy'); setBubble({ text: job.kind === 'pared' ? '¡Quedó precioso!' : '¡Qué piso tan lindo!', tone: 'gusta' }); } setPaintJob(null); }}
               fullBleed extraReserved={(foodOpen && !decorating ? 104 : 0) + (musicOpen ? 66 : 0)}
             />
-            <div style={{ position: 'absolute', left: 12, top: 10, display: 'flex', flexDirection: 'column', gap: 5, pointerEvents: 'none', zIndex: 4 }}>
+            <div data-tut="meters" style={{ position: 'absolute', left: 12, top: 10, display: 'flex', flexDirection: 'column', gap: 5, pointerEvents: 'none', zIndex: 4 }}>
               <MiniMeter kind="hunger" value={hunger} icon={IconBowl} />
               <MiniMeter kind="love" value={love} icon={IconHeart} />
               <MiniMeter kind="energy" value={energy} icon={IconBolt} />
@@ -852,12 +927,12 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
 
           {/* dock de acciones */}
           <div style={{ display: 'flex', gap: 6, width: '100%', maxWidth: 560, padding: '0 14px', marginBottom: 10 }}>
-            <ActionButton icon={IconBowl} label="Alimentar" color={C.rose} active={foodOpen} onClick={() => { play('pop'); setFoodOpen((v) => !v); setDecorating(false); }} />
+            <ActionButton tut="dock-comer" icon={IconBowl} label="Alimentar" color={C.rose} active={foodOpen} onClick={() => { play('pop'); setFoodOpen((v) => !v); setDecorating(false); }} />
             <ActionButton icon={IconTub} label="Bañar" color={C.sky} onClick={enterBathroom} />
-            <ActionButton icon={IconBall} label="Jugar" color={C.amber} onClick={() => { play('swoosh'); setScreen('games'); }} />
+            <ActionButton tut="dock-jugar" icon={IconBall} label="Jugar" color={C.amber} onClick={() => { play('swoosh'); setScreen('games'); }} />
             <ActionButton icon={IconShirt} label="Vestir" color={C.peach} onClick={() => { play('swoosh'); setScreen('closet'); }} />
             <ActionButton icon={IconFrame} label={decorating ? 'Listo' : 'Decorar'} color={C.sage} active={decorating} onClick={() => { play('pop'); setDecorating((v) => !v); setFoodOpen(false); }} />
-            <ActionButton icon={IconBag} label="Tienda" color={C.lavender} onClick={() => { play('swoosh'); setShopTab('moda'); setScreen('shop'); }} />
+            <ActionButton tut="dock-tienda" icon={IconBag} label="Tienda" color={C.lavender} onClick={() => { play('swoosh'); setShopTab('moda'); setScreen('shop'); }} />
           </div>
 
           {decorating && (
@@ -867,7 +942,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
           )}
 
           {foodOpen && !decorating && (
-            <div style={{ width: '100%', maxWidth: 560, padding: '0 14px', marginBottom: 12 }}>
+            <div data-tut="food" style={{ width: '100%', maxWidth: 560, padding: '0 14px', marginBottom: 12 }}>
               {(pet.food_preferences || []).length === 0 && !Object.values(game.fridge || {}).some((n) => n > 0) ? (
                 <p style={{ fontSize: 12, color: C.inkFaint, textAlign: 'center' }}>Aún no hay comidas: compra en el Súper o cocina algo</p>
               ) : (
@@ -879,23 +954,23 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
                     return (
                       <button
                         key={`fr-${id}`} onClick={() => feed({ id, name: fd.name, food_name: fd.name, kind: fd.kind, fromFridge: true })} className="pg-focus pg-card"
-                        style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '8px 9px', borderRadius: 14, cursor: 'pointer', flexShrink: 0, width: 78 }}
+                        style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '8px 7px', borderRadius: 14, cursor: 'pointer', flexShrink: 0, width: 84 }}
                       >
-                        <span style={{ position: 'absolute', top: 3, right: 4, display: 'flex', alignItems: 'center', gap: 2, fontFamily: FONT.display, fontSize: 10, fontWeight: 800, color: C.inkSoft }}><IconFridge size={10} color={C.sky} />{n}</span>
+                        <span style={{ position: 'absolute', top: 3, right: 4, display: 'flex', alignItems: 'center', gap: 2, fontFamily: FONT.display, fontSize: 11, fontWeight: 800, color: C.inkSoft }}><IconFridge size={11} color={C.sky} />{n}</span>
                         <Sprite art={sp.render()} cacheKey={`food-${sp.id}`} w={38} h={38} />
-                        <span style={{ fontFamily: FONT.display, fontSize: 10.5, fontWeight: 700, color: C.ink, textAlign: 'center', lineHeight: 1.1, width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fd.name}</span>
+                        <span style={{ fontFamily: FONT.display, fontSize: 11, fontWeight: 700, color: C.ink, textAlign: 'center', lineHeight: 1.12, width: '100%', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere', minHeight: 25 }}>{fd.name}</span>
                       </button>
                     );
                   })}
                   {(pet.food_preferences || []).map((f, i) => (
                     <button
                       key={`${f.food_name}-${i}`} onClick={() => feed(f)} className="pg-focus pg-card"
-                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '8px 9px', borderRadius: 14, cursor: 'pointer', flexShrink: 0, width: 78 }}
+                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '8px 7px', borderRadius: 14, cursor: 'pointer', flexShrink: 0, width: 84 }}
                     >
                       {f.image
                         ? <Sprite src={f.image} w={38} h={38} kind="photo" style={{ borderRadius: 10, overflow: 'hidden' }} />
                         : <Sprite art={foodSpriteFor(f.food_name, i).render()} cacheKey={`food-${foodSpriteFor(f.food_name, i).id}`} w={38} h={38} />}
-                      <span style={{ fontFamily: FONT.display, fontSize: 10.5, fontWeight: 700, color: C.ink, textAlign: 'center', lineHeight: 1.1, width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.food_name}</span>
+                      <span style={{ fontFamily: FONT.display, fontSize: 11, fontWeight: 700, color: C.ink, textAlign: 'center', lineHeight: 1.12, width: '100%', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere', minHeight: 25 }}>{f.food_name}</span>
                     </button>
                   ))}
                 </div>
@@ -903,6 +978,14 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
             </div>
           )}
         </>
+      )}
+
+      {tutorialActive && (
+        <Tutorial
+          step={tutorialStep} petName={pet.name} creatorName={pet.creator_name} look={look} foodOpen={foodOpen}
+          canFeed={(pet.food_preferences || []).length > 0 || Object.values(game.fridge || {}).some((n) => n > 0)}
+          onNext={() => tutorialNext(tutorialStep)} onSkip={tutorialSkip}
+        />
       )}
 
       {letter && (

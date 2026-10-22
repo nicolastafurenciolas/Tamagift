@@ -36,6 +36,8 @@ existe solo para eso.
 > usa este backend.
 
 No hay que crear ninguna tabla a mano: el backend las crea solo al arrancar.
+(Eso incluye `game_saves`, donde se guarda la partida de quien recibe el
+regalo: al desplegar esta versión aparece sola, sin tocar nada.)
 
 ---
 

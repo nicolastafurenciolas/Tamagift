@@ -546,7 +546,7 @@ export default function Room({
 
         {/* pista de que el cuarto sigue a los lados */}
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'linear-gradient(90deg, rgba(20,12,20,0.12), transparent 8%, transparent 92%, rgba(20,12,20,0.12))' }} />
-        <div style={{ position: 'absolute', right: 10, bottom: 7, fontFamily: FONT.display, fontSize: 10.5, fontWeight: 700, color: '#FFFFFF', textShadow: '0 1px 2px rgba(0,0,0,0.5)', opacity: 0.85, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', right: 10, bottom: 7, fontFamily: FONT.display, fontSize: 11.5, fontWeight: 700, color: '#FFFFFF', textShadow: '0 1px 0 rgba(0,0,0,0.55), 0 0 4px rgba(0,0,0,0.45)', opacity: 0.92, pointerEvents: 'none' }}>
           {paintJob ? '' : editing ? 'arrastra para acomodar' : 'desliza para ver el cuarto'}
         </div>
       </div>

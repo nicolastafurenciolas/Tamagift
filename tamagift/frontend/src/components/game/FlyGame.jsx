@@ -60,7 +60,7 @@ export default function FlyGame({ look, onBack, onComplete, rank = 1 }) {
   const k = boardW / FLY.W;
   const boardH = boardW * FLY.H / FLY.W;
   const pipeW = q(FLY.PIPE_W * k, 2);
-  const petPx = Math.round(40 * k);
+  const petPx = Math.round((FLY.PET_R * 2 + 4) * k);
   const starPx = Math.round(26 * k);
 
   return (
@@ -72,7 +72,7 @@ export default function FlyGame({ look, onBack, onComplete, rank = 1 }) {
       <Board
         onPointerDown={flap}
         style={{
-          width: '100%', maxWidth: `min(${FLY.W}px, ${(FLY.W / FLY.H) * 60}vh)`, aspectRatio: `${FLY.W} / ${FLY.H}`,
+          width: '100%', maxWidth: `min(${FLY.W + 40}px, ${(FLY.W / FLY.H) * 62}vh)`, aspectRatio: `${FLY.W} / ${FLY.H}`,
           borderRadius: 20, cursor: 'pointer', background: `linear-gradient(180deg, ${C.sky1} 0%, ${C.sky2} 85%)`,
         }}
       >
@@ -109,7 +109,7 @@ export default function FlyGame({ look, onBack, onComplete, rank = 1 }) {
         })}
         <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '7%', background: `linear-gradient(180deg, ${C.ground1}, ${C.ground2})`, borderTop: `2.5px solid ${C.ink}` }} />
         <div style={{
-          position: 'absolute', left: (FLY.PET_X - 20) * k, top: (petY - 20) * k, width: petPx, height: petPx,
+          position: 'absolute', left: FLY.PET_X * k - petPx / 2, top: petY * k - petPx / 2, width: petPx, height: petPx,
           transform: `rotate(${Math.max(-25, Math.min(55, vel * 0.06))}deg)`,
         }}>
           <PetSprite look={look} mood="feliz" size={petPx} />

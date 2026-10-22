@@ -285,3 +285,40 @@ export async function setActiveDesignRemote(slug, activeDesign) {
     return null;
   }
 }
+
+// ── Partida guardada en el servidor ──────────────────────────────────
+// La partida (monedas, compras, cuarto…) vive en el dispositivo y se
+// copia al servidor para no perderla al cambiar de celular. Ver
+// cloudSave.js para cuándo se manda y cuál gana si hay dos.
+
+// Devuelve { data, rev, saved_at } (data null si nunca se guardó) o
+// null si el servidor no contesta.
+export async function fetchGameSave(slug) {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE}/api/pets/${slug}/save`, {}, 8000);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    return null;
+  }
+}
+
+// Manda la partida. Texto plano a propósito: sin la consulta previa de
+// CORS, así también sale con `keepalive` al cerrar la pestaña.
+// Devuelve { ok, rev } | { conflict, data, rev, saved_at } | { failed: status }
+// | null (sin conexión).
+export async function pushGameSave(slug, { data, rev, savedAt, force = false }, { keepalive = false } = {}) {
+  try {
+    const res = await fetch(`${API_BASE}/api/pets/${slug}/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ data, rev, saved_at: Math.round(savedAt || 0), force }),
+      keepalive,
+    });
+    if (res.ok) return { ok: true, ...(await res.json()) };
+    if (res.status === 409) return { conflict: true, ...(await res.json()) };
+    return { failed: res.status };
+  } catch (e) {
+    return null;
+  }
+}

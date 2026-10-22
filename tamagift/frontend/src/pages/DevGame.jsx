@@ -35,6 +35,8 @@ export default function DevGame() {
           ownedPosters: ['local-photo-0'],
           wall: 'zocalo.crema',
           floor: 'tablas.miel',
+          // la guía de bienvenida se revisa con un regalo de verdad (/p/…)
+          tutorial: 'listo',
           placed: [
             { key: 'd5', kind: 'mueble', refId: 'alfombraOsito', x: 820, y: 418, scale: 1, flip: 1, paint: 'natural' },
             { key: 'd1', kind: 'mueble', refId: 'cama', x: 300, y: 404, scale: 1, flip: 1, paint: 'natural' },

@@ -25,6 +25,9 @@ IMG_MAX = 3_000_000      # una foto o un dibujo (ya se comprimen en el navegador
 # ánimo (tres PNG transparentes chicos), por eso no es un texto corto.
 RECIPE_MAX = 3_000_000
 AUDIO_MAX = 14_000_000   # un archivo de audio de hasta 10 MB
+# La partida guardada (JSON). Una partida muy jugada pesa unos 30 KB;
+# el tope deja margen sin dejar que alguien llene la base.
+GAME_SAVE_MAX = 400_000
 
 
 class FoodPreferenceBase(BaseModel):
@@ -232,6 +235,26 @@ class ActiveDesignIn(BaseModel):
 
 class StyleIn(BaseModel):
     app_style: StyleId
+
+
+class GameSaveIn(BaseModel):
+    data: dict
+    # Versión sobre la que trabajó el dispositivo (0 = nunca guardó).
+    rev: int = Field(default=0, ge=0)
+    saved_at: int = Field(default=0, ge=0)
+
+    @field_validator("data")
+    @classmethod
+    def data_size(cls, v):
+        if len(json.dumps(v)) > GAME_SAVE_MAX:
+            raise ValueError("La partida es demasiado grande")
+        return v
+
+
+class GameSaveOut(BaseModel):
+    data: Optional[dict] = None
+    rev: int = 0
+    saved_at: int = 0
 
 
 class FeedRequest(BaseModel):

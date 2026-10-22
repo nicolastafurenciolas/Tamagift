@@ -342,6 +342,66 @@ def set_active_design(slug: str, payload: schemas.ActiveDesignIn, db: Session = 
     return pet
 
 
+# ── Partida guardada ────────────────────────────────────────────────
+
+def _save_out(row):
+    if not row:
+        return schemas.GameSaveOut()
+    return schemas.GameSaveOut(data=json.loads(row.data), rev=row.rev, saved_at=row.saved_at or 0)
+
+
+@app.get("/api/pets/{slug}/save", response_model=schemas.GameSaveOut)
+def get_save(slug: str, db: Session = Depends(database.get_db)):
+    pet = db.query(models.Pet).filter(models.Pet.slug == slug).first()
+    if not pet:
+        raise HTTPException(status_code=404, detail="Mascota no encontrada")
+    return _save_out(db.query(models.GameSave).filter(models.GameSave.pet_id == pet.id).first())
+
+
+# POST y no PUT, y el cuerpo se lee a mano: así el navegador lo puede
+# mandar como texto plano, sin la consulta previa de CORS, y también con
+# `keepalive` al cerrar la pestaña (lo que no se guardó al irse, se
+# perdía).
+@app.post("/api/pets/{slug}/save", response_model=schemas.GameSaveOut)
+async def post_save(slug: str, request: Request, db: Session = Depends(database.get_db)):
+    try:
+        payload = schemas.GameSaveIn.model_validate_json(await request.body())
+    except ValueError:
+        raise HTTPException(status_code=422, detail="datos")
+    pet = db.query(models.Pet).filter(models.Pet.slug == slug).first()
+    if not pet:
+        raise HTTPException(status_code=404, detail="Mascota no encontrada")
+
+    data = json.dumps(payload.data)
+    now = datetime.now(timezone.utc)
+    row = db.query(models.GameSave).filter(models.GameSave.pet_id == pet.id).first()
+    if row is None:
+        db.add(models.GameSave(pet_id=pet.id, data=data, rev=1, saved_at=payload.saved_at, updated_at=now))
+        try:
+            db.commit()
+        except Exception:
+            # Dos dispositivos guardaron por primera vez a la vez: gana el
+            # primero y el otro recibe su versión, igual que abajo.
+            db.rollback()
+            row = db.query(models.GameSave).filter(models.GameSave.pet_id == pet.id).first()
+            return JSONResponse(status_code=409, content={"detail": "conflicto", **_save_out(row).model_dump()})
+        return schemas.GameSaveOut(rev=1, saved_at=payload.saved_at)
+
+    # Guardado condicional (como al gastar una llave): solo se escribe si
+    # nadie guardó desde la versión que tenía este dispositivo.
+    new_rev = payload.rev + 1
+    changed = (db.query(models.GameSave)
+               .filter(models.GameSave.pet_id == pet.id, models.GameSave.rev == payload.rev)
+               .update({"data": data, "rev": new_rev, "saved_at": payload.saved_at, "updated_at": now},
+                       synchronize_session=False))
+    db.commit()
+    if changed != 1:
+        db.refresh(row)
+        return JSONResponse(status_code=409, content={"detail": "conflicto", **_save_out(row).model_dump()})
+    # Sin devolver la partida: el dispositivo ya la tiene.
+    return schemas.GameSaveOut(rev=new_rev, saved_at=payload.saved_at)
+
+
 @app.post("/api/pets/{slug}/style", response_model=schemas.StyleIn)
 def set_style(slug: str, payload: schemas.StyleIn, db: Session = Depends(database.get_db)):
     """Guarda el estilo visual que eligió quien recibe el regalo, para

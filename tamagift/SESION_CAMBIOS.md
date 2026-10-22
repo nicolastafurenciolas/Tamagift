@@ -540,6 +540,40 @@ minijuegos que den ganas de volver; rehacer la comida y los íconos
 - **Obra**: al pintar la pared, los muebles quedan delante de la pintura
   (antes se veían transparentes y parecía pintura encima).
 
+## Partida en el servidor, guía de bienvenida y legibilidad
+
+- **La partida ya no vive solo en el celular.** Monedas, compras, cuarto,
+  vestidor y récords se copian al servidor (tabla `game_saves`, una fila
+  por mascota; `GET/POST /api/pets/{slug}/save`). Si quien recibe cambia
+  de teléfono o borra los datos del navegador, al abrir el link recupera
+  todo.
+  - `frontend/src/cloudSave.js` decide cuándo mandar (como mucho cada
+    30 s mientras se juega y siempre al esconder o cerrar la pestaña) y
+    cuál gana si hay dos dispositivos: el servidor numera cada guardado
+    (`rev`) y no pisa una versión que el dispositivo no conocía; entre
+    dos partidas con cambios gana el último cambio hecho a mano. Lo que
+    cambia con la pestaña escondida (solo bajan las barras) no cuenta:
+    un celular olvidado con el juego abierto no pisa lo jugado en otro.
+  - Se manda como texto plano (sin consulta previa de CORS) para que
+    salga también con `keepalive` al cerrar la pestaña.
+  - Pruebas: `backend/test_save.py` (contra una base temporal) y
+    `frontend/src/cloudSave.test.mjs` (9 casos: celular nuevo, partida
+    vieja que se sube sola, dos celulares, choques, sin conexión…).
+- **Guía de bienvenida** (`components/game/Tutorial.jsx`): al abrir el
+  regalo la mascota se presenta y enseña las barras, a darle de comer
+  (espera a que lo haga), los juegos, la tienda y la noche, iluminando
+  cada cosa. Se puede saltar; al terminar regala 50 monedas. Quien ya
+  venía jugando no la ve (migración 2 → 3 de la partida).
+- **Cuarto inicial**: un regalo nuevo ya no llega a un cuarto vacío;
+  trae ventana, camita, alfombra y planta (se pueden mover o guardar).
+- **La mochi más grande en los minijuegos** donde era una manchita:
+  Salta y vuela (y su tablero ocupa el ancho del celular), Cruzar la
+  calle y la cabeza de la Serpiente.
+- **Textos**: los que medían 8,5–10 px suben a 10,5–11,5; los nombres de
+  comida usan dos líneas en vez de cortarse ("Pastel de chocolate"); en
+  neón el dock ya no corta "Alimentar"; la mascota "se siente tranquila"
+  (el resto de los textos ya la trataban en femenino).
+
 ## Resumen de archivos tocados en toda la sesión
 
 **Backend:**

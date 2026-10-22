@@ -315,6 +315,8 @@ input::placeholder, textarea::placeholder { color: var(--pg-c-inkFaint); }
 }
 [data-style="neon"] .pg-btn:active { transform: scale(0.97); }
 [data-style="neon"] .pg-icon { filter: drop-shadow(0 0 3px currentColor); }
+/* Orbitron es muy ancha: "Alimentar" se cortaba en el dock. */
+[data-style="neon"] .pg-dock-label { font-size: 9.5px !important; letter-spacing: -0.03em; }
 [data-style="neon"] h1, [data-style="neon"] h2 { text-shadow: 0 0 6px rgba(255,79,216,0.85), 0 0 18px rgba(255,79,216,0.45); }
 
 /* ═════════════════════════════════════════════════════════════════
@@ -503,6 +505,9 @@ input::placeholder, textarea::placeholder { color: var(--pg-c-inkFaint); }
 
 .pg-anim-rise { animation: pg-rise 0.45s ease both; }
 .pg-anim-pop { animation: pg-pop-in 0.4s cubic-bezier(.34,1.56,.64,1) both; }
+/* Guía de bienvenida: el borde de lo iluminado late. */
+@keyframes pg-tut-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 196, 92, 0.6); } 50% { box-shadow: 0 0 0 7px rgba(255, 196, 92, 0); } }
+.pg-tut-ring { animation: pg-tut-pulse 1.4s ease-in-out infinite; }
 .pg-anim-wiggle { animation: pg-wiggle 0.5s ease; }
 .pg-anim-nudge { animation: pg-nudge 2.6s ease-in-out infinite; }
 .pg-anim-shake { animation: pg-shake 0.42s ease both; }

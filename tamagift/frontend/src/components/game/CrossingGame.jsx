@@ -220,7 +220,9 @@ export default function CrossingGame({ look, onBack, onComplete, rank = 1 }) {
           filter: state === 'hit' ? 'grayscale(1)' : 'none',
           transform: state === 'hit' ? 'scale(0.8) rotate(-14deg)' : 'none',
         }}>
-          <PetSprite look={look} mood="normal" size={Math.round(cellPx * 0.98)} />
+          {/* Más grande que su casilla (sobresale un poco hacia los
+              carriles vecinos): a la medida exacta la cara no se leía. */}
+          <PetSprite look={look} mood="normal" size={Math.round(cellPx * 1.34)} />
         </div>
       </Board>
       <p style={{ fontSize: 11.5, color: C.inkFaint, marginTop: 10, textAlign: 'center' }}>Desliza en cualquier dirección · un toque avanza</p>

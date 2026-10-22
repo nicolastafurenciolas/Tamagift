@@ -19,7 +19,7 @@ function Progress({ id, game }) {
   if (isLevelGame(id)) {
     const p = progressOf(game, id);
     return (
-      <div style={{ fontSize: 10.5, color: C.inkSoft, marginTop: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+      <div style={{ fontSize: 11.5, color: C.inkSoft, marginTop: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
         <b style={{ color: C.ink }}>Nivel {Math.min(p.unlocked, LEVEL_GAMES[id])}</b>
         <span style={{ color: C.amber }}>★</span>{totalStars(game, id)}/{LEVEL_GAMES[id] * 3}
       </div>
@@ -28,7 +28,7 @@ function Progress({ id, game }) {
   const p = progressOf(game, id);
   const record = (game.records || {})[id];
   return (
-    <div style={{ fontSize: 10.5, color: C.inkSoft, marginTop: 3, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+    <div style={{ fontSize: 11.5, color: C.inkSoft, marginTop: 3, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
       <b style={{ color: C.ink }}>Rango {p.rank}</b><StarRow n={p.rankStars} size={10.5} />
       {record != null && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}><IconTrophy size={10} color={C.amber} />{record}</span>}
     </div>
@@ -50,17 +50,17 @@ function GameCard({ id, title, desc, icon: Icon, color, onClick, game }) {
       </span>
       <div style={{ minWidth: 0, width: '100%' }}>
         <div style={{ fontFamily: FONT.display, fontSize: 13.5, fontWeight: 700, color: C.ink, lineHeight: 1.15 }}>{title}</div>
-        <div style={{ fontSize: 10.5, color: C.inkSoft, lineHeight: 1.2, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{desc}</div>
+        <div style={{ fontSize: 11.5, color: C.inkSoft, lineHeight: 1.2, marginTop: 1, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{desc}</div>
         <Progress id={id} game={game} />
         {ch && (
-          <div style={{ marginTop: 5, display: 'flex', alignItems: 'flex-start', gap: 4, fontSize: 10, lineHeight: 1.25, color: chDone ? C.sageDeep : C.inkSoft, background: chDone ? soft(C.sage, 0.7) : soft(C.amber, 0.82), borderRadius: 8, padding: '3px 6px', width: '100%', boxSizing: 'border-box' }}>
+          <div style={{ marginTop: 5, display: 'flex', alignItems: 'flex-start', gap: 4, fontSize: 11, lineHeight: 1.25, color: chDone ? C.sageDeep : C.inkSoft, background: chDone ? soft(C.sage, 0.7) : soft(C.amber, 0.82), borderRadius: 8, padding: '3px 6px', width: '100%', boxSizing: 'border-box' }}>
             {chDone ? <span style={{ fontWeight: 800 }}>✓</span> : <IconTarget size={11} color={C.amber} />}
             <span style={{ textDecoration: chDone ? 'line-through' : 'none' }}>{ch.text}</span>
           </div>
         )}
       </div>
       {(isNew || bonusReady) && (
-        <span style={{ position: 'absolute', top: 9, right: 9, fontFamily: FONT.display, fontSize: 9.5, fontWeight: 800, color: C.onAccent, background: isNew ? C.rose : C.sage, borderRadius: 999, padding: '2px 7px' }}>
+        <span style={{ position: 'absolute', top: 9, right: 9, fontFamily: FONT.display, fontSize: 10.5, fontWeight: 800, color: C.onAccent, background: isNew ? C.rose : C.sage, borderRadius: 999, padding: '2px 7px' }}>
           {isNew ? 'Nuevo' : 'x2 hoy'}
         </span>
       )}
@@ -115,7 +115,7 @@ function BugAlbum({ bugs }) {
             <div style={{ width: 44, height: 44, borderRadius: 12, background: C.paperDeep, display: 'grid', placeItems: 'center', filter: bugs[b.id] ? 'none' : 'brightness(0) opacity(0.25)' }}>
               <Sprite markup={BUG_ART[b.id]()} cacheKey={`bug-${b.id}`} w={38} h={38} />
             </div>
-            <span style={{ fontFamily: FONT.display, fontSize: 9, fontWeight: 700, color: bugs[b.id] ? C.ink : C.inkFaint, textAlign: 'center', lineHeight: 1.05 }}>{bugs[b.id] ? b.label : '¿?'}</span>
+            <span style={{ fontFamily: FONT.display, fontSize: 10.5, fontWeight: 700, color: bugs[b.id] ? C.ink : C.inkFaint, textAlign: 'center', lineHeight: 1.05 }}>{bugs[b.id] ? b.label : '¿?'}</span>
           </div>
         ))}
       </div>
@@ -165,7 +165,7 @@ export function GameResult({ result, onReplay, onExit }) {
           {goals && (
             <div style={{ marginTop: 6 }}>
               <StarRow n={info.stars || 0} size={22} animate gap={3} />
-              <p style={{ fontSize: 10.5, color: C.inkFaint, margin: '2px 0 0' }}>Metas: {goals.join(' · ')}</p>
+              <p style={{ fontSize: 11.5, color: C.inkFaint, margin: '2px 0 0' }}>Metas: {goals.join(' · ')}</p>
             </div>
           )}
           {info.rankUp && <p style={{ fontSize: 12.5, color: C.sageDeep, fontWeight: 800, margin: '6px 0 0' }}>¡Subiste a rango {info.rank}! Las metas crecen</p>}

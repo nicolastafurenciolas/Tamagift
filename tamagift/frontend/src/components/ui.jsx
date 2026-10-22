@@ -40,7 +40,7 @@ export function Badge({ label, value, color }) {
   return (
     <div style={{ textAlign: 'center' }}>
       <div style={{ fontFamily: FONT.display, fontSize: 20, fontWeight: 800, color: color || C.ink, lineHeight: 1 }}>{value}</div>
-      <div style={{ fontSize: 10.5, color: C.inkSoft, fontWeight: 700 }}>{label}</div>
+      <div style={{ fontSize: 11.5, color: C.inkSoft, fontWeight: 700 }}>{label}</div>
     </div>
   );
 }
@@ -109,9 +109,9 @@ export function MiniMeter({ kind, value, icon: Icon }) {
 }
 
 // Botón del dock de acciones de la pantalla principal.
-export function ActionButton({ icon: Icon, label, color, onClick, active }) {
+export function ActionButton({ icon: Icon, label, color, onClick, active, tut }) {
   return (
-    <button onClick={onClick} className="pg-focus" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flex: 1, minWidth: 0, padding: 0 }}>
+    <button onClick={onClick} data-tut={tut} className="pg-focus" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flex: 1, minWidth: 0, padding: 0 }}>
       <span
         className="pg-card"
         style={{
@@ -122,7 +122,7 @@ export function ActionButton({ icon: Icon, label, color, onClick, active }) {
       >
         <Icon size={27} color={color} stroke={2.1} />
       </span>
-      <span style={{ fontFamily: FONT.display, fontWeight: 700, fontSize: 11, color: C.ink, whiteSpace: 'nowrap', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+      <span className="pg-dock-label" style={{ fontFamily: FONT.display, fontWeight: 700, fontSize: 11, color: C.ink, whiteSpace: 'nowrap', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
     </button>
   );
 }

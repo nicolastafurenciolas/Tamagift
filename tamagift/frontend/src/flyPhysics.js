@@ -16,12 +16,14 @@ export const FLY = {
   GAP: 132,          // hueco entre el tubo de arriba y el de abajo
   PIPE_W: 54,
   PET_X: 60,         // la mascota no avanza: el mundo pasa por ella
-  PET_R: 18,         // radio VISUAL: de este tamaño se dibuja la mascota
+  // Radio VISUAL: de este tamaño se dibuja la mascota. Era 18 y la
+  // mochi quedaba de unos 28 px, con la cara ilegible.
+  PET_R: 26,
   // Radio de CHOQUE, más chico que el visual a propósito. Con un solo
   // radio, rozar el tubo con el borde del dibujo ya mataba y el juego se
   // sentía injusto. Que la caja de choque sea menor que el sprite es lo
   // normal en este género: perdona los roces y deja que se sienta justo.
-  HIT_R: 11,
+  HIT_R: 13,
   SPAWN_EVERY: 1.55, // segundos
   BASE_SPEED: 132,
   SPEED_PER_POINT: 4,

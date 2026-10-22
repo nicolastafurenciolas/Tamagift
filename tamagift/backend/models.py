@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Enum as SAEnum, Text
+from sqlalchemy import Column, Integer, BigInteger, String, Float, ForeignKey, DateTime, Enum as SAEnum, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -188,6 +188,32 @@ class DecorItem(Base):
     ratio = Column(Float, default=1.0)
 
     pet = relationship("Pet", back_populates="decor_items")
+
+class GameSave(Base):
+    """La partida de quien recibe el regalo: monedas, lo comprado, el
+    cuarto, el vestidor, los récords… Antes vivía solo en el navegador
+    del celular: si cambiaba de teléfono o borraba los datos, lo perdía
+    todo.
+
+    Una fila por mascota. `data` es el JSON tal cual lo arma el juego
+    (gameState.js): el servidor no lo interpreta, solo lo guarda.
+    `rev` sube en cada guardado; quien guarda dice sobre cuál versión
+    trabajó, y si otro dispositivo guardó entre medio el servidor no
+    pisa nada y le devuelve la versión nueva (ver POST …/save). Si el
+    dispositivo decide que la suya es la más nueva, vuelve a mandarla
+    sobre esa versión.
+    `saved_at` es la hora (ms, reloj del dispositivo) del último cambio
+    hecho a mano, para decidir cuál de dos partidas es la más reciente.
+    """
+    __tablename__ = "game_saves"
+
+    id = Column(Integer, primary_key=True, index=True)
+    pet_id = Column(Integer, ForeignKey("pets.id"), unique=True, index=True, nullable=False)
+    data = Column(Text, nullable=False)
+    rev = Column(Integer, nullable=False, default=1)
+    saved_at = Column(BigInteger, nullable=False, default=0)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
 
 class AccessKey(Base):
     """Llave de acceso: se compra una, sirve para crear UNA mascota.
