@@ -519,7 +519,10 @@ function kitNeon(svg, items, o) {
     // mirada brilla.
     let darkSmall = it.role === 'flat' && lum(it.fill) < 0.22 && o.kind !== 'surface';
     if (darkSmall) { const b = bbox(el); darkSmall = b.width * b.height < o.vb.width * o.vb.height * 0.012; }
-    el.setAttribute('fill', darkSmall ? '#FFF2FC' : hex(mixRgb(it.fill, NIGHT, it.role === 'flat' ? 0.7 : 0.8)));
+    // el cuerpo conserva algo de su color (una mochi rosada sigue siendo
+    // rosada en la oscuridad), las piezas un poco menos
+    const night = it.role === 'body' ? 0.64 : it.role === 'flat' ? 0.7 : 0.76;
+    el.setAttribute('fill', darkSmall ? '#FFF2FC' : hex(mixRgb(it.fill, NIGHT, night)));
     const w = (isShapeRole(it.role) ? 2.1 : 1.3) * o.u;
     const col = darkSmall ? '#FF8AD8' : hex(n);
     el.setAttribute('stroke', col);
