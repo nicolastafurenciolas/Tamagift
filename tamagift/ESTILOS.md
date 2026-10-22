@@ -97,6 +97,27 @@ estampados y 46 accesorios de cabeza, cuello y cara.
 - `roomCatalog.jsx` y `shopCatalog.jsx` son la puerta de entrada para la
   tienda y el cuarto.
 
+## La mochi vestida y el mundo
+
+- **Vestidor** (`art/mochi/wardrobe/`): cada cosa es
+  `{ id, slot, label, vibes, price, colors, draw }`. Todo se ancla a la
+  geometría del cuerpo (`kit.js`: `garment`, `neckLine`, `onTop`,
+  `headband`…). La receta guarda lo puesto en `wear`
+  (`{ cabeza: { id, c1, c2 } }`); los `headAcc`/`neckAcc`/`extraAcc`
+  viejos siguen funcionando. `renderWear` devuelve capas (back, outfit,
+  neck, under, front, hand) que `art/mochi/index.js` intercala.
+- **Peinados** (`art/mochi/hair.js`): casquete + flequillo en una sola
+  silueta (los mechones separados se veían cuadriculados en pixel).
+- **Pixel art hecho a mano**: ojos, bocas y mejillas en
+  `pixelStamps.js` / `mochi/faceStamps.js`; comida, objetos e íconos con
+  su propia paleta en `art/pixel/` (`defArt`). Un SVG con
+  `data-px-sprite="food.x"` se pinta en pixel con su dibujo hecho a
+  mano.
+- **El mundo** (`world.js`): `phaseOf` (hora), `weatherOf` (clima del
+  día), `tickVitals` (necesidades), `foodEffect` (comer). El cuarto
+  recibe `world` y dibuja la noche, las luces y el clima en las
+  ventanas (`components/WorldLayer.jsx`).
+
 ## Agregar un estilo nuevo
 
 1. Agregar la entrada en `STYLES` de `registry.js` (todas las claves de

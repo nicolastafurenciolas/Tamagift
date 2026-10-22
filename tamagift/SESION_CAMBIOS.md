@@ -473,6 +473,59 @@ estudio profesional.
   (cada mueble en un rincón con una mochi al lado para la escala),
   `set=paredes2`, `set=pisos2`, `set=deco`.
 
+## Mundo vivo, vestidor y minijuegos con progreso
+
+Pedido: más rasgos para las mochis; accesorios básicos y montones más
+en la tienda (ropa, estilos, accesorios, colores), pensados sobre todo
+para chicas; decoración que refleje la personalidad (aesthetic, otaku,
+kawaii…); que al comprar suene el timbre y se recoja la caja en la
+puerta; pintar la pared y poner baldosas con el dedo; un mundo vivo
+(día y noche, sucesos, consecuencias como engordar con chatarra);
+minijuegos que den ganas de volver; rehacer la comida y los íconos
+(sobre todo en pixel art). El plan completo está en
+`DISENO_MUNDO_VIVO.md`.
+
+- **Rasgos de la mochi** (`art/mochi/hair.js`, `marks.js`, `face.js`,
+  `ears.js`, `tails.js`): 14 peinados con 16 colores, cejas, marcas de
+  nacimiento, 8 animalitos nuevos (ajolote, capibara, ardilla, hámster,
+  león, vaca, cervatillo, abeja), 6 ojos, 5 bocas, 3 mejillas, 4 colas y
+  5 estampados, cada uno con sus píxeles hechos a mano.
+- **Vestidor** (`art/mochi/wardrobe/`, `wardrobeState.js`,
+  `components/game/Fashion.jsx`): 132 cosas en 6 ranuras (cabeza, cara,
+  cuello, ropa, espalda, en la mano), cada una con 1-2 colores teñibles y
+  sus estilos de persona. Tienda con Moda (por ranura y estilo) y
+  Peluquería; pantalla Vestir en el dock; kit inicial gratis.
+- **Decoración con personalidad** (`art/room/decorVibes.js`,
+  `furniture/vibes.js`): 42 adornos y 18 muebles nuevos por estilo de
+  persona, casi todos pintables; la tienda filtra por estilo.
+- **Pedidos** (`deliveries.js`, `components/game/Delivery.jsx`,
+  `art/room/door.js`): lo comprado queda en camino; al volver al cuarto
+  suena el timbre, la mochi corre a la puerta y aparece la caja; al
+  abrirla sale cada cosa con su botón.
+- **Obra con el dedo** (`components/PaintJob.jsx`): rodillo que pinta la
+  pared por franjas y baldosas que caen en su cuadrícula.
+- **Mundo vivo** (`world.js`, `worldEvents.js`,
+  `components/WorldLayer.jsx`, `components/game/WorldEvents.jsx`):
+  hora y clima reales, interruptor de la luz y sueño, energía, limpieza
+  y peso con consecuencias visibles, nevera y Súper, y sucesos (regalo
+  del día, carta de quien regaló, antojos, bichitos, monedas, hipo,
+  migas, visitas).
+- **Comida e íconos** (`art/food.js`, `art/ui.js`, `art/pixel/`): 36
+  comidas dibujadas de nuevo con pixel art hecho a mano en 16×16 y
+  24×24; íconos de interfaz en 16×16 píxel a píxel; topo, guitarra,
+  moneda y estrella arreglados.
+- **Minijuegos** (`gameProgress.js`, `match3.js`, `cooking.js`,
+  `components/game/CookingGame.jsx`): niveles con estrellas y rangos,
+  reto del día por juego, Conecta 3 con 30 niveles y golosinas
+  especiales, Memoria y Rompecabezas por niveles, Cocina con 12 recetas
+  por gestos, y los arcade con poderes, monedas y dificultad creciente.
+- **Pruebas**: `world.test.mjs`, `gameProgress.test.mjs`,
+  `cooking.test.mjs` nuevas; `match3`, `flyPhysics`, `mochi`, `room` y
+  `towerLogic` siguen pasando.
+- **Desarrollo**: `/dev/main?hora=22&clima=lluvia&suceso=visita`,
+  `?obra=piso.ajedrez.clasico`, `/arte?set=pelo|vestidor&slot=ropa|…`,
+  `/iconos?estilo=pixel`.
+
 ## Resumen de archivos tocados en toda la sesión
 
 **Backend:**
