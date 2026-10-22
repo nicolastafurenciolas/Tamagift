@@ -27,6 +27,7 @@ export default function BgRemover({ file, onCancel, onDone }) {
   const [tolerance, setTolerance] = useState(38);
   const [brush, setBrush] = useState(26);
   const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [, bump] = useState(0);
 
   // ── cargar la imagen ───────────────────────────────────────────
@@ -50,6 +51,12 @@ export default function BgRemover({ file, onCancel, onDone }) {
       historyRef.current = { stack: [new Uint8ClampedArray(data.data)], index: 0 };
       setReady(true);
       bump((v) => v + 1);
+      if (revoked) URL.revokeObjectURL(revoked);
+    };
+    // Imagen que el navegador no puede leer (HEIC en Chrome, archivo
+    // dañado): antes el editor se quedaba en blanco sin explicar nada.
+    img.onerror = () => {
+      setLoadError(true);
       if (revoked) URL.revokeObjectURL(revoked);
     };
     if (typeof file === 'string') {
@@ -232,10 +239,20 @@ export default function BgRemover({ file, onCancel, onDone }) {
   const canRedo = hist.index < hist.stack.length - 1;
 
   const TOOLS = [
-    ['varita', '✨ Varita', 'Toca el fondo y se borra lo parecido'],
-    ['borrar', '🧽 Borrar', 'Borra a mano lo que sobre'],
-    ['restaurar', '↩ Traer', 'Devuelve lo que borraste de más'],
+    ['varita', 'Varita', 'Toca el fondo y se borra lo parecido'],
+    ['borrar', 'Borrar', 'Borra a mano lo que sobre'],
+    ['restaurar', 'Traer', 'Devuelve lo que borraste de más'],
   ];
+
+  if (loadError) {
+    return (
+      <div className="pg-card" style={{ padding: 16, textAlign: 'center' }}>
+        <p style={{ fontSize: 13, color: C.rose, fontWeight: 700, margin: '0 0 6px' }}>No pudimos abrir esa imagen</p>
+        <p style={{ fontSize: 12, color: C.inkSoft, margin: '0 0 12px' }}>Prueba con una foto JPG o PNG.</p>
+        <button onClick={onCancel} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '9px 20px', fontSize: 13 }}>Elegir otra</button>
+      </div>
+    );
+  }
 
   return (
     <div className="pg-card" style={{ padding: 14 }}>
@@ -265,7 +282,7 @@ export default function BgRemover({ file, onCancel, onDone }) {
             style={{
               padding: '7px 12px', borderRadius: 999, cursor: 'pointer',
               fontFamily: FONT.display, fontSize: 12, fontWeight: 700,
-              background: tool === id ? C.rose : C.surface, color: tool === id ? '#fff' : C.ink,
+              background: tool === id ? C.rose : C.surface, color: tool === id ? C.onAccent : C.ink,
               border: `1.5px solid ${tool === id ? C.rose : C.line}`,
             }}
           >
@@ -289,9 +306,9 @@ export default function BgRemover({ file, onCancel, onDone }) {
       )}
 
       <div className="flex gap-2 mb-3" style={{ flexWrap: 'wrap' }}>
-        <MiniBtn onClick={undo} disabled={!canUndo}>↩ Deshacer</MiniBtn>
-        <MiniBtn onClick={redo} disabled={!canRedo}>↪ Rehacer</MiniBtn>
-        <MiniBtn onClick={resetAll}>⟲ Volver al original</MiniBtn>
+        <MiniBtn onClick={undo} disabled={!canUndo}>Deshacer</MiniBtn>
+        <MiniBtn onClick={redo} disabled={!canRedo}>Rehacer</MiniBtn>
+        <MiniBtn onClick={resetAll}>Volver al original</MiniBtn>
       </div>
 
       <div className="flex gap-2">
@@ -302,7 +319,7 @@ export default function BgRemover({ file, onCancel, onDone }) {
           onClick={() => { const r = exportTrimmed(); if (r) onDone(r); }}
           disabled={!ready}
           className="pg-btn pg-focus"
-          style={{ flex: 1, padding: '10px', fontSize: 13, background: C.rose, color: '#fff', border: `1.5px solid ${C.rose}`, opacity: ready ? 1 : 0.5 }}
+          style={{ flex: 1, padding: '10px', fontSize: 13, background: C.rose, color: C.onAccent, border: `1.5px solid ${C.rose}`, opacity: ready ? 1 : 0.5 }}
         >
           Usar esta imagen
         </button>

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { C, FONT, SHADOW, DRAW_COLORS, tint } from '../theme';
+import { C, FONT, SHADOW, DRAW_COLORS, soft } from '../theme';
 import { IconPencil } from './icons';
 import { BODIES, EARS, EYES, MOUTHS, CHEEK_STYLES, BODY_COLORS, ACCENT_COLORS, BELLY_COLORS, EYE_COLORS } from '../petParts';
 import { TAILS, PATTERNS, HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES } from '../petAccessories';
@@ -23,9 +23,9 @@ import { PET_STYLES, applyStyle, orderForStyle } from '../petStyles';
 const CANVAS_SIZE = 320;
 
 const MOODS = [
-  { id: 'normal', label: 'Normal', emoji: '🙂' },
-  { id: 'feliz', label: 'Feliz', emoji: '😊' },
-  { id: 'enojado', label: 'Enojado', emoji: '😤' },
+  { id: 'normal', label: 'Normal' },
+  { id: 'feliz', label: 'Feliz' },
+  { id: 'enojado', label: 'Enojado' },
 ];
 
 function getPos(e, canvas) {
@@ -53,7 +53,7 @@ function Chip({ active, onClick, children, color }) {
       className="pg-focus"
       style={{
         fontFamily: FONT.display, padding: '7px 15px', borderRadius: 999, fontSize: 13.5, fontWeight: 700, cursor: 'pointer',
-        background: active ? c : C.surface, color: active ? '#fff' : C.ink,
+        background: active ? c : C.surface, color: active ? C.onAccent : C.ink,
         border: `1.5px solid ${active ? c : C.line}`,
         boxShadow: active ? `0 3px 0 ${c}` : `0 2px 0 ${C.line}`,
         transition: 'transform 0.1s',
@@ -166,7 +166,7 @@ function RetouchSection({
               <button key={m.id} onClick={() => setActiveMood(m.id)} className="pg-focus" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                 <div style={{ width: 44, height: 44, borderRadius: 12, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2.5px solid ${activeMood === m.id ? C.rose : C.line}`, position: 'relative' }}>
                   <svg viewBox="0 0 200 200" width={40} height={40}><PetRecipeMarkup recipe={recipe} mood={m.id} /></svg>
-                  {hasOverlay(m.id) && <span style={{ position: 'absolute', top: -2, right: -2, width: 10, height: 10, borderRadius: '50%', background: C.sage, border: '1.5px solid #fff' }} />}
+                  {hasOverlay(m.id) && <span style={{ position: 'absolute', top: -2, right: -2, width: 10, height: 10, borderRadius: '50%', background: C.sage, border: `1.5px solid ${C.surface}` }} />}
                 </div>
                 <span style={{ fontFamily: FONT.display, fontSize: 10.5, fontWeight: 700, color: activeMood === m.id ? C.rose : C.ink }}>{m.label}</span>
               </button>
@@ -200,14 +200,14 @@ function RetouchSection({
 
           <div className="pg-card" style={{ padding: 14, marginBottom: 10, background: C.surfaceAlt }}>
             <div className="flex gap-2 justify-center mb-3">
-              {[{ id: 'pincel', label: '🖌 Pincel' }, { id: 'goma', label: '🧼 Goma' }, { id: 'cuentagotas', label: '💧 Color' }].map((t) => (
+              {[{ id: 'pincel', label: 'Pincel' }, { id: 'goma', label: 'Goma' }, { id: 'cuentagotas', label: 'Gotero' }].map((t) => (
                 <Chip key={t.id} active={tool === t.id} onClick={() => setTool(t.id)}>{t.label}</Chip>
               ))}
             </div>
             <div className="flex items-center gap-3 mb-3">
               <span style={{ fontFamily: FONT.display, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', color: C.inkSoft }}>Grosor</span>
               <input type="range" min="2" max="30" value={size} onChange={(e) => setSize(Number(e.target.value))} className="flex-1" style={{ accentColor: C.rose }} />
-              <div style={{ width: Math.max(size, 6), height: Math.max(size, 6), borderRadius: '50%', background: tool === 'goma' ? '#fff' : color, border: `1.5px solid ${C.line}`, flexShrink: 0 }} />
+              <div style={{ width: Math.max(size, 6), height: Math.max(size, 6), borderRadius: '50%', background: tool === 'goma' ? C.surface : color, border: `1.5px solid ${C.line}`, flexShrink: 0 }} />
             </div>
             <div className="flex gap-2 justify-center mb-3">
               {['dura', 'suave'].map((hd) => (
@@ -225,9 +225,9 @@ function RetouchSection({
           </div>
 
           <div className="flex gap-2 justify-center">
-            <button onClick={() => undo(activeMood)} disabled={!canUndo} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '8px 14px', fontSize: 12.5, opacity: canUndo ? 1 : 0.5 }}>↩ Deshacer</button>
-            <button onClick={() => redo(activeMood)} disabled={!canRedo} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '8px 14px', fontSize: 12.5, opacity: canRedo ? 1 : 0.5 }}>↪ Rehacer</button>
-            <button onClick={() => clearCanvas(activeMood)} className="pg-btn pg-focus" style={{ padding: '8px 14px', fontSize: 12.5, background: C.surface, color: C.rose, border: `1.5px solid ${C.rose}`, boxShadow: `0 2px 0 ${C.roseSoft}` }}>🗑 Limpiar</button>
+            <button onClick={() => undo(activeMood)} disabled={!canUndo} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '8px 14px', fontSize: 12.5, opacity: canUndo ? 1 : 0.5 }}>Deshacer</button>
+            <button onClick={() => redo(activeMood)} disabled={!canRedo} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '8px 14px', fontSize: 12.5, opacity: canRedo ? 1 : 0.5 }}>Rehacer</button>
+            <button onClick={() => clearCanvas(activeMood)} className="pg-btn pg-focus" style={{ padding: '8px 14px', fontSize: 12.5, background: C.surface, color: C.rose, border: `1.5px solid ${C.rose}`, boxShadow: `0 2px 0 ${C.roseSoft}` }}>Limpiar</button>
           </div>
       </div>
     </div>
@@ -256,7 +256,7 @@ function StylePicker({ styleId, onPick }) {
               title={s.hint}
               className="pg-focus"
               style={{
-                background: on ? tint(C.rose, 0.12) : C.surface,
+                background: on ? soft(C.rose, 0.85) : C.surface,
                 border: `2.5px solid ${on ? C.rose : C.line}`,
                 boxShadow: on ? SHADOW.glowRose : 'none',
                 borderRadius: 18, padding: '8px 8px 7px', cursor: 'pointer',
@@ -317,7 +317,7 @@ export function ModularPetStep({
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 18 }}>
         <button onClick={() => { setPetStyle(null); setRecipe(randomRecipe()); }} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '8px 18px', fontSize: 12.5 }}>
-          🎲 Sorpréndeme
+          Sorpréndeme
         </button>
         <button onClick={() => { setPetStyle(null); setRecipe(DEFAULT_RECIPE); }} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '8px 18px', fontSize: 12.5 }}>
           ↺ Empezar de cero

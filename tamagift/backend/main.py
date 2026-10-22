@@ -2,13 +2,14 @@ import json
 import os
 import secrets
 import string
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from datetime import datetime, timezone
 
-from sqlalchemy import text
+from sqlalchemy import text, func
 
 import database
 import models
@@ -37,6 +38,7 @@ LATE_COLUMNS = [
     ("pets", "drawing_feliz_redesign", "TEXT"),
     ("pets", "drawing_enojado_redesign", "TEXT"),
     ("pets", "active_design", "VARCHAR(10) DEFAULT 'original'"),
+    ("pets", "app_style", "VARCHAR(16)"),
 ]
 
 
@@ -59,6 +61,21 @@ def ensure_late_columns():
 ensure_late_columns()
 
 app = FastAPI(title="Tamagift API")
+
+# Tope del cuerpo de una petición (se registra ANTES que CORS para que
+# la respuesta 413 también lleve las cabeceras CORS y el navegador la lea). Los esquemas ya limitan cada campo,
+# pero así un cuerpo gigante se corta antes de leerlo entero en memoria.
+MAX_BODY_BYTES = int(os.getenv("MAX_BODY_MB", "50")) * 1024 * 1024
+
+
+@app.middleware("http")
+async def limit_body_size(request: Request, call_next):
+    length = request.headers.get("content-length")
+    if length and length.isdigit() and int(length) > MAX_BODY_BYTES:
+        return JSONResponse(status_code=413, content={"detail": "demasiado-grande"})
+    return await call_next(request)
+
+
 
 # CORS: el frontend (Vite en :5173 en local, o el dominio de Netlify en
 # producción) vive en otro origen que el backend, así que el navegador
@@ -163,6 +180,7 @@ def create_pet(payload: schemas.PetCreate, db: Session = Depends(database.get_db
         drawing_feliz=payload.drawing_feliz,
         drawing_enojado=payload.drawing_enojado,
         recipe_original=payload.recipe_original,
+        app_style=payload.app_style,
     )
     db.add(pet)
     db.flush()
@@ -234,9 +252,13 @@ def feed_pet(slug: str, payload: schemas.FeedRequest, db: Session = Depends(data
     if not pet:
         raise HTTPException(status_code=404, detail="Mascota no encontrada")
 
+    # Comparación exacta sin distinguir mayúsculas. Antes era un ILIKE:
+    # un nombre con "%" o "_" funcionaba como comodín y podía dar la
+    # reacción de otra comida.
     food = (
         db.query(models.FoodPreference)
-        .filter(models.FoodPreference.pet_id == pet.id, models.FoodPreference.food_name.ilike(payload.food_name))
+        .filter(models.FoodPreference.pet_id == pet.id,
+                func.lower(models.FoodPreference.food_name) == payload.food_name.strip().lower())
         .first()
     )
 
@@ -309,8 +331,6 @@ def set_active_design(slug: str, payload: schemas.ActiveDesignIn, db: Session = 
     pet = db.query(models.Pet).filter(models.Pet.slug == slug).first()
     if not pet:
         raise HTTPException(status_code=404, detail="Mascota no encontrada")
-    if payload.active_design not in ("original", "redesign"):
-        raise HTTPException(status_code=400, detail="active_design invalido")
     if payload.active_design == "redesign" and pet.recipe_redesign is None:
         raise HTTPException(status_code=400, detail="todavia no hay rediseno")
 
@@ -318,3 +338,15 @@ def set_active_design(slug: str, payload: schemas.ActiveDesignIn, db: Session = 
     db.commit()
     db.refresh(pet)
     return pet
+
+
+@app.post("/api/pets/{slug}/style", response_model=schemas.StyleIn)
+def set_style(slug: str, payload: schemas.StyleIn, db: Session = Depends(database.get_db)):
+    """Guarda el estilo visual que eligió quien recibe el regalo, para
+    que lo vea igual desde cualquier dispositivo."""
+    pet = db.query(models.Pet).filter(models.Pet.slug == slug).first()
+    if not pet:
+        raise HTTPException(status_code=404, detail="Mascota no encontrada")
+    pet.app_style = payload.app_style
+    db.commit()
+    return schemas.StyleIn(app_style=pet.app_style)

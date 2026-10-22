@@ -1,43 +1,90 @@
-from pydantic import BaseModel
-from typing import List, Optional
+from pydantic import BaseModel, Field
+from typing import List, Optional, Literal
+
+# ─────────────────────────────────────────────────────────────────
+# Esquemas de la API.
+#
+# Los de ENTRADA (…In, PetCreate) traen límites: largo máximo de cada
+# texto igual al de su columna en models.py, cuántos elementos caben en
+# cada lista y cuánto puede pesar cada imagen o audio. Sin ellos, un
+# texto de 250 caracteres hacía fallar la creación con un error 500 en
+# Postgres, y un precio negativo en la tienda REGALABA monedas.
+#
+# Los de SALIDA (…Out) no llevan límites: si una fila vieja quedó con
+# una foto más pesada que el límite actual, el regalo igual tiene que
+# poder abrirse.
+# ─────────────────────────────────────────────────────────────────
+
+# Estilos visuales que existen en el frontend (styles/registry.js).
+StyleId = Literal["pixel", "lofi", "retro", "papel", "neon", "sticker"]
+
+# Tamaños máximos de los data URL (en caracteres de base64).
+IMG_MAX = 3_000_000      # una foto o un dibujo (ya se comprimen en el navegador)
+AUDIO_MAX = 14_000_000   # un archivo de audio de hasta 10 MB
 
 
-class FoodPreferenceIn(BaseModel):
+class FoodPreferenceBase(BaseModel):
     food_name: str
-    preference: str  # "gusta" | "no_gusta"
+    preference: str
     reaction_message: str
-    image: Optional[str] = None  # data URL opcional
+    image: Optional[str] = None
 
 
-class PhraseIn(BaseModel):
-    category: str  # "positiva" | "negativa" | "casual"
+class FoodPreferenceIn(FoodPreferenceBase):
+    food_name: str = Field(min_length=1, max_length=60)
+    preference: Literal["gusta", "no_gusta"]
+    reaction_message: str = Field(min_length=1, max_length=200)
+    image: Optional[str] = Field(default=None, max_length=IMG_MAX)
+
+
+class PhraseBase(BaseModel):
+    category: str
     text: str
 
 
-class PhotoIn(BaseModel):
+class PhraseIn(PhraseBase):
+    category: Literal["positiva", "negativa", "casual"]
+    text: str = Field(min_length=1, max_length=200)
+
+
+class PhotoBase(BaseModel):
     url: str
     caption: Optional[str] = None
-    used_for: str = "puzzle"  # "puzzle" | "poster"
-    price: int = 0  # sólo aplica a pósters; 0 = gratis
+    used_for: str = "puzzle"
+    price: int = 0
 
 
-class PhotoOut(PhotoIn):
+class PhotoIn(PhotoBase):
+    url: str = Field(min_length=1, max_length=IMG_MAX)
+    caption: Optional[str] = Field(default=None, max_length=150)
+    used_for: Literal["puzzle", "poster"] = "puzzle"
+    price: int = Field(default=0, ge=0, le=9999)
+
+
+class PhotoOut(PhotoBase):
     # Id estable: la tienda necesita saber cuál póster ya se compró sin
-    # depender de la posición en la lista (igual que Outfit y DecorItem).
+    # depender de la posición en la lista.
     id: int
 
     class Config:
         from_attributes = True
 
 
-class SongIn(BaseModel):
+class SongBase(BaseModel):
     title: Optional[str] = None
-    source_type: str = "embed"  # "embed" | "upload"
+    source_type: str = "embed"
     embed_url: Optional[str] = None
-    audio_data: Optional[str] = None  # data URL, sólo si source_type == "upload"
+    audio_data: Optional[str] = None
 
 
-class OutfitIn(BaseModel):
+class SongIn(SongBase):
+    title: Optional[str] = Field(default=None, max_length=100)
+    source_type: Literal["embed", "upload"] = "embed"
+    embed_url: Optional[str] = Field(default=None, max_length=300)
+    audio_data: Optional[str] = Field(default=None, max_length=AUDIO_MAX)
+
+
+class OutfitBase(BaseModel):
     name: str
     price: int = 0
     drawing_normal: str
@@ -45,38 +92,55 @@ class OutfitIn(BaseModel):
     drawing_enojado: str
 
 
-class OutfitOut(OutfitIn):
-    # Id estable (no la posición en la lista): si en el futuro se agrega,
-    # quita o reordena una prenda, el juego no debe confundir cuál llevaba
-    # puesta o comprada quien ya estaba jugando.
+class OutfitIn(OutfitBase):
+    name: str = Field(min_length=1, max_length=60)
+    price: int = Field(default=0, ge=0, le=9999)
+    drawing_normal: str = Field(max_length=IMG_MAX)
+    drawing_feliz: str = Field(max_length=IMG_MAX)
+    drawing_enojado: str = Field(max_length=IMG_MAX)
+
+
+class OutfitOut(OutfitBase):
     id: int
 
     class Config:
         from_attributes = True
 
 
-class WhackTargetIn(BaseModel):
+class WhackTargetBase(BaseModel):
     name: str
-    image: str   # PNG con transparencia, en data URL
+    image: str
 
 
-class WhackTargetOut(WhackTargetIn):
+class WhackTargetIn(WhackTargetBase):
+    name: str = Field(min_length=1, max_length=60)
+    image: str = Field(min_length=1, max_length=IMG_MAX)
+
+
+class WhackTargetOut(WhackTargetBase):
     id: int
 
     class Config:
         from_attributes = True
 
 
-class DecorItemIn(BaseModel):
+class DecorItemBase(BaseModel):
     name: str
     description: Optional[str] = None
     price: int = 0
-    image: str          # PNG con transparencia, en data URL
-    ratio: float = 1.0  # ancho/alto de la imagen recortada
+    image: str
+    ratio: float = 1.0
 
 
-class DecorItemOut(DecorItemIn):
-    # El juego necesita un id estable para saber qué ya se compró.
+class DecorItemIn(DecorItemBase):
+    name: str = Field(min_length=1, max_length=60)
+    description: Optional[str] = Field(default=None, max_length=200)
+    price: int = Field(default=0, ge=0, le=9999)
+    image: str = Field(min_length=1, max_length=IMG_MAX)
+    ratio: float = Field(default=1.0, gt=0.05, lt=20)
+
+
+class DecorItemOut(DecorItemBase):
     id: int
 
     class Config:
@@ -84,36 +148,35 @@ class DecorItemOut(DecorItemIn):
 
 
 class AccessKeyCheck(BaseModel):
-    key: str
+    key: str = Field(default="", max_length=80)
 
 
 class PetCreate(BaseModel):
     # Llave de acceso comprada. Se valida y se gasta en el servidor.
-    access_key: Optional[str] = None
-    name: str
-    creator_name: Optional[str] = None
-    recipient_name: Optional[str] = None
-    drawing_normal: str
-    drawing_feliz: str
-    drawing_enojado: str
-    # JSON (string) de la receta modular con la que se armó la mascota.
-    # Se guarda para que quien la reciba pueda reabrir el mismo editor
-    # si más adelante decide rediseñarla.
-    recipe_original: Optional[str] = None
-    food_preferences: List[FoodPreferenceIn] = []
-    phrases: List[PhraseIn] = []
-    photos: List[PhotoIn] = []
-    songs: List[SongIn] = []
-    outfits: List[OutfitIn] = []
-    decor_items: List[DecorItemIn] = []
-    whack_targets: List[WhackTargetIn] = []
+    access_key: Optional[str] = Field(default=None, max_length=80)
+    name: str = Field(min_length=1, max_length=60)
+    creator_name: Optional[str] = Field(default=None, max_length=80)
+    recipient_name: Optional[str] = Field(default=None, max_length=80)
+    drawing_normal: str = Field(max_length=IMG_MAX)
+    drawing_feliz: str = Field(max_length=IMG_MAX)
+    drawing_enojado: str = Field(max_length=IMG_MAX)
+    # JSON (string) de la receta modular con la que se armó la mascota,
+    # para poder reabrir el mismo editor si se rediseña.
+    recipe_original: Optional[str] = Field(default=None, max_length=20_000)
+    # Estilo visual que eligió quien regala (quien recibe puede cambiarlo).
+    app_style: Optional[StyleId] = None
+    food_preferences: List[FoodPreferenceIn] = Field(default=[], max_length=20)
+    phrases: List[PhraseIn] = Field(default=[], max_length=40)
+    photos: List[PhotoIn] = Field(default=[], max_length=14)
+    songs: List[SongIn] = Field(default=[], max_length=5)
+    outfits: List[OutfitIn] = Field(default=[], max_length=8)
+    decor_items: List[DecorItemIn] = Field(default=[], max_length=12)
+    whack_targets: List[WhackTargetIn] = Field(default=[], max_length=8)
 
 
 class PetOut(BaseModel):
     slug: str
     name: str
-    # Se guardaban al crear pero nunca se devolvian, asi que el juego
-    # no podia usar los nombres para personalizar nada.
     creator_name: Optional[str] = None
     recipient_name: Optional[str] = None
     drawing_normal: str
@@ -125,13 +188,14 @@ class PetOut(BaseModel):
     drawing_feliz_redesign: Optional[str] = None
     drawing_enojado_redesign: Optional[str] = None
     active_design: str = "original"
+    app_style: Optional[str] = None
     hunger_meter: int
     love_meter: int
     current_mood: str
-    food_preferences: List[FoodPreferenceIn] = []
-    phrases: List[PhraseIn] = []
+    food_preferences: List[FoodPreferenceBase] = []
+    phrases: List[PhraseBase] = []
     photos: List[PhotoOut] = []
-    songs: List[SongIn] = []
+    songs: List[SongBase] = []
     outfits: List[OutfitOut] = []
     decor_items: List[DecorItemOut] = []
     whack_targets: List[WhackTargetOut] = []
@@ -142,17 +206,21 @@ class PetOut(BaseModel):
 
 class RedesignIn(BaseModel):
     recipe: dict
-    drawing_normal: str
-    drawing_feliz: str
-    drawing_enojado: str
+    drawing_normal: str = Field(max_length=IMG_MAX)
+    drawing_feliz: str = Field(max_length=IMG_MAX)
+    drawing_enojado: str = Field(max_length=IMG_MAX)
 
 
 class ActiveDesignIn(BaseModel):
-    active_design: str  # "original" | "redesign"
+    active_design: Literal["original", "redesign"]
+
+
+class StyleIn(BaseModel):
+    app_style: StyleId
 
 
 class FeedRequest(BaseModel):
-    food_name: str
+    food_name: str = Field(min_length=1, max_length=60)
 
 
 class FeedResponse(BaseModel):

@@ -49,6 +49,9 @@ class Pet(Base):
     drawing_feliz_redesign = Column(Text, nullable=True)
     drawing_enojado_redesign = Column(Text, nullable=True)
     active_design = Column(String(10), nullable=False, default="original")
+    # Estilo visual (pixel, lofi, retro, papel, neon, sticker). Lo elige
+    # quien regala; quien recibe lo puede cambiar desde el juego.
+    app_style = Column(String(16), nullable=True)
 
     hunger_meter = Column(Integer, default=60)
     love_meter = Column(Integer, default=60)

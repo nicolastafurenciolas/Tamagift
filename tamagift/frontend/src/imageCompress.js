@@ -38,25 +38,13 @@ function hasTransparency(ctx, w, h) {
   return false;
 }
 
-function readAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (ev) => resolve(ev.target.result);
-    reader.onerror = () => reject(new Error('imagen-ilegible'));
-    reader.readAsDataURL(file);
-  });
-}
-
 // Devuelve un data URL listo para guardar, con el lado mayor <= maxSide.
-// Si el navegador no logra decodificar la imagen (algún formato raro),
-// cae al archivo tal cual: mejor una foto pesada que perderla.
+// Si el navegador no logra decodificar la imagen, la promesa se rechaza.
 export async function compressImageFile(file, maxSide = PHOTO_MAX_SIDE) {
-  let img;
-  try {
-    img = await loadImage(file);
-  } catch (e) {
-    return readAsDataUrl(file);
-  }
+  // Si el navegador no puede leerla (HEIC en Chrome, archivo dañado) se
+  // rechaza: antes se guardaba tal cual, pesando varios MB y saliendo
+  // rota en el juego. Quien llama muestra un aviso.
+  const img = await loadImage(file);
 
   const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
   const w = Math.max(1, Math.round(img.naturalWidth * scale));
