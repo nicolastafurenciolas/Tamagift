@@ -73,8 +73,9 @@ export default function Sprite({
   }
 
   // Provisional: la fuente sin estilo, para que no parpadee un hueco.
+  // `data-sprite-pending` permite saber (en pruebas) si falta alguno.
   return (
-    <div className={className} style={box} title={title}>
+    <div className={className} style={box} title={title} data-sprite-pending="1">
       {src ? (
         <img
           src={src} alt={alt} draggable="false" className="pg-sprite"

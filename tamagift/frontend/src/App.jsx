@@ -10,6 +10,7 @@ import { StyleProvider } from './styles/StyleContext';
 const ArtCheck = import.meta.env.DEV ? lazy(() => import('./pages/ArtCheck')) : null;
 const StyleLab = import.meta.env.DEV ? lazy(() => import('./pages/StyleLab')) : null;
 const DevGame = import.meta.env.DEV ? lazy(() => import('./pages/DevGame')) : null;
+const SpriteSheet = import.meta.env.DEV ? lazy(() => import('./pages/SpriteSheet')) : null;
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
             {ArtCheck && <Route path="/artcheck" element={<ArtCheck />} />}
             {StyleLab && <Route path="/estilos" element={<StyleLab />} />}
             {DevGame && <Route path="/dev/:pantalla" element={<DevGame />} />}
+            {SpriteSheet && <Route path="/hoja" element={<SpriteSheet />} />}
           </Routes>
         </Suspense>
       </BrowserRouter>
