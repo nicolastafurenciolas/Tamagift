@@ -593,10 +593,12 @@ function processNeon(img, w, h, opts) {
   const N = W * H;
 
   if (isPhoto) {
-    // Las fotos se dejan reconocibles: solo se oscurecen y se tiñen.
+    // Las fotos se dejan reconocibles: se oscurecen un poco y toman un
+    // tinte frío de noche, pero conservan su color (en los juegos son las
+    // fichas: un tinte magenta parejo las dejaba todas iguales).
     for (let i = 0; i < sd.length; i += 4) {
       const lum = (0.3 * sd[i] + 0.59 * sd[i + 1] + 0.11 * sd[i + 2]) / 255;
-      sd[i] = sd[i] * 0.55 + lum * 60 + 20; sd[i + 1] = sd[i + 1] * 0.45 + 8; sd[i + 2] = sd[i + 2] * 0.6 + lum * 70 + 30;
+      sd[i] = sd[i] * 0.8 + lum * 8 + 6; sd[i + 1] = sd[i + 1] * 0.76 + 6; sd[i + 2] = sd[i + 2] * 0.82 + lum * 16 + 20;
     }
     const pc = makeCanvas(W, H);
     const pctx = ctx2d(pc);

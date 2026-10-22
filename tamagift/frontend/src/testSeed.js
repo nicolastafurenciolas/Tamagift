@@ -11,7 +11,9 @@
 // ─────────────────────────────────────────────────────────────────
 
 import { randomRecipe, recipeToPngDataUrl } from './PetRecipe';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { PET_STYLES } from './petStyles';
+import { foodSpriteFor } from './sprites';
 
 export const TEST_KEY = 'test';
 
@@ -31,8 +33,10 @@ const PET_NAMES = ['Nube', 'Kuro', 'Mochi', 'Trufa', 'Pixel', 'Bruma', 'Ceniza',
 const PARTNERS = ['Sarah', 'Ana', 'Mar', 'Cami', 'Val'];
 const CREATORS = ['Nico', 'Alex', 'Sam'];
 
-const FOODS_LIKE = ['Sushi', 'Pizza', 'Helado de mora', 'Chocolate', 'Arepa con queso', 'Ramen', 'Fresas', 'Tacos'];
-const FOODS_DISLIKE = ['Brócoli', 'Cebolla cruda', 'Piña en pizza', 'Aceitunas', 'Coliflor'];
+// Las que gustan tienen dibujo propio (sprites.jsx), así la prueba se ve
+// como un regalo de verdad; de las que no, solo el brócoli lo tiene.
+const FOODS_LIKE = ['Sushi', 'Pizza', 'Helado de mora', 'Fresas', 'Dona glaseada', 'Pastel de chocolate', 'Galletas'];
+const FOODS_DISLIKE = ['Cebolla cruda', 'Piña en pizza', 'Aceitunas', 'Coliflor'];
 
 const MSG_LIKE = [
   '¡Esto es justo lo que quería!',
@@ -89,6 +93,15 @@ function fakePhoto(seed) {
 }
 
 // Un objeto decorativo de prueba, ya "recortado" (fondo transparente).
+// Imagen de una comida: su dibujo del juego, como si quien regala lo
+// hubiera subido.
+function foodImage(name) {
+  const svg = renderToStaticMarkup(foodSpriteFor(name).render())
+    .replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ')
+    .replace('width="64" height="64"', 'width="160" height="160"');
+  return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+}
+
 function fakeDecor(seed) {
   const [a, b] = PALETTES[seed % PALETTES.length];
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120">
@@ -121,17 +134,17 @@ export async function buildTestPet() {
   // Con imagen a propósito: "Atrapa la comida" solo hace caer comidas que
   // tengan foto, y perder vida por atrapar algo que no le gusta depende de
   // eso. Sin imágenes la clave de prueba no ejercitaba ninguna de las dos.
-  const likes = pickN(FOODS_LIKE, 4).map((name, i) => ({
+  const likes = pickN(FOODS_LIKE, 4).map((name) => ({
     food_name: name,
     preference: 'gusta',
     reaction_message: pick(MSG_LIKE),
-    image: fakeDecor(20 + i),
+    image: foodImage(name),
   }));
-  const dislikes = pickN(FOODS_DISLIKE, 2).map((name, i) => ({
+  const dislikes = ['Brócoli', pick(FOODS_DISLIKE)].map((name, i) => ({
     food_name: name,
     preference: 'no_gusta',
     reaction_message: pick(MSG_DISLIKE),
-    image: fakeDecor(40 + i),
+    image: i === 0 ? foodImage(name) : null,
   }));
 
   const phrases = [];
