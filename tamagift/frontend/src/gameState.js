@@ -6,7 +6,7 @@
 // es del dispositivo de la pareja, no algo que el backend necesite.
 // ─────────────────────────────────────────────────────────────────
 
-import { migrateOldAccessories } from './wardrobeState';
+import { migrateOldAccessories } from './wardrobeState.js';
 
 const KEY = (slug) => `tamagift:gamestate:${slug}`;
 

@@ -12,7 +12,7 @@
 //   game.look        { hair, hairColor, brows }            su peinado actual
 // ─────────────────────────────────────────────────────────────────
 
-import { WARDROBE, findWearable, resolveWear, HAIRSTYLES, HAIR_COLORS, BROWS } from './art/mochi';
+import { WARDROBE, findWearable, resolveWear, HAIRSTYLES, HAIR_COLORS, BROWS } from './art/mochi/index.js';
 
 // Lo que tiene desde el primer día (además de lo que traiga su diseño):
 // un básico por ranura para que pueda jugar a vestirla desde el comienzo.
