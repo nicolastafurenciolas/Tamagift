@@ -145,7 +145,14 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
   // Pedidos y obras (pintar / enchapar)
   const [summon, setSummon] = useState(null);
   const [unboxOpen, setUnboxOpen] = useState(false);
-  const [paintJob, setPaintJob] = useState(null);
+  // Solo en desarrollo: ?obra=piso.ajedrez.clasico abre la obra directo.
+  const [paintJob, setPaintJob] = useState(() => {
+    if (!import.meta.env.DEV) return null;
+    const v = new URLSearchParams(window.location.search).get('obra');
+    if (!v) return null;
+    const [kind, ...rest] = v.split('.');
+    return { kind, value: rest.join('.'), key: 1 };
+  });
   const [replayKey, setReplayKey] = useState(0);
   const [startLevel, setStartLevel] = useState(null);
   const cameraRef = useRef(ROOM.W / 2);
@@ -678,7 +685,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
               <MiniMeter kind="love" value={love} icon={IconHeart} />
             </div>
             <div style={{ position: 'absolute', left: 0, right: 0, top: 8, display: 'flex', justifyContent: 'center', pointerEvents: 'none', zIndex: 5, padding: '0 78px' }}>
-              {cinematicAvailable ? (
+              {paintJob ? null : cinematicAvailable ? (
                 <button
                   onClick={() => { play('swoosh'); setScreen('cinematic'); }} className="pg-anim-pop pg-focus"
                   style={{ pointerEvents: 'auto', background: C.amberSoft, border: `2px dashed ${C.amber}`, borderRadius: 16, padding: '9px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, boxShadow: SHADOW.soft }}

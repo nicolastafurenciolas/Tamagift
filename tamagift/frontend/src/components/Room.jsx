@@ -9,6 +9,7 @@ import { ROOM } from '../gameState';
 import { findFurniture, findWall, findFloor, wallSvg, floorSvg, FURNITURE_PAINTS, POSTER } from '../roomCatalog';
 import { findDecor } from '../shopCatalog';
 import { doorSvg, doormatSvg, parcelSvg, DOOR } from '../art/room/door';
+import { usePaintJob, PaintLayer, PaintTool, PaintHud } from './PaintJob';
 
 // La puerta de entrada vive a la izquierda del cuarto: nada se puede poner
 // encima (los pedidos y las visitas llegan por ahí).
@@ -156,7 +157,7 @@ function Ambience({ styleId, layer }) {
 
 // Un objeto puesto en el cuarto. `item` trae posición y tamaño; el
 // contenido depende de si es mueble, decoración o póster.
-function PlacedItem({ item, posters, customDecor, selected, editing, onPointerDown, pixel }) {
+function PlacedItem({ item, posters, customDecor, selected, editing, onPointerDown, pixel, faded }) {
   const inner = renderPlacedContent(item, posters, customDecor, pixel);
   if (!inner) return null;
   const { w, h, foot = 0 } = placedSize(item, posters, customDecor);
@@ -191,6 +192,9 @@ function PlacedItem({ item, posters, customDecor, selected, editing, onPointerDo
         width: w * item.scale,
         height: h * item.scale,
         transform: `scaleX(${item.flip || 1})`,
+        // en obra, lo de encima se ve casi transparente: se ve lo que pintas
+        opacity: faded ? 0.18 : 1,
+        transition: 'opacity 0.3s',
         cursor: editing ? 'grab' : 'default',
         touchAction: 'none',
         outline: selected ? `3px dashed ${C.rose}` : 'none',
@@ -329,8 +333,22 @@ export default function Room({
     function tick(now) {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      if (!editing) stepPet(pet.current, dt);
-      stepCamera(cam.current, pet.current, dt, worldViewW, maxCam, editing, now);
+      if (!editing && !paintJob) stepPet(pet.current, dt);
+      // Pintando: si el dedo llega al borde, la cámara avanza sola (y sigue
+      // pintando por donde pasa).
+      const d = drag.current;
+      if (paintJob && d && d.mode === 'paint' && viewportRef.current) {
+        const r = viewportRef.current.getBoundingClientRect();
+        const rel = (d.clientX - r.left) / r.width;
+        const dir = rel < 0.16 ? -1 : rel > 0.84 ? 1 : 0;
+        if (dir) {
+          cam.current.x = clamp(cam.current.x + dir * 360 * dt, 0, maxCam);
+          const w = { x: cam.current.x + (d.clientX - r.left) / zoom, y: (d.clientY - r.top) / zoom };
+          pjRef.current.paint(d.last.x, d.last.y, w.x, w.y);
+          d.last = w;
+        }
+      }
+      stepCamera(cam.current, pet.current, dt, worldViewW, maxCam, editing || !!paintJob, now);
       // En papel la mascota se pinta a 8 cuadros por segundo (stop
       // motion), aunque la física siga corriendo suave por debajo.
       if (!frameMs || now - lastPaint >= frameMs) { paint(); lastPaint = now; }
@@ -339,13 +357,18 @@ export default function Room({
     }
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [worldViewW, maxCam, editing, paint, zoom, walk]);
+  }, [worldViewW, maxCam, editing, paint, zoom, walk, paintJob]);
 
-  // Obra: por ahora se aplica de una (el modo de pintar con el dedo va en
-  // PaintJob).
-  useEffect(() => {
-    if (paintJob && onPaintDone) onPaintDone(paintJob);
-  }, [paintJob && paintJob.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Obra: pintar la pared o enchapar el piso con el dedo (PaintJob.jsx).
+  const pj = usePaintJob(paintJob, onPaintDone);
+  const pjRef = useRef(pj);
+  pjRef.current = pj;
+  const [toolAt, setToolAt] = useState(null);
+  const toWorld = useCallback((clientX, clientY) => {
+    const r = viewportRef.current.getBoundingClientRect();
+    return { x: cam.current.x + (clientX - r.left) / zoom, y: (clientY - r.top) / zoom };
+  }, [zoom]);
+  useEffect(() => { setToolAt(null); }, [paintJob && paintJob.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Que vaya a algún lado (al timbre, a recibir una visita).
   useEffect(() => {
@@ -369,10 +392,19 @@ export default function Room({
     if (drag.current) return;
     // Si se tocó a la mascota, el clic tiene que llegarle a ella: capturar
     // el puntero aquí se lo robaba y con mouse no se podía acariciar.
+    if (paintJob) {
+      if (e.target.closest && e.target.closest('[data-tap]')) return;
+      viewportRef.current.setPointerCapture(e.pointerId);
+      const w = toWorld(e.clientX, e.clientY);
+      drag.current = { mode: 'paint', last: w, clientX: e.clientX, clientY: e.clientY };
+      pjRef.current.paint(w.x, w.y, w.x, w.y);
+      setToolAt(w);
+      return;
+    }
     if (!editing && e.target.closest && e.target.closest('[data-pet-button],[data-tap]')) return;
     viewportRef.current.setPointerCapture(e.pointerId);
     drag.current = { mode: 'cam', x0: e.clientX, cam0: cam.current.x, moved: 0 };
-  }, [editing]);
+  }, [editing, paintJob, toWorld]);
 
   const onItemPointerDown = useCallback((e, item) => {
     e.stopPropagation();
@@ -384,6 +416,13 @@ export default function Room({
   const onPointerMove = useCallback((e) => {
     const d = drag.current;
     if (!d) return;
+    if (d.mode === 'paint') {
+      const w = toWorld(e.clientX, e.clientY);
+      pjRef.current.paint(d.last.x, d.last.y, w.x, w.y);
+      d.last = w; d.clientX = e.clientX; d.clientY = e.clientY;
+      setToolAt(w);
+      return;
+    }
     if (d.mode === 'cam') {
       const dx = e.clientX - d.x0;
       d.moved = Math.max(d.moved, Math.abs(dx));
@@ -398,7 +437,7 @@ export default function Room({
         placed: g.placed.map((it) => (it.key === d.key ? clampPlacement({ ...it, x: d.ix + dx, y: d.iy + dy }, posters, customDecor) : it)),
       }));
     }
-  }, [maxCam, setGame, posters, customDecor]);
+  }, [maxCam, setGame, posters, customDecor, toWorld]);
 
   const onPointerUp = useCallback(() => {
     const d = drag.current;
@@ -440,7 +479,9 @@ export default function Room({
           style={{ position: 'absolute', left: 0, top: 0, width: ROOM.W, height: ROOM.H, transformOrigin: '0 0', willChange: 'transform' }}
         >
           <Wall value={findWall(game.wall).value} pixel={pixel} />
+          {paintJob && paintJob.kind === 'pared' && <PaintLayer job={paintJob} done={pj.done} pixel={pixel} />}
           <Floor value={findFloor(game.floor).value} pixel={pixel} />
+          {paintJob && paintJob.kind === 'piso' && <PaintLayer job={paintJob} done={pj.done} pixel={pixel} />}
           <Ambience styleId={style.id} layer="back" />
 
           {/* puerta de entrada y su tapete (fijos) */}
@@ -455,6 +496,7 @@ export default function Room({
             <PlacedItem
               key={item.key} item={item} posters={posters} customDecor={customDecor}
               selected={selected === item.key} editing={editing} onPointerDown={onItemPointerDown} pixel={pixel}
+              faded={!!paintJob}
             />
           ))}
 
@@ -472,6 +514,7 @@ export default function Room({
           <div
             ref={petRef}
             style={{
+              opacity: paintJob ? 0.25 : 1, transition: 'opacity 0.3s',
               position: 'absolute', left: 0, top: ROOM.H - ROOM.PET_W - 6,
               width: ROOM.PET_W, height: ROOM.PET_W, willChange: 'transform',
               transformOrigin: '50% 92%',
@@ -480,12 +523,14 @@ export default function Room({
             <Pet mood={mood} look={look} size={ROOM.PET_W} onPoke={onPokePet} reaction={reaction} pixel={pixel} />
           </div>
           <Ambience styleId={style.id} layer="front" />
+          {paintJob && <PaintTool job={paintJob} at={toolAt} />}
         </div>
+        {paintJob && <PaintHud job={paintJob} progress={pj.progress} onCancel={() => onPaintDone && onPaintDone(null)} onFillRest={pj.fillRest} />}
 
         {/* pista de que el cuarto sigue a los lados */}
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'linear-gradient(90deg, rgba(20,12,20,0.12), transparent 8%, transparent 92%, rgba(20,12,20,0.12))' }} />
         <div style={{ position: 'absolute', right: 10, bottom: 7, fontFamily: FONT.display, fontSize: 10.5, fontWeight: 700, color: '#FFFFFF', textShadow: '0 1px 2px rgba(0,0,0,0.5)', opacity: 0.85, pointerEvents: 'none' }}>
-          {editing ? 'arrastra para acomodar' : 'desliza para ver el cuarto'}
+          {paintJob ? '' : editing ? 'arrastra para acomodar' : 'desliza para ver el cuarto'}
         </div>
       </div>
 

@@ -542,3 +542,12 @@ input::placeholder, textarea::placeholder { color: var(--pg-c-inkFaint); }
 .pg-parcel { animation: pg-parcel-hop 1.8s ease-in-out infinite; transform-origin: 50% 100%; }
 .pg-wiggle { animation: pg-wiggle 0.3s ease-in-out infinite; }
 [data-style="pixel"] .pg-parcel { animation-timing-function: steps(2); }
+
+/* Obra: cada baldosa cae y se asienta; la pintura fresca brilla un rato. */
+@keyframes pg-lay {
+  0% { transform: translateY(-14px) scale(0.7); opacity: 0; }
+  60% { transform: translateY(2px) scale(1.04); opacity: 1; }
+  100% { transform: translateY(0) scale(1); }
+}
+.pg-lay { animation: pg-lay 0.32s cubic-bezier(.34,1.56,.64,1) both; }
+[data-style="pixel"] .pg-lay { animation-timing-function: steps(3); }
