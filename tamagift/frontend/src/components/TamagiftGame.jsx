@@ -437,7 +437,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
   const outfits = pet.outfits || [];
   const activeOutfit = game.equippedOutfit != null ? outfits.find((o) => o.id === game.equippedOutfit) : null;
   // Cómo se ve ahora (receta de mochi; las mascotas viejas, sus PNG).
-  const look = lookOf(pet, activeOutfit);
+  const look = lookOf(pet, activeOutfit, game.wearing);
   const back = () => setScreen('games');
   const style = getStyle(styleId);
 
@@ -494,7 +494,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
 
       {screen === 'shop' && (
         <ShopScreen
-          coins={game.coins} game={game} setGame={setGame} outfits={outfits}
+          coins={game.coins} game={game} setGame={setGame} outfits={outfits} baseLook={lookOf(pet, activeOutfit)}
           customDecor={pet.decor_items || []} posters={posters} onBack={() => { play('swoosh'); setScreen('main'); }}
           hasRedesign={!!pet.recipe_redesign} onStartRedesign={() => { setRedesignError(''); setScreen('redesign'); }}
         />

@@ -36,6 +36,8 @@ export const DEFAULT_GAME_STATE = {
   ownedWalls: ['liso'],    // diseños de pared comprados (el color se elige gratis)
   ownedFloors: ['tablas'],
   equippedOutfit: null, // id ESTABLE de la prenda puesta, o null
+  ownedAcc: [],         // accesorios de la mochi comprados en la tienda
+  wearing: {},          // { headAcc, neckAcc, extraAcc, accColor } puestos
   wall: 'liso.crema',      // "diseño.color" (los ids viejos se siguen entendiendo)
   floor: 'tablas.miel',
   // Todo lo que está puesto en el cuarto, con su posición libre.

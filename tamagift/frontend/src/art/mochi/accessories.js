@@ -438,7 +438,9 @@ function faceUnder(id, g, c, e) {
 }
 
 export function accColors(r) {
-  const accent = r.accentColor || '#E9A3B5';
+  // `accColor`: color que quien recibe eligió para lo que se compró en la
+  // tienda; si no hay, el de la receta.
+  const accent = r.accColor || r.accentColor || '#E9A3B5';
   const alt = r.accentAlt || '#FFFFFF';
   const vivid = pale(accent) ? '#FF7FA8' : accent;
   return {
