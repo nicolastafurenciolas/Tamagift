@@ -14,7 +14,7 @@ import { useFinish } from './meta';
 
 const q = (v, step) => Math.max(step, Math.round(v / step) * step);
 
-export default function FlyGame({ drawingUrl, onBack, onComplete }) {
+export default function FlyGame({ look, onBack, onComplete }) {
   const [, setTick] = useState(0);
   const [over, setOver] = useState(false);
   const [started, setStarted] = useState(false);
@@ -93,7 +93,7 @@ export default function FlyGame({ drawingUrl, onBack, onComplete }) {
           position: 'absolute', left: (FLY.PET_X - 20) * k, top: (petY - 20) * k, width: petPx, height: petPx,
           transform: `rotate(${Math.max(-25, Math.min(55, vel * 0.06))}deg)`,
         }}>
-          <PetSprite src={drawingUrl} size={petPx} />
+          <PetSprite look={look} mood="feliz" size={petPx} />
         </div>
         {!started && !over && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 6, pointerEvents: 'none' }}>

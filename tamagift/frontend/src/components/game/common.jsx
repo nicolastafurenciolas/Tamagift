@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Sprite from '../Sprite';
+import PetArt from '../PetArt';
 import { C } from '../../theme';
 import { UI_SPRITES, FOOD_SPRITES } from '../../sprites';
 
@@ -25,8 +26,8 @@ export function useElementWidth(fallback = 300) {
 }
 
 // La mascota dentro de un minijuego. Sin dibujo (demo), una pelotita.
-export function PetSprite({ src, size, flip = false, style }) {
-  if (!src) {
+export function PetSprite({ look, mood = 'feliz', size, flip = false, style }) {
+  if (!look) {
     return (
       <div
         className="pg-keep-round"
@@ -34,12 +35,7 @@ export function PetSprite({ src, size, flip = false, style }) {
       />
     );
   }
-  return (
-    <Sprite
-      src={src} w={size} h={size} kind="pet"
-      style={{ transform: flip ? 'scaleX(-1)' : undefined, ...style }}
-    />
-  );
+  return <PetArt look={look} mood={mood} size={size} flip={flip} style={style} />;
 }
 
 // Un sprite de la biblioteca propia por nombre (burbuja, bandera…).

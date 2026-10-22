@@ -7,7 +7,7 @@ import { UISprite, PetSprite } from './common';
 // Ningún navegador deja sonar música sin un toque. Ese toque obligatorio
 // se convierte en parte del regalo: se abre la caja y en ESE toque
 // arranca la música.
-export function OpeningScreen({ petName, creatorName, petSrc, onOpen }) {
+export function OpeningScreen({ petName, creatorName, look, onOpen }) {
   const [opening, setOpening] = useState(false);
   function open() {
     if (opening) return;
@@ -26,7 +26,7 @@ export function OpeningScreen({ petName, creatorName, petSrc, onOpen }) {
       <div style={{ position: 'relative', width: 150, height: 150 }}>
         {/* la mascota asoma por detrás de la caja */}
         <div style={{ position: 'absolute', left: 25, top: opening ? -30 : 8, transition: 'top 0.5s cubic-bezier(.34,1.56,.64,1)' }}>
-          <PetSprite src={petSrc} size={100} />
+          <PetSprite look={look} mood="feliz" size={100} />
         </div>
         <div style={{ position: 'absolute', left: 15, bottom: 0, animation: opening ? 'pg-bounce 0.6s ease' : 'pg-wiggle 1.6s ease-in-out infinite' }}>
           <UISprite name="regalo" size={120} />

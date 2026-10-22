@@ -21,7 +21,7 @@ function randomCell(exclude) {
   return cell;
 }
 
-export default function SnakeGame({ onBack, onComplete, treat, drawingUrl }) {
+export default function SnakeGame({ onBack, onComplete, treat, look }) {
   const startSnake = [{ x: 5, y: 5 }, { x: 4, y: 5 }, { x: 3, y: 5 }];
   const [snake, setSnake] = useState(startSnake);
   const [food, setFood] = useState(() => randomCell(startSnake));
@@ -157,7 +157,7 @@ export default function SnakeGame({ onBack, onComplete, treat, drawingUrl }) {
           if (i === 0) {
             return (
               <div key="head" style={{ position: 'absolute', left: s.x * cell - 4, top: s.y * cell - 4, width: cell + 8, height: cell + 8, zIndex: 3, transition: 'left 0.08s linear, top 0.08s linear' }}>
-                <PetSprite src={drawingUrl} size={cell + 8} flip={dir.x < 0} />
+                <PetSprite look={look} mood="feliz" size={cell + 8} flip={dir.x < 0} />
               </div>
             );
           }

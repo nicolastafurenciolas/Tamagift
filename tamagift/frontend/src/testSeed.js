@@ -168,7 +168,12 @@ export async function buildTestPet() {
       phrases,
       photos,
       songs: SONGS,
-      outfits: [],
+      // Un traje de prueba: la misma mochi con corona y capa.
+      outfits: [{
+        name: 'Traje de realeza', price: 40,
+        drawing_normal, drawing_feliz, drawing_enojado,
+        recipe: JSON.stringify({ ...recipe, headAcc: 'corona', neckAcc: 'capa' }),
+      }],
       decor_items,
       whack_targets,
     },

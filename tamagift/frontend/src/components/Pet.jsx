@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useStyle } from '../styles/StyleContext';
 import { getMotion } from '../styles/motion';
 import Sprite from './Sprite';
+import PetArt from './PetArt';
 
 // ─────────────────────────────────────────────────────────────────
 // La mascota VIVA. Respira, parpadea, rebota al tocarla y lanza
@@ -71,7 +72,7 @@ function petFaceArt(mood) {
 
 export default function Pet({
   mood = 'normal',
-  drawingUrl = null,
+  look = null,       // cómo se ve (petLook.js); sin look, un personaje genérico
   size = 190,
   onPoke,
   reaction,          // { key, type } → dispara partículas al cambiar key
@@ -171,8 +172,8 @@ export default function Pet({
               transformOrigin: '50% 90%',
             }}
           >
-            {drawingUrl
-              ? <Sprite src={drawingUrl} w={size} h={size} kind="pet" alt="mascota" pixel={pixel} />
+            {look
+              ? <PetArt look={look} mood={mood} size={size} pixel={pixel} />
               : <Sprite art={petFaceArt(mood)} cacheKey={`petface-${mood}`} w={size} h={size} kind="pet" alt="mascota" pixel={pixel} />}
           </button>
         </div>

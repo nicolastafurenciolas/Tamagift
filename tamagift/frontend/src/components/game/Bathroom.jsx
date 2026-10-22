@@ -15,7 +15,7 @@ export const BATH_H = 380;
 export const PET_CENTER = { x: 150, y: 160 };
 
 export default function Bathroom({
-  petName, mood, drawingUrl, bathProgress, bathDone, spongePos, bubbles, onBack,
+  petName, mood, look, bathProgress, bathDone, spongePos, bubbles, onBack,
   onSpongeDown, onSpongeMove, onSpongeUp,
 }) {
   const areaRef = useRef(null);
@@ -62,7 +62,7 @@ export default function Bathroom({
           {/* tina */}
           <div style={{ position: 'absolute', left: 14, right: 14, bottom: 12, height: '30%', borderRadius: '18px 18px 40px 40px', background: `linear-gradient(180deg, ${C.surface}, ${C.surfaceAlt})`, border: `3px solid ${C.ink}` }} />
           <div style={{ position: 'absolute', left: PET_CENTER.x - 78, top: PET_CENTER.y - 78, width: 156, height: 156 }}>
-            <Pet mood={bathDone ? 'feliz' : mood} drawingUrl={drawingUrl} size={156} idle onPoke={() => {}} showShadow={false} />
+            <Pet mood={bathDone ? 'feliz' : mood} look={look} size={156} idle onPoke={() => {}} showShadow={false} />
             {bathProgress > 0 && !bathDone && (
               <div style={{ position: 'absolute', inset: 0, opacity: Math.min(0.95, 0.3 + bathProgress / 120), pointerEvents: 'none' }}>
                 <UISprite name="burbuja" size={30} style={{ position: 'absolute', left: 12, top: 22 }} />

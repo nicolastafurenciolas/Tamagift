@@ -4,6 +4,8 @@ import { Screen, ScreenHeader, Modal } from '../ui';
 import { IconCoin, IconFrame, IconShirt, IconSparkle } from '../icons';
 import { play } from '../../sound';
 import Sprite from '../Sprite';
+import PetArt from '../PetArt';
+import { lookOf } from '../../petLook';
 import { DECOR_CATALOG } from '../../shopCatalog';
 import { FURNITURE, WALL_STYLES, FLOOR_STYLES, FURNITURE_PAINTS, findPaint } from '../../roomCatalog';
 import { ModularPetStep, useDesignerState } from '../PetDesigner';
@@ -156,7 +158,7 @@ export function RedesignScreen({ initialRecipe, onCancel, onSave, saving, error 
       <div className="flex gap-3" style={{ width: '100%', maxWidth: 430, marginTop: 10 }}>
         <button onClick={onCancel} disabled={saving} className="pg-btn pg-btn-ghost pg-focus" style={{ flex: 1, padding: 12, fontSize: 13.5 }}>Cancelar</button>
         <button
-          onClick={async () => onSave(designer.recipe, await designer.buildPngs())}
+          onClick={async () => onSave(designer.fullRecipe(), await designer.buildPngs())}
           disabled={saving} className="pg-btn pg-btn-rose pg-focus"
           style={{ flex: 1, padding: 12, fontSize: 13.5, opacity: saving ? 0.7 : 1 }}
         >
@@ -315,7 +317,7 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
           const equipped = game.equippedOutfit === o.id;
           return (
             <ShopItemCard
-              key={o.id} image={<Sprite src={o.drawing_normal} w={50} h={50} kind="pet" />}
+              key={o.id} image={<PetArt look={lookOf({}, o)} size={50} />}
               name={o.name} price={o.price} owned={owned} equipped={equipped} canAfford={coins >= o.price}
               actionLabel={owned ? (equipped ? 'Quitar' : 'Poner') : 'Comprar'}
               onAction={() => (owned ? toggleEquipOutfit(o.id) : buyOutfit(o))}

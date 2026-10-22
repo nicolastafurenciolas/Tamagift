@@ -1,5 +1,6 @@
 import React from 'react';
 import Sprite from './Sprite';
+import PetArt from './PetArt';
 import { STYLE_LIST } from '../styles/registry';
 import { findFurniture, findPaint } from '../roomCatalog';
 import { FOOD_SPRITES } from '../sprites';
@@ -15,10 +16,12 @@ import { FOOD_SPRITES } from '../sprites';
 
 const plant = findFurniture('planta') || findFurniture('lampara');
 
-function Preview({ s, petSrc, petArt, petKey, size }) {
-  const pet = petSrc
-    ? <Sprite styleId={s.id} src={petSrc} w={size} h={size} kind="pet" />
-    : <Sprite styleId={s.id} art={petArt} cacheKey={petKey} w={size} h={size} kind="pet" />;
+function Preview({ s, look, petSrc, petArt, petKey, size }) {
+  const pet = look
+    ? <PetArt look={look} styleId={s.id} size={size} />
+    : petSrc
+      ? <Sprite styleId={s.id} src={petSrc} w={size} h={size} kind="pet" />
+      : <Sprite styleId={s.id} art={petArt} cacheKey={petKey} w={size} h={size} kind="pet" />;
   return (
     <div style={{ position: 'relative', height: size + 8, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 2 }}>
       {plant && (
@@ -30,7 +33,7 @@ function Preview({ s, petSrc, petArt, petKey, size }) {
   );
 }
 
-export default function StylePicker({ value, onChange, petSrc, petArt, petKey = 'pick-pet', columns = 2, size = 74 }) {
+export default function StylePicker({ value, onChange, look, petSrc, petArt, petKey = 'pick-pet', columns = 2, size = 74 }) {
   return (
     <div role="radiogroup" aria-label="Estilo visual" style={{ display: 'grid', gridTemplateColumns: `repeat(${columns}, 1fr)`, gap: 10 }}>
       {STYLE_LIST.map((s) => {
@@ -53,7 +56,7 @@ export default function StylePicker({ value, onChange, petSrc, petArt, petKey = 
               transition: 'transform 0.15s, box-shadow 0.15s',
             }}
           >
-            <Preview s={s} petSrc={petSrc} petArt={petArt} petKey={petKey} size={size} />
+            <Preview s={s} look={look} petSrc={petSrc} petArt={petArt} petKey={petKey} size={size} />
             <div style={{ fontFamily: s.fonts.display, fontWeight: 700, fontSize: 14, marginTop: 6, lineHeight: 1.1 }}>{s.name}</div>
             <div style={{ fontFamily: s.fonts.body, fontSize: 11, color: s.ui.inkSoft, lineHeight: 1.25, marginTop: 2 }}>{s.tagline}</div>
             <div style={{ display: 'flex', gap: 3, marginTop: 6 }}>

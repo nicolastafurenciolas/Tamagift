@@ -1,0 +1,72 @@
+// Arma una mochi completa (SVG con partes) a partir de su receta.
+
+import { G, P, Ell, E, svgDoc, mirrorX } from '../svg';
+import { parseColor, hex, mixRgb, lum, rgbToHsl } from '../color';
+import { geometry, SHAPES } from './body';
+import { renderEyes, renderMouth, renderCheeks, EYES, MOUTHS, CHEEKS, INK, MOODS } from './face';
+import { renderEars, colorsForEars, EARS } from './ears';
+import { renderTail, renderPattern, TAILS, PATTERNS } from './tails';
+import { renderAccessories, HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES } from './accessories';
+
+export { SHAPES, EYES, MOUTHS, CHEEKS, EARS, TAILS, PATTERNS, MOODS, HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES };
+
+export const DEFAULT_MOCHI = {
+  body: 'mochi', ears: 'gato', eyes: 'redondos', mouth: 'w', tail: 'ninguna', cheeks: 'redondos', pattern: 'ninguno',
+  headAcc: 'ninguno', neckAcc: 'ninguno', extraAcc: 'ninguno',
+  bodyColor: '#FBEEE6', innerColor: '#FFFFFF', accentColor: '#E9A3B5', accentAlt: '#FFFFFF', eyeColor: '#6F6A8A',
+};
+
+const mixc = (a, b, t) => hex(mixRgb(parseColor(a), parseColor(b), t));
+const isPale = (c) => lum(parseColor(c)) > 0.82;
+
+function colorsOf(r) {
+  const body = r.bodyColor || DEFAULT_MOCHI.bodyColor;
+  const inner = r.innerColor || '#FFFFFF';
+  const accent = r.accentColor || '#E9A3B5';
+  const accentAlt = r.accentAlt || '#FFFFFF';
+  const [h, s] = rgbToHsl(parseColor(accent));
+  const pinkish = s > 0.25 && (h > 300 || h < 25);
+  const c = {
+    body, inner, accent, accentAlt,
+    eye: r.eyeColor || '#6F6A8A',
+    blush: pinkish ? mixc(accent, '#FF8FA8', 0.5) : '#FF8FA8',
+    lips: isPale(accent) ? '#C4455A' : accent,
+    tailTip: mixc(inner, '#FFFFFF', 0.3),
+    devil: '#D9364F',
+  };
+  return { ...c, ...colorsForEars(c) };
+}
+
+/**
+ * SVG (string) de la mochi, con partes marcadas para los kits.
+ * @param {object} recipe
+ * @param {string} mood  normal | feliz | triste | enojado | dormido | sorprendido
+ */
+export function mochiSvg(recipe = DEFAULT_MOCHI, mood = 'normal') {
+  const r = { ...DEFAULT_MOCHI, ...recipe };
+  const g = geometry(r.body);
+  const c = colorsOf(r);
+  const ears = renderEars(r.ears, g, c);
+  const shift = ears.faceShift || { y: 0, dx: 0 };
+  const acc = renderAccessories(r, g, c, mood, { y: g.face.y + shift.y, dx: g.face.dx + (shift.dx || 0) });
+  const parts = [];
+  parts.push(Ell(100, 185, g.w * 0.43, 6.5, { fill: '#2A1C30', opacity: 0.16, 'data-r': 'tone' }));
+  parts.push(acc.back);
+  parts.push(renderTail(r.tail, g, c));
+  parts.push(ears.back);
+  parts.push(P(g.path, { fill: c.body, stroke: INK, 'stroke-width': 2.8, 'stroke-linejoin': 'round', 'data-r': 'body' }));
+  parts.push(renderPattern(r.pattern, g, c));
+  parts.push(Ell(g.belly.cx, g.belly.cy, g.belly.rx, g.belly.ry, { fill: c.inner, 'data-r': 'flat', opacity: c.inner.toUpperCase() === c.body.toUpperCase() ? 0 : 0.95 }));
+  parts.push(Ell(g.shine.x, g.shine.y, g.w * 0.1, g.height * 0.055, { fill: '#FFFFFF', opacity: 0.7, transform: `rotate(-32 ${g.shine.x} ${g.shine.y})`, 'data-r': 'tone' }));
+  parts.push(g.feet.map((x) => Ell(x, 180, 10.5 * Math.pow(g.wf, 0.4), 6, { fill: mixc(c.body, '#FFFFFF', 0.12), stroke: INK, 'stroke-width': 2.4, 'data-r': 'part' })).join(''));
+  parts.push(ears.front);
+  parts.push(ears.face);
+  parts.push(renderCheeks(r.cheeks, g, mood, c, { y: shift.y * 0.15, dx: (shift.dx || 0) * 0.6 }));
+  parts.push(acc.underFace);
+  parts.push(renderEyes(r.eyes, g, mood, c, shift));
+  parts.push(renderMouth(r.mouth, g, mood, c, { y: ears.faceShift ? -4 : 0 }));
+  parts.push(acc.front);
+  return svgDoc(200, 200, parts.join(''));
+}
+
+export { geometry };

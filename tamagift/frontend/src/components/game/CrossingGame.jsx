@@ -14,7 +14,7 @@ const LANES = 7;
 const COLS = 7;
 const CAR_COLORS = ['#D8697F', '#E2A845', '#8FC7EE', '#C3A7EA', '#7FA894', '#EE7BC8'];
 
-export default function CrossingGame({ drawingUrl, onBack, onComplete }) {
+export default function CrossingGame({ look, onBack, onComplete }) {
   const [row, setRow] = useState(LANES);
   const [col, setCol] = useState(Math.floor(COLS / 2));
   const [cars, setCars] = useState(() => Array.from({ length: LANES - 1 }, (_, i) => ({
@@ -169,7 +169,7 @@ export default function CrossingGame({ drawingUrl, onBack, onComplete }) {
           filter: state === 'hit' ? 'grayscale(1)' : 'none',
           transform: state === 'hit' ? 'scale(0.8) rotate(-14deg)' : 'none',
         }}>
-          <PetSprite src={drawingUrl} size={Math.round(cellPx * 0.98)} />
+          <PetSprite look={look} mood="normal" size={Math.round(cellPx * 0.98)} />
         </div>
       </Board>
       <p style={{ fontSize: 11.5, color: C.inkFaint, marginTop: 10, textAlign: 'center' }}>Desliza en cualquier dirección · un toque avanza</p>

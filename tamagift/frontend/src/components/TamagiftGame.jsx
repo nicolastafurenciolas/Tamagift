@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { lookOf, parseRecipe } from '../petLook';
 import { C, FONT, SHADOW } from '../theme';
 import { loadPet, feedPetRemote, redesignPetRemote, setActiveDesignRemote, setPetStyleRemote } from '../api';
 import {
@@ -435,17 +436,14 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
   const displayMood = cinematicAvailable ? 'enojado' : mood;
   const outfits = pet.outfits || [];
   const activeOutfit = game.equippedOutfit != null ? outfits.find((o) => o.id === game.equippedOutfit) : null;
-  const drawingFor = (m) => {
-    if (activeOutfit) return activeOutfit[`drawing_${m}`];
-    if (pet.active_design === 'redesign' && pet[`drawing_${m}_redesign`]) return pet[`drawing_${m}_redesign`];
-    return pet[`drawing_${m}`];
-  };
+  // Cómo se ve ahora (receta de mochi; las mascotas viejas, sus PNG).
+  const look = lookOf(pet, activeOutfit);
   const back = () => setScreen('games');
   const style = getStyle(styleId);
 
   return (
     <div className="w-full min-h-full flex flex-col items-center" style={{ color: C.ink, paddingTop: 12, paddingBottom: 12, boxSizing: 'border-box' }}>
-      {!opened && <OpeningScreen petName={pet.name} creatorName={pet.creator_name} petSrc={drawingFor('feliz')} onOpen={handleOpenGift} />}
+      {!opened && <OpeningScreen petName={pet.name} creatorName={pet.creator_name} look={look} onOpen={handleOpenGift} />}
 
       {/* Motor de música: montado siempre, en la misma posición, para que
           cambiar de pantalla no corte la canción. */}
@@ -458,7 +456,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
 
       {screen === 'bathroom' && (
         <Bathroom
-          petName={pet.name} mood={mood} drawingUrl={drawingFor(bathDone ? 'feliz' : mood)}
+          petName={pet.name} mood={mood} look={look}
           bathProgress={bathProgress} bathDone={bathDone} spongePos={spongePos} bubbles={bubbles}
           onBack={() => { play('swoosh'); setScreen('main'); }}
           onSpongeDown={() => { draggingSponge.current = true; lastScrubAt.current = performance.now(); }}
@@ -470,7 +468,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
       {screen === 'games' && <GamesMenu game={game} onBack={() => { play('swoosh'); setScreen('main'); }} onPlay={(id) => { play('swoosh'); setReplayKey((k) => k + 1); setScreen(id); }} />}
 
       {screen === 'memoria' && <MemoryGame key={replayKey} cardPool={buildCardPool(pet)} onBack={back} onComplete={(s) => finishGame('memoria', s)} />}
-      {screen === 'atrapar' && <CatchGame key={replayKey} drawingUrl={drawingFor('feliz')} foods={pet.food_preferences || []} onBack={back} onComplete={(s) => finishGame('atrapar', s)} />}
+      {screen === 'atrapar' && <CatchGame key={replayKey} look={look} foods={pet.food_preferences || []} onBack={back} onComplete={(s) => finishGame('atrapar', s)} />}
       {screen === 'rompecabezas' && (
         <SlidingPuzzle
           key={replayKey}
@@ -481,15 +479,15 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
       {screen === 'topos' && <WhackGame key={replayKey} onBack={back} onComplete={(s) => finishGame('topos', s)} targets={whackTargets} />}
       {screen === 'serpiente' && (
         <SnakeGame
-          key={replayKey} onBack={back} onComplete={(s) => finishGame('serpiente', s)} drawingUrl={drawingFor('feliz')}
+          key={replayKey} onBack={back} onComplete={(s) => finishGame('serpiente', s)} look={look}
           treat={foodSpriteFor(((pet.food_preferences || []).find((f) => f.preference === 'gusta') || {}).food_name || 'fresa')}
         />
       )}
-      {screen === 'cruzar' && <CrossingGame key={replayKey} drawingUrl={drawingFor('normal')} onBack={back} onComplete={(s) => finishGame('cruzar', s)} />}
+      {screen === 'cruzar' && <CrossingGame key={replayKey} look={look} onBack={back} onComplete={(s) => finishGame('cruzar', s)} />}
       {screen === 'torre' && <TowerGame key={replayKey} onBack={back} onComplete={(s) => finishGame('torre', s)} />}
       {screen === 'trivia' && <TriviaGame key={replayKey} pet={pet} onBack={back} onComplete={(s) => finishGame('trivia', s)} />}
       {screen === 'simon' && <SimonGame key={replayKey} onBack={back} onComplete={(s) => finishGame('simon', s)} />}
-      {screen === 'volar' && <FlyGame key={replayKey} drawingUrl={drawingFor('feliz')} onBack={back} onComplete={(s) => finishGame('volar', s)} />}
+      {screen === 'volar' && <FlyGame key={replayKey} look={look} onBack={back} onComplete={(s) => finishGame('volar', s)} />}
       {screen === 'golosinas' && <Match3Game key={replayKey} pet={pet} onBack={back} onComplete={(s) => finishGame('golosinas', s)} />}
 
       <GameResult result={gameResult} onReplay={replayGame} onExit={exitGame} />
@@ -504,7 +502,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
 
       {screen === 'redesign' && (
         <RedesignScreen
-          initialRecipe={(() => { try { return JSON.parse((pet.active_design === 'redesign' ? pet.recipe_redesign : pet.recipe_original) || 'null'); } catch (e) { return null; } })()}
+          initialRecipe={parseRecipe(pet.active_design === 'redesign' ? pet.recipe_redesign : pet.recipe_original)}
           saving={redesignSaving} error={redesignError}
           onCancel={() => setScreen('shop')} onSave={handleSaveRedesign}
         />
@@ -596,7 +594,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
           {/* El cuarto, de borde a borde. Medidores y burbuja encima. */}
           <div style={{ position: 'relative', width: '100%', marginBottom: 10 }}>
             <Room
-              petName={pet.name} mood={displayMood} drawingUrl={drawingFor(displayMood)}
+              petName={pet.name} mood={displayMood} look={look}
               posters={posters} customDecor={pet.decor_items || []}
               game={game} setGame={setGame} editing={decorating}
               onPokePet={pokePet} reaction={reaction} cameraRef={cameraRef}
@@ -682,7 +680,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
           <p style={{ fontSize: 12.5, color: C.inkSoft, margin: '0 0 12px' }}>
             {pet.app_style && pet.app_style !== styleId ? `Quien te la regaló eligió "${getStyle(pet.app_style).name}". ` : ''}Cámbialo cuando quieras.
           </p>
-          <StylePicker value={style.id} onChange={chooseStyle} petSrc={drawingFor('normal')} size={64} />
+          <StylePicker value={style.id} onChange={chooseStyle} look={look} size={64} />
           <button onClick={() => { play('pop'); setStyleOpen(false); }} className="pg-btn pg-btn-rose pg-focus" style={{ marginTop: 14, padding: '11px 28px', fontSize: 14 }}>Listo</button>
         </Modal>
       )}

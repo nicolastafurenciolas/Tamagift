@@ -4,12 +4,15 @@ import { C, FONT, SHADOW, DRAW_COLORS, soft } from '../theme';
 import { IconGift, IconSparkle, IconClose, IconBack, IconCamera, IconPencil } from './icons';
 import { createPet, accessKeyRequired, checkAccessKey, AccessKeyError, CreatePetError } from '../api';
 import { toEmbedUrl, providerLabel } from '../embed';
-import { DEFAULT_RECIPE, PetRecipeMarkup, recipeToPngDataUrl } from '../PetRecipe';
+import { DEFAULT_RECIPE, recipeToPngDataUrl } from '../PetRecipe';
+import PetArt from './PetArt';
+import { parseRecipe } from '../petLook';
+import { HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES } from '../art/mochi';
 import BgRemover from './BgRemover';
 import { isTestKey, buildTestPet, testGameState } from '../testSeed';
 import { checkYouTubeEmbeddable, youtubeIdFromEmbed } from '../ytCheck';
 import { musicErrorText } from './MusicBar';
-import { ModularPetStep, useDesignerState } from './PetDesigner';
+import { ModularPetStep, useDesignerState, PartPicker } from './PetDesigner';
 import { compressImageFile, PHOTO_MAX_SIDE, FOOD_MAX_SIDE } from '../imageCompress';
 import Sprite from './Sprite';
 import StylePicker from './StylePicker';
@@ -700,6 +703,12 @@ function MusicStep({ songs, setSongs }) {
 // el creador dibuja encima de una copia de la receta para vestir a la
 // mascota (sombrero, bufanda, disfraz completo...), un dibujo por ánimo.
 function OutfitDesigner({ baseRecipe, onSave, onCancel }) {
+  // La prenda es la misma mochi con otros accesorios (y, si quiere, algo
+  // dibujado encima): así se ve bien en cualquier estilo.
+  const [wear, setWear] = useState(() => {
+    const { overlays, ...base } = baseRecipe;
+    return base;
+  });
   const [name, setName] = useState('');
   const [price, setPrice] = useState(100);
   const [activeMood, setActiveMood] = useState('normal');
@@ -824,10 +833,13 @@ function OutfitDesigner({ baseRecipe, onSave, onCancel }) {
   async function handleSave() {
     if (!name.trim()) return;
     setSaving(true);
+    const overlays = {};
+    ['normal', 'feliz', 'enojado'].forEach((m) => { const hh = histories[m]; if (hh && hh.index > 0) overlays[m] = hh.stack[hh.index]; });
+    const recipe = Object.keys(overlays).length ? { ...wear, overlays } : wear;
     const [drawing_normal, drawing_feliz, drawing_enojado] = await Promise.all(
-      ['normal', 'feliz', 'enojado'].map((m) => recipeToPngDataUrl(baseRecipe, m, histories[m].stack[histories[m].index], 320))
+      ['normal', 'feliz', 'enojado'].map((m) => recipeToPngDataUrl(wear, m, overlays[m], 320))
     );
-    onSave({ id: uid(), name: name.trim(), price: Math.max(0, Number(price) || 0), drawing_normal, drawing_feliz, drawing_enojado });
+    onSave({ id: uid(), name: name.trim(), price: Math.max(0, Number(price) || 0), drawing_normal, drawing_feliz, drawing_enojado, recipe: JSON.stringify(recipe) });
   }
 
   return (
@@ -840,7 +852,7 @@ function OutfitDesigner({ baseRecipe, onSave, onCancel }) {
         {MOODS.map((m) => (
           <button key={m.id} onClick={() => setActiveMood(m.id)} className="pg-focus" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
             <div style={{ width: 40, height: 40, borderRadius: 11, overflow: 'hidden', border: `2.5px solid ${activeMood === m.id ? C.rose : C.line}` }}>
-              <svg viewBox="0 0 200 200" width={36} height={36}><PetRecipeMarkup recipe={baseRecipe} mood={m.id} /></svg>
+              <PetArt recipe={wear} mood={m.id} size={36} />
             </div>
             <span style={{ fontFamily: FONT.display, fontSize: 10, fontWeight: 700, color: activeMood === m.id ? C.rose : C.ink }}>{m.label}</span>
           </button>
@@ -856,9 +868,9 @@ function OutfitDesigner({ baseRecipe, onSave, onCancel }) {
       )}
 
       <div style={{ position: 'relative', margin: '0 auto 12px', width: CANVAS_SIZE, height: CANVAS_SIZE, borderRadius: 20, overflow: 'hidden', boxShadow: `0 0 0 4px ${C.surface}, 0 0 0 6px ${C.line}, ${SHADOW.soft}`, background: C.paperDeep }}>
-        <svg viewBox="0 0 200 200" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
-          <PetRecipeMarkup recipe={baseRecipe} mood={activeMood} />
-        </svg>
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          <PetArt recipe={wear} mood={activeMood} size={CANVAS_SIZE} />
+        </div>
         {['normal', 'feliz', 'enojado'].map((m) => (
           <canvas
             key={m} ref={refs[m]}
@@ -868,7 +880,10 @@ function OutfitDesigner({ baseRecipe, onSave, onCancel }) {
         ))}
       </div>
 
-      <p style={{ fontSize: 11.5, color: C.inkSoft, textAlign: 'center', marginBottom: 12 }}>Dibuja la ropa o accesorio encima de la mascota — no hace falta redibujarla entera</p>
+      <p style={{ fontSize: 11.5, color: C.inkSoft, textAlign: 'center', marginBottom: 12 }}>Elige qué se pone y, si quieres, dibuja algo más encima</p>
+      <PartPicker label="En la cabeza" field="headAcc" options={HEAD_ACCESSORIES} recipe={wear} setRecipe={setWear} />
+      <PartPicker label="En el cuello" field="neckAcc" options={NECK_ACCESSORIES} recipe={wear} setRecipe={setWear} />
+      <PartPicker label="En la cara" field="extraAcc" options={EXTRA_ACCESSORIES} recipe={wear} setRecipe={setWear} />
 
       <div className="pg-card" style={{ padding: 14, marginBottom: 10, background: C.surfaceAlt }}>
         <div className="flex gap-2 justify-center mb-3">
@@ -1149,7 +1164,11 @@ function OutfitsStep({ recipe, outfits, setOutfits }) {
       {outfits.map((o) => (
         <ItemCard key={o.id} onDelete={() => setOutfits((prev) => prev.filter((x) => x.id !== o.id))}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <img src={o.drawing_normal} alt={o.name} style={{ width: 42, height: 42, objectFit: 'contain', borderRadius: 10, border: `1.5px solid ${C.line}`, background: C.paperDeep }} />
+            <div style={{ width: 46, height: 46, borderRadius: 10, border: `1.5px solid ${C.line}`, background: C.paperDeep, display: 'grid', placeItems: 'center' }}>
+              {parseRecipe(o.recipe)
+                ? <PetArt recipe={parseRecipe(o.recipe)} size={42} />
+                : <img src={o.drawing_normal} alt={o.name} style={{ width: 42, height: 42, objectFit: 'contain' }} />}
+            </div>
             <div>
               <div style={{ fontFamily: FONT.display, fontSize: 14, fontWeight: 700 }}>{o.name}</div>
               <div style={{ fontSize: 12, color: C.inkSoft }}>{o.price} monedas</div>
@@ -1184,9 +1203,6 @@ const MAX_PHOTOS = 14;
 const MAX_SONGS = 5;
 const MAX_UPLOADED_SONGS = 3;
 
-function petArt(recipe, mood = 'normal') {
-  return <svg viewBox="0 0 200 200" width="200" height="200"><PetRecipeMarkup recipe={recipe} mood={mood} /></svg>;
-}
 
 // ── Paso: Estilo ──────────────────────────────────────────────────
 // Se elige viendo SU mascota ya dibujada en cada estilo. Todo el
@@ -1195,7 +1211,7 @@ function StyleStep({ recipe, appStyle, onChange }) {
   const key = `wiz-pet-${hashString(JSON.stringify(recipe))}`;
   return (
     <StepShell title="Elige el estilo del juego" subtitle="Así se va a ver todo: el cuarto, los juegos y la mascota. Quien lo reciba podrá cambiarlo después.">
-      <StylePicker value={appStyle} onChange={onChange} petArt={petArt(recipe)} petKey={key} />
+      <StylePicker value={appStyle} onChange={onChange} look={{ recipe }} petKey={key} />
       <p style={{ fontSize: 12, color: C.inkSoft, textAlign: 'center', marginTop: 12 }}>
         Elegiste <b style={{ color: C.rose }}>{getStyle(appStyle).name}</b>. También cambian los sonidos y cómo se mueve.
       </p>
@@ -1212,7 +1228,7 @@ function SummaryRow({ label, value }) {
   );
 }
 
-function SummaryStep({ petName, partnerName, previews, appStyle, foods, phrases, photos, songs, submitState, submitError, resultSlug, resultMode, onFinalize, onCopyLink, copyState }) {
+function SummaryStep({ petName, partnerName, previewRecipe, appStyle, foods, phrases, photos, songs, submitState, submitError, resultSlug, resultMode, onFinalize, onCopyLink, copyState }) {
   const link = resultSlug ? `${window.location.origin}/p/${resultSlug}` : '';
   return (
     <StepShell title="Revisa y finaliza" subtitle="Así va a quedar el regalo">
@@ -1222,7 +1238,7 @@ function SummaryStep({ petName, partnerName, previews, appStyle, foods, phrases,
         {MOODS.map((m) => (
           <div key={m.id} style={{ textAlign: 'center' }}>
             <div className="pg-card" style={{ width: 78, height: 78, borderRadius: 16, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
-              {previews && previews[`drawing_${m.id}`] && <Sprite src={previews[`drawing_${m.id}`]} w={72} h={72} kind="pet" />}
+              {previewRecipe && <PetArt recipe={previewRecipe} mood={m.id} size={72} />}
             </div>
             <span style={{ fontFamily: FONT.display, fontSize: 10.5, fontWeight: 700, color: C.inkSoft }}>{m.label}</span>
           </div>
@@ -1382,16 +1398,8 @@ export default function TamagiftWizard() {
   const [resultSlug, setResultSlug] = useState(null);
   const [resultMode, setResultMode] = useState('backend');
   const [copyState, setCopyState] = useState(null);
-  const [previews, setPreviews] = useState(null);
-
-  // Vista previa del resumen: los mismos PNG que se van a enviar.
-  useEffect(() => {
-    if (sid !== 'resumen') return undefined;
-    let alive = true;
-    designer.buildPngs(240).then((p) => { if (alive) setPreviews(p); });
-    return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sid]);
+  // Vista previa del resumen: la misma receta (con retoques) que se envía.
+  const previewRecipe = sid === 'resumen' ? designer.fullRecipe() : null;
 
   const posterCount = photos.filter((p) => p.used_for === 'poster').length;
   const puzzleCount = photos.filter((p) => p.used_for === 'puzzle').length;
@@ -1415,7 +1423,7 @@ export default function TamagiftWizard() {
       drawing_normal, drawing_feliz, drawing_enojado,
       // La receta también, para que quien lo reciba pueda rediseñarla
       // con el mismo creador.
-      recipe_original: JSON.stringify(designer.recipe),
+      recipe_original: JSON.stringify(designer.fullRecipe()),
       app_style: appStyle,
       food_preferences: foods.map((f) => ({ food_name: f.food_name, preference: f.preference, reaction_message: f.reaction_message, image: f.image || null })),
       phrases: phrases.map((p) => ({ category: p.category, text: p.text })),
@@ -1426,7 +1434,7 @@ export default function TamagiftWizard() {
         embed_url: s.source_type === 'upload' ? '' : s.embed_url,
         audio_data: s.source_type === 'upload' ? s.audio_data : null,
       })),
-      outfits: outfits.map((o) => ({ name: o.name, price: o.price, drawing_normal: o.drawing_normal, drawing_feliz: o.drawing_feliz, drawing_enojado: o.drawing_enojado })),
+      outfits: outfits.map((o) => ({ name: o.name, price: o.price, drawing_normal: o.drawing_normal, drawing_feliz: o.drawing_feliz, drawing_enojado: o.drawing_enojado, recipe: o.recipe || null })),
       decor_items: decorItems.map((d) => ({ name: d.name, description: d.description || null, price: d.price, image: d.image, ratio: d.ratio })),
       whack_targets: whackTargets.map((t) => ({ name: t.name, image: t.image })),
       access_key: accessKey.trim() || null,
@@ -1546,7 +1554,7 @@ export default function TamagiftWizard() {
       <div style={show('juegos')}><GamesStep whackTargets={whackTargets} setWhackTargets={setWhackTargets} /></div>
       <div style={show('resumen')}>
         <SummaryStep
-          petName={petName} partnerName={partnerName} previews={previews} appStyle={appStyle}
+          petName={petName} partnerName={partnerName} previewRecipe={previewRecipe} appStyle={appStyle}
           foods={foods} phrases={phrases} photos={photos} songs={songs}
           submitState={submitState} submitError={submitError} resultSlug={resultSlug} resultMode={resultMode}
           onFinalize={handleFinalize} onCopyLink={copyLink} copyState={copyState}

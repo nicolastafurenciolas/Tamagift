@@ -294,7 +294,7 @@ function renderPlacedContent(item, posters, customDecor, pixel) {
 
 // ── El cuarto ────────────────────────────────────────────────────
 export default function Room({
-  petName, mood, drawingUrl, posters, customDecor,
+  petName, mood, look, posters, customDecor,
   game, setGame, editing, onPokePet, reaction, cameraRef, fullBleed = false,
   extraReserved = 0,   // alto que ocupan paneles abiertos debajo (comida, música)
 }) {
@@ -485,7 +485,7 @@ export default function Room({
               transformOrigin: '50% 92%',
             }}
           >
-            <Pet mood={mood} drawingUrl={drawingUrl} size={ROOM.PET_W} onPoke={onPokePet} reaction={reaction} pixel={pixel} />
+            <Pet mood={mood} look={look} size={ROOM.PET_W} onPoke={onPokePet} reaction={reaction} pixel={pixel} />
           </div>
           <Ambience styleId={style.id} layer="front" />
         </div>

@@ -20,7 +20,7 @@ const CATCHER_Y = 335;
 const CATCH_RADIUS = 32;
 const DURATION = 25;
 
-export default function CatchGame({ drawingUrl, foods = [], onBack, onComplete }) {
+export default function CatchGame({ look, foods = [], onBack, onComplete }) {
   const [catcherX, setCatcherX] = useState(150);
   const [items, setItems] = useState([]);
   const [score, setScore] = useState(0);
@@ -162,7 +162,7 @@ export default function CatchGame({ drawingUrl, foods = [], onBack, onComplete }
             position: 'absolute', left: `${(catcherX / AREA_W) * 100}%`, top: `${((CATCHER_Y - 24) / AREA_H) * 100}%`,
             transform: 'translateX(-50%)', transition: 'left 0.12s',
           }}>
-            <PetSprite src={drawingUrl} size={petPx} />
+            <PetSprite look={look} mood="feliz" size={petPx} />
           </div>
         )}
         {badFlash && (

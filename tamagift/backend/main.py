@@ -39,6 +39,7 @@ LATE_COLUMNS = [
     ("pets", "drawing_enojado_redesign", "TEXT"),
     ("pets", "active_design", "VARCHAR(10) DEFAULT 'original'"),
     ("pets", "app_style", "VARCHAR(16)"),
+    ("outfits", "recipe", "TEXT"),
 ]
 
 
@@ -204,6 +205,7 @@ def create_pet(payload: schemas.PetCreate, db: Session = Depends(database.get_db
         db.add(models.Outfit(
             pet_id=pet.id, name=o.name, price=o.price,
             drawing_normal=o.drawing_normal, drawing_feliz=o.drawing_feliz, drawing_enojado=o.drawing_enojado,
+            recipe=o.recipe,
         ))
 
     for d in payload.decor_items:

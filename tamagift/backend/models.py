@@ -140,6 +140,7 @@ class Outfit(Base):
     drawing_normal = Column(Text, nullable=False)
     drawing_feliz = Column(Text, nullable=False)
     drawing_enojado = Column(Text, nullable=False)
+    recipe = Column(Text, nullable=True)   # JSON de la mochi con el traje
 
     pet = relationship("Pet", back_populates="outfits")
 

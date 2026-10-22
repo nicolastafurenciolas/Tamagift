@@ -1,4 +1,5 @@
-from pydantic import BaseModel, Field
+import json
+from pydantic import field_validator, BaseModel, Field
 from typing import List, Optional, Literal
 
 # ─────────────────────────────────────────────────────────────────
@@ -20,6 +21,9 @@ StyleId = Literal["pixel", "lofi", "retro", "papel", "neon", "sticker"]
 
 # Tamaños máximos de los data URL (en caracteres de base64).
 IMG_MAX = 3_000_000      # una foto o un dibujo (ya se comprimen en el navegador)
+# Receta de la mascota en JSON. Puede traer los retoques a mano de cada
+# ánimo (tres PNG transparentes chicos), por eso no es un texto corto.
+RECIPE_MAX = 3_000_000
 AUDIO_MAX = 14_000_000   # un archivo de audio de hasta 10 MB
 
 
@@ -90,6 +94,9 @@ class OutfitBase(BaseModel):
     drawing_normal: str
     drawing_feliz: str
     drawing_enojado: str
+    # Receta de la mochi con este traje (JSON). Con ella el juego la dibuja
+    # en el estilo activo; los PNG quedan como respaldo.
+    recipe: Optional[str] = None
 
 
 class OutfitIn(OutfitBase):
@@ -98,6 +105,7 @@ class OutfitIn(OutfitBase):
     drawing_normal: str = Field(max_length=IMG_MAX)
     drawing_feliz: str = Field(max_length=IMG_MAX)
     drawing_enojado: str = Field(max_length=IMG_MAX)
+    recipe: Optional[str] = Field(default=None, max_length=RECIPE_MAX)
 
 
 class OutfitOut(OutfitBase):
@@ -162,7 +170,7 @@ class PetCreate(BaseModel):
     drawing_enojado: str = Field(max_length=IMG_MAX)
     # JSON (string) de la receta modular con la que se armó la mascota,
     # para poder reabrir el mismo editor si se rediseña.
-    recipe_original: Optional[str] = Field(default=None, max_length=20_000)
+    recipe_original: Optional[str] = Field(default=None, max_length=RECIPE_MAX)
     # Estilo visual que eligió quien regala (quien recibe puede cambiarlo).
     app_style: Optional[StyleId] = None
     food_preferences: List[FoodPreferenceIn] = Field(default=[], max_length=20)
@@ -209,6 +217,13 @@ class RedesignIn(BaseModel):
     drawing_normal: str = Field(max_length=IMG_MAX)
     drawing_feliz: str = Field(max_length=IMG_MAX)
     drawing_enojado: str = Field(max_length=IMG_MAX)
+
+    @field_validator("recipe")
+    @classmethod
+    def recipe_size(cls, v):
+        if len(json.dumps(v)) > RECIPE_MAX:
+            raise ValueError("La receta es demasiado grande")
+        return v
 
 
 class ActiveDesignIn(BaseModel):
