@@ -17,15 +17,14 @@ export function parseRecipe(v) {
   }
 }
 
-// `wearing`: accesorios comprados en la tienda y puestos por quien
-// recibe ({ headAcc, neckAcc, extraAcc, accColor }). Se suman a la
-// receta (el traje o el diseño), así se ven en todos los estilos.
-export function lookOf(pet, outfit, wearing) {
+import { applyLook } from './wardrobeState';
+
+// `game`: el estado de juego de quien recibe. Lo que se puso en el
+// vestidor, su peinado y cuán redondita está se suman a la receta (el
+// traje o el diseño), así se ven en todos los estilos.
+export function lookOf(pet, outfit, game) {
   const look = baseLook(pet, outfit);
-  if (look && look.recipe && wearing && Object.keys(wearing).length) {
-    const w = Object.fromEntries(Object.entries(wearing).filter(([, v]) => v != null));
-    return { recipe: { ...look.recipe, ...w } };
-  }
+  if (look && look.recipe && game) return { recipe: applyLook(look.recipe, game) };
   return look;
 }
 

@@ -6,7 +6,6 @@ import { play } from '../../sound';
 import Sprite from '../Sprite';
 import PetArt from '../PetArt';
 import { lookOf } from '../../petLook';
-import { HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES, geometry } from '../../art/mochi';
 import { DECOR_CATALOG } from '../../shopCatalog';
 import {
   FURNITURE, FURNITURE_CATEGORIES, WALL_STYLES, FLOOR_STYLES, FURNITURE_PAINTS,
@@ -14,6 +13,7 @@ import {
 } from '../../roomCatalog';
 import { ModularPetStep, useDesignerState } from '../PetDesigner';
 import { FramedPoster } from './posters';
+import { FashionShop, Salon } from './Fashion';
 
 export const REDESIGN_COST = 1000;
 
@@ -212,102 +212,6 @@ function SurfaceCard({ pattern, kind, owned, current, canAfford, onBuy, onApply 
   );
 }
 
-// ── Accesorios para la mochi ──────────────────────────────────────
-const ACC_GROUPS = [
-  { field: 'headAcc', name: 'Cabeza', list: HEAD_ACCESSORIES, base: 90 },
-  { field: 'neckAcc', name: 'Cuello', list: NECK_ACCESSORIES, base: 70 },
-  { field: 'extraAcc', name: 'Cara', list: EXTRA_ACCESSORIES, base: 45 },
-];
-export const ACC_COLORS = ['#E57B93', '#FF7FA8', '#F28C38', '#F7D56B', '#7FB894', '#7FC8F8', '#5B7BD9', '#B892E0', '#8E1F2C', '#3A3542', '#FFFFFF', '#C9A227'];
-const accPrice = (g, i) => g.base + (i % 5) * 15;
-
-function accView(field, recipe) {
-  const gm = geometry(recipe.body);
-  const box = (cx, cy, w) => `${(cx - w / 2).toFixed(1)} ${(cy - w / 2).toFixed(1)} ${w} ${w}`;
-  if (field === 'headAcc') return box(100, gm.top + 10, 140);
-  if (field === 'neckAcc') return box(100, gm.neckY + 4, 120);
-  return box(100, gm.face.y + 4, 104);
-}
-
-function AccessoryCard({ group, item, index, recipe, owned, worn, color, canAfford, onBuy, onWear }) {
-  const price = accPrice(group, index);
-  const preview = { ...recipe, overlays: undefined, [group.field]: item.id, accColor: color };
-  return (
-    <div className="pg-card" style={{ padding: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, textAlign: 'center' }}>
-      <div style={{ width: 70, height: 70, borderRadius: 12, background: C.paperDeep, border: `1.5px solid ${C.line}`, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
-        <PetArt recipe={preview} size={66} view={accView(group.field, recipe)} />
-      </div>
-      <div style={{ fontFamily: FONT.display, fontSize: 12.5, fontWeight: 700, color: C.ink, lineHeight: 1.1, minHeight: 28, display: 'grid', placeItems: 'center' }}>{item.label}</div>
-      <button
-        onClick={() => (owned ? onWear() : onBuy(price))} disabled={!owned && !canAfford(price)} className="pg-focus"
-        style={{
-          width: '100%', padding: '6px 6px', borderRadius: 999, fontFamily: FONT.display, fontSize: 11.5, fontWeight: 700,
-          cursor: !owned && !canAfford(price) ? 'default' : 'pointer',
-          background: worn ? C.sage : owned ? C.surfaceAlt : (!canAfford(price) ? C.track : C.rose),
-          color: worn ? C.onAccent : owned ? C.ink : !canAfford(price) ? C.inkFaint : C.onAccent,
-          border: `1.5px solid ${worn ? C.sage : owned ? C.line : !canAfford(price) ? C.track : C.rose}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-        }}
-      >
-        {worn ? 'Quitar' : owned ? 'Poner' : <><IconCoin size={12} color={C.onAccent} /> {price}</>}
-      </button>
-    </div>
-  );
-}
-
-function AccessoriesTab({ game, setGame, coins, buy, baseLook }) {
-  const [group, setGroup] = useState(ACC_GROUPS[0].field);
-  const recipe = baseLook && baseLook.recipe;
-  if (!recipe) {
-    return (
-      <div className="pg-card" style={{ padding: 18, textAlign: 'center' }}>
-        <IconSparkle size={28} color={C.lavender} />
-        <p style={{ fontSize: 12.5, color: C.inkSoft, margin: '10px 0 0' }}>Esta mascota se dibujó a mano, así que no lleva accesorios de la tienda.</p>
-      </div>
-    );
-  }
-  const wearing = game.wearing || {};
-  const color = wearing.accColor || recipe.accColor || recipe.accentColor;
-  const g = ACC_GROUPS.find((x) => x.field === group);
-  const owned = new Set(game.ownedAcc || []);
-  const key = (id) => `${group}:${id}`;
-  const wornNow = wearing[group] != null ? wearing[group] : recipe[group];
-  return (
-    <>
-      <TabRow style={{ padding: '0 2px 8px' }}>
-        {ACC_GROUPS.map((x) => <ShopTab key={x.field} active={group === x.field} onClick={() => { play('pop'); setGroup(x.field); }}>{x.name}</ShopTab>)}
-      </TabRow>
-      <div className="pg-card" style={{ padding: '10px 12px', marginBottom: 10 }}>
-        <div style={{ fontFamily: FONT.display, fontSize: 12, fontWeight: 700, color: C.inkSoft, marginBottom: 6 }}>Color de los accesorios</div>
-        <div className="pg-scroll-x" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
-          {ACC_COLORS.map((c) => (
-            <button
-              key={c} aria-label={`Color ${c}`} className="pg-focus pg-keep-round"
-              onClick={() => { play('pop'); setGame((st) => ({ ...st, wearing: { ...(st.wearing || {}), accColor: c } })); }}
-              style={{ width: 26, height: 26, flexShrink: 0, borderRadius: '50%', padding: 0, cursor: 'pointer', background: c, border: color === c ? `2.5px solid ${C.ink}` : `1.5px solid ${C.line}` }}
-            />
-          ))}
-        </div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-        {g.list.filter((it) => it.id !== 'ninguno').map((it, i) => {
-          const fromGift = recipe[group] === it.id;   // ya venía puesto en el regalo
-          const isOwned = fromGift || owned.has(key(it.id));
-          const worn = wornNow === it.id;
-          return (
-            <AccessoryCard
-              key={it.id} group={g} item={it} index={i} recipe={recipe} owned={isOwned} worn={worn} color={color}
-              canAfford={(p) => coins >= p}
-              onBuy={(price) => buy(price, (st) => ({ ...st, ownedAcc: [...(st.ownedAcc || []), key(it.id)], wearing: { ...(st.wearing || {}), [group]: it.id } }))}
-              onWear={() => { play(worn ? 'pop' : 'place'); setGame((st) => ({ ...st, wearing: { ...(st.wearing || {}), [group]: worn ? 'ninguno' : it.id } })); }}
-            />
-          );
-        })}
-      </div>
-    </>
-  );
-}
-
 function RedesignConfirmModal({ onConfirm, onCancel }) {
   return (
     <Modal onClose={onCancel} maxWidth={340} z={60}>
@@ -347,8 +251,8 @@ export function RedesignScreen({ initialRecipe, onCancel, onSave, saving, error 
   );
 }
 
-export default function ShopScreen({ coins, game, setGame, outfits, customDecor, posters, onBack, hasRedesign, onStartRedesign, baseLook }) {
-  const [tab, setTab] = useState('muebles');
+export default function ShopScreen({ coins, game, setGame, outfits, customDecor, posters, onBack, hasRedesign, onStartRedesign, baseLook, initialTab = 'moda' }) {
+  const [tab, setTab] = useState(initialTab);
   const [confirmingRedesign, setConfirmingRedesign] = useState(false);
 
   const buy = (cost, apply) => {
@@ -408,7 +312,7 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
     setGame((g) => ({ ...g, equippedOutfit: g.equippedOutfit === id ? null : id }));
   }
 
-  const TABS = [['muebles', 'Muebles'], ['accesorios', 'Accesorios'], ['decor', 'Deco'], ['pared', 'Pared'], ['piso', 'Piso'], ['posters', 'Pósters'], ['ropa', 'Ropa'], ['rediseño', 'Rediseño']];
+  const TABS = [['moda', 'Moda'], ['peluqueria', 'Peluquería'], ['muebles', 'Muebles'], ['decor', 'Deco'], ['pared', 'Pared'], ['piso', 'Piso'], ['posters', 'Pósters'], ['ropa', 'Trajes'], ['rediseño', 'Rediseño']];
   const photoPosters = (posters || []).filter((p) => p.type === 'photo');
 
   return (
@@ -450,7 +354,8 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
           </div>
         ))}
 
-        {tab === 'accesorios' && <AccessoriesTab game={game} setGame={setGame} coins={coins} buy={buy} baseLook={baseLook} />}
+        {tab === 'moda' && <FashionShop game={game} setGame={setGame} coins={coins} buy={buy} baseLook={baseLook} />}
+        {tab === 'peluqueria' && <Salon game={game} setGame={setGame} coins={coins} buy={buy} baseLook={baseLook} />}
 
         {tab === 'muebles' && (
           <>

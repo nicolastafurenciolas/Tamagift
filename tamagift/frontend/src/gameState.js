@@ -6,6 +6,8 @@
 // es del dispositivo de la pareja, no algo que el backend necesite.
 // ─────────────────────────────────────────────────────────────────
 
+import { migrateOldAccessories } from './wardrobeState';
+
 const KEY = (slug) => `tamagift:gamestate:${slug}`;
 
 // Medidas del cuarto, en unidades del mundo. Es ancho a propósito: la
@@ -23,7 +25,7 @@ export const ROOM = {
 // migración nueva a MIGRATIONS (ver abajo) — así una partida guardada
 // con una versión vieja se pone al día sola, sin importar cuánto tiempo
 // haya pasado ni cuántas migraciones le falten por aplicar.
-export const CURRENT_GAME_VERSION = 1;
+export const CURRENT_GAME_VERSION = 2;
 
 export const DEFAULT_GAME_STATE = {
   version: CURRENT_GAME_VERSION,
@@ -37,8 +39,12 @@ export const DEFAULT_GAME_STATE = {
   ownedWalls: ['liso'],    // diseños de pared comprados (el color se elige gratis)
   ownedFloors: ['tablas'],
   equippedOutfit: null, // id ESTABLE de la prenda puesta, o null
-  ownedAcc: [],         // accesorios de la mochi comprados en la tienda
-  wearing: {},          // { headAcc, neckAcc, extraAcc, accColor } puestos
+  // ── Vestidor (ver wardrobeState.js) ────────────────────────────
+  ownedWear: [],        // 'ranura:id' comprados en Moda
+  wear: {},             // { ranura: { id, c1, c2 } } puesto ahora
+  ownedHair: [],        // peinados comprados en la peluquería
+  ownedHairColors: [],  // tintes de fantasía comprados
+  look: {},             // { hair, hairColor, brows } elegidos por quien recibe
   wall: 'liso.crema',      // "diseño.color" (los ids viejos se siguen entendiendo)
   floor: 'tablas.miel',
   // Todo lo que está puesto en el cuarto, con su posición libre.
@@ -149,6 +155,9 @@ const MIGRATIONS = {
     delete state.placedDecor;
     return state;
   },
+  // 1 → 2: los accesorios de la vieja pestaña "Accesorios" (headAcc,
+  // neckAcc, extraAcc y un solo color) pasan al vestidor por ranuras.
+  1: (state) => migrateOldAccessories(state),
 };
 
 function migrate(state) {

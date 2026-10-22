@@ -16,7 +16,7 @@ import { play, installUnlock, isMuted, toggleMuted } from '../sound';
 import { foodSpriteFor } from '../sprites';
 import {
   IconBowl, IconTub, IconBall, IconFrame, IconMusic, IconHeart, IconEnvelope, IconCoin, IconBag,
-  IconPalette, IconPlay, IconPause, IconNext, IconSpeaker, IconMute, IconSwap,
+  IconPalette, IconPlay, IconPause, IconNext, IconSpeaker, IconMute, IconSwap, IconShirt,
 } from './icons';
 import { MiniMeter, RoundBtn, ActionButton, Modal } from './ui';
 import { GAME_META, replayFactor } from './game/meta';
@@ -35,6 +35,7 @@ import SlidingPuzzle from './game/SlidingPuzzle';
 import Bathroom, { PET_CENTER } from './game/Bathroom';
 import ShopScreen, { RedesignScreen, REDESIGN_COST } from './game/Shop';
 import DecorTrays from './game/DecorTrays';
+import { ClosetScreen } from './game/Fashion';
 import { buildPosterList } from './game/posters';
 import { OpeningScreen, CinematicScreen, LoadErrorScreen } from './game/Scenes';
 
@@ -135,6 +136,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
   const [flyingFood, setFlyingFood] = useState(null);
   const [coinToast, setCoinToast] = useState(null);
   const [gameResult, setGameResult] = useState(null);
+  const [shopTab, setShopTab] = useState('moda');
   const [replayKey, setReplayKey] = useState(0);
   const cameraRef = useRef(ROOM.W / 2);
   const timers = useRef([]);
@@ -437,7 +439,8 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
   const outfits = pet.outfits || [];
   const activeOutfit = game.equippedOutfit != null ? outfits.find((o) => o.id === game.equippedOutfit) : null;
   // Cómo se ve ahora (receta de mochi; las mascotas viejas, sus PNG).
-  const look = lookOf(pet, activeOutfit, game.wearing);
+  const look = lookOf(pet, activeOutfit, game);
+  const baseLook = lookOf(pet, activeOutfit);
   const back = () => setScreen('games');
   const style = getStyle(styleId);
 
@@ -494,9 +497,17 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
 
       {screen === 'shop' && (
         <ShopScreen
-          coins={game.coins} game={game} setGame={setGame} outfits={outfits} baseLook={lookOf(pet, activeOutfit)}
+          coins={game.coins} game={game} setGame={setGame} outfits={outfits} baseLook={baseLook} initialTab={shopTab}
           customDecor={pet.decor_items || []} posters={posters} onBack={() => { play('swoosh'); setScreen('main'); }}
           hasRedesign={!!pet.recipe_redesign} onStartRedesign={() => { setRedesignError(''); setScreen('redesign'); }}
+        />
+      )}
+
+      {screen === 'closet' && (
+        <ClosetScreen
+          game={game} setGame={setGame} baseLook={baseLook} petName={pet.name}
+          onBack={() => { play('swoosh'); setScreen('main'); }}
+          onShop={() => { play('swoosh'); setShopTab('moda'); setScreen('shop'); }}
         />
       )}
 
@@ -640,8 +651,9 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
             <ActionButton icon={IconBowl} label="Alimentar" color={C.rose} active={foodOpen} onClick={() => { play('pop'); setFoodOpen((v) => !v); setDecorating(false); }} />
             <ActionButton icon={IconTub} label="Bañar" color={C.sky} onClick={enterBathroom} />
             <ActionButton icon={IconBall} label="Jugar" color={C.amber} onClick={() => { play('swoosh'); setScreen('games'); }} />
+            <ActionButton icon={IconShirt} label="Vestir" color={C.peach} onClick={() => { play('swoosh'); setScreen('closet'); }} />
             <ActionButton icon={IconFrame} label={decorating ? 'Listo' : 'Decorar'} color={C.sage} active={decorating} onClick={() => { play('pop'); setDecorating((v) => !v); setFoodOpen(false); }} />
-            <ActionButton icon={IconBag} label="Tienda" color={C.lavender} onClick={() => { play('swoosh'); setScreen('shop'); }} />
+            <ActionButton icon={IconBag} label="Tienda" color={C.lavender} onClick={() => { play('swoosh'); setShopTab('moda'); setScreen('shop'); }} />
           </div>
 
           {decorating && (

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { drawArt } from '../art/kit';
-import { mochiSvg, SHAPES, MOODS, HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES, EARS, EYES, MOUTHS, TAILS, PATTERNS, CHEEKS, HAIRSTYLES, HAIR_COLORS, BROWS, MARKS } from '../art/mochi';
+import { mochiSvg, SHAPES, MOODS, HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES, EARS, EYES, MOUTHS, TAILS, PATTERNS, CHEEKS, HAIRSTYLES, HAIR_COLORS, BROWS, MARKS, WARDROBE } from '../art/mochi';
 import { STYLE_LIST } from '../styles/registry';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { FURNITURE } from '../roomCatalog';
@@ -48,6 +48,11 @@ function sets(name) {
   if (name === 'pelo') return HAIRSTYLES.filter((h) => h.id !== 'ninguno').map((h, i) => ({ name: h.label, r: { ...FAMILY[i % FAMILY.length].r, body: SHAPES[i % 4].id, hair: h.id, hairColor: HAIR_COLORS[(i * 3) % HAIR_COLORS.length], brows: 'finas' } }));
   if (name === 'cejas') return BROWS.filter((x) => x.id !== 'ninguna').flatMap((b) => ['normal', 'enojado', 'triste'].map((m) => ({ name: `${b.label} · ${m}`, mood: m, r: { ...FAMILY[0].r, brows: b.id, hair: 'flequillo' } })));
   if (name === 'marcas') return cyc(MARKS, 'marks');
+  if (name === 'vestidor') {
+    const slot = new URLSearchParams(window.location.search).get('slot') || 'ropa';
+    const nuevos = new URLSearchParams(window.location.search).get('nuevos');
+    return WARDROBE.filter((w) => w.slot === slot && (!nuevos || !w.legacy)).map((w, i) => ({ name: w.label, r: { ...FAMILY[i % FAMILY.length].r, body: SHAPES[(i + 2) % 4].id, wear: { [slot]: { id: w.id } } } }));
+  }
   const q = new URLSearchParams(window.location.search);
   if (name === 'paredes2') {
     const t = Number(q.get('t') || 0);

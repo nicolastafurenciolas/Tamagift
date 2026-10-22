@@ -96,7 +96,7 @@ function flower(x, y, r, col, i) {
 const FLOWER_COLS = ['#FF8FAB', '#FFD166', '#B8A1FF', '#8EE3C8', '#FFB38A'];
 
 // ── CABEZA ───────────────────────────────────────────────────────
-function head(id, g, c) {
+export function head(id, g, c) {
   const top = g.top;
   const sc = Math.max(0.8, Math.min(1.12, g.w / 144));
   switch (id) {
@@ -269,7 +269,7 @@ function head(id, g, c) {
 }
 
 // ── CUELLO ───────────────────────────────────────────────────────
-function neck(id, g, c, clip) {
+export function neck(id, g, c, clip) {
   const y = g.neckY;
   const L = g.l - 6, Rr = g.r + 6;
   const band = (th, sag, fill, extra = {}) => P(`M${L} ${y - th / 2} Q100 ${y - th / 2 + sag * 2} ${Rr} ${y - th / 2} L${Rr} ${y + th / 2} Q100 ${y + th / 2 + sag * 2} ${L} ${y + th / 2}Z`, { fill, stroke: OUT, 'stroke-width': 2.4, 'stroke-linejoin': 'round', 'data-r': 'part', ...extra });
@@ -360,7 +360,7 @@ function neck(id, g, c, clip) {
   }
 }
 
-function neckBack(id, g, c) {
+export function neckBack(id, g, c) {
   if (id !== 'capa') return '';
   // Capa de héroe que vuela hacia un costado: se lee como capa aunque la
   // mochi no tenga hombros.
@@ -370,7 +370,7 @@ function neckBack(id, g, c) {
 }
 
 // ── CARA ─────────────────────────────────────────────────────────
-function faceAcc(id, g, c, e) {
+export function faceAcc(id, g, c, e) {
   const L = 100 - e.dx, Rx = 100 + e.dx, y = e.y;
   switch (id) {
     case 'lentes': {
@@ -415,7 +415,7 @@ function faceAcc(id, g, c, e) {
   }
 }
 
-function faceUnder(id, g, c, e) {
+export function faceUnder(id, g, c, e) {
   const L = 100 - e.dx, Rx = 100 + e.dx, y = e.y;
   switch (id) {
     case 'pecas': {
