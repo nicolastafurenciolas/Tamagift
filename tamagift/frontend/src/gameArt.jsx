@@ -63,11 +63,28 @@ export function Car({ color = '#D8697F', flip = false }) {
 // ── Botón de Simón dice ────────────────────────────────────────────
 // Cada botón tiene FORMA propia además de color: así se distinguen aun
 // mirándolos de reojo, y no son cuatro cuadrados planos.
+// Flor de cinco pétalos redondos (la de antes, de cuatro lóbulos finos,
+// se leía como una X).
+function flowerPath(cx, cy, R, r, n = 5) {
+  const P = (ang, rad) => {
+    const t = (ang * Math.PI) / 180;
+    return `${(cx + Math.cos(t) * rad).toFixed(1)} ${(cy + Math.sin(t) * rad).toFixed(1)}`;
+  };
+  const step = 360 / n;
+  let d = `M${P(-90 - step / 2, r)}`;
+  for (let i = 0; i < n; i++) {
+    const a = -90 + i * step;
+    d += `C${P(a - step * 0.48, R * 1.22)} ${P(a + step * 0.48, R * 1.22)} ${P(a + step / 2, r)}`;
+  }
+  return `${d}Z`;
+}
+
 const PAD_SHAPES = {
   corazon: 'M32 50 C14 38 8 30 8 22 C8 15 13 10 19.5 10 C24.5 10 29 13 32 17.5 C35 13 39.5 10 44.5 10 C51 10 56 15 56 22 C56 30 50 38 32 50 Z',
   estrella: 'M32 8 L39.2 24.2 L56.5 26 L43.5 37.8 L47.4 55 L32 46 L16.6 55 L20.5 37.8 L7.5 26 L24.8 24.2 Z',
-  flor: 'M32 21 C32 13 26 9 21 12 C16 15 16.5 22 22.5 25 C16.5 27 15 34 20 37 C25 40 31 36.5 32 29 C33 36.5 39 40 44 37 C49 34 47.5 27 41.5 25 C47.5 22 48 15 43 12 C38 9 32 13 32 21 Z',
-  luna: 'M40 8 C27 10 18 20 18 32 C18 44 27 54 40 56 C29 52 23.5 43 23.5 32 C23.5 21 29 12 40 8 Z',
+  flor: flowerPath(32, 33, 25.5, 11),
+  // luna creciente gruesa: arco grande por fuera, mordida por dentro
+  luna: 'M45 9 A24 24 0 1 0 45 55 A27 27 0 0 1 45 9 Z',
 };
 
 export function SimonPad({ shape, color, lit, dim }) {
@@ -91,13 +108,10 @@ export function SimonPad({ shape, color, lit, dim }) {
       <path d="M11 16 Q20 6 34 6.5 Q24 11 18.5 21 Z" fill="#fff" opacity={lit ? 0.75 : 0.42} />
 
       {/* la figura */}
-      <path
-        d={PAD_SHAPES[shape]}
-        fill={lit ? '#FFFFFF' : 'rgba(255,255,255,0.9)'}
-        stroke={INK} strokeWidth="2.2" strokeLinejoin="round"
-        transform="translate(32 33) scale(0.62) translate(-32 -32)"
-        opacity={dim ? 0.55 : 1}
-      />
+      <g transform="translate(32 33) scale(0.62) translate(-32 -32)" opacity={dim ? 0.55 : 1}>
+        <path d={PAD_SHAPES[shape]} fill={lit ? '#FFFFFF' : 'rgba(255,255,255,0.9)'} stroke={INK} strokeWidth="2.2" strokeLinejoin="round" />
+        {shape === 'flor' && <circle cx="32" cy="33" r="8.5" fill={lit ? glow : color} stroke={INK} strokeWidth="2" />}
+      </g>
     </svg>
   );
 }

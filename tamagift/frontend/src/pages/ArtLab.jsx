@@ -59,7 +59,8 @@ function sets(name) {
     const paint = q.get('pintura') || 'natural';
     const cat = q.get('cat');
     const pet = innerOf(mochiSvg(FAMILY[0].r, 'normal'));
-    return FURNITURE_DEFS.filter((f) => !cat || f.cat === cat).map((f) => {
+    const ids = q.get('ids') ? q.get('ids').split(',') : null;
+    return FURNITURE_DEFS.filter((f) => (!cat || f.cat === cat) && (!ids || ids.includes(f.id))).map((f) => {
       const onWall = f.place === 'pared';
       const x = 190 - f.w / 2, y = (onWall ? 210 : f.layer === 'suelo' ? 418 : 404) - f.h + f.foot;
       const extra = `<g transform="translate(${x} ${y}) scale(${f.w / f.vw})">${innerOf(f.svg(paint))}</g><g transform="translate(330 224)">${pet}</g>`;
