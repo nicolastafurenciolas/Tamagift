@@ -116,6 +116,15 @@ estampados y 46 accesorios de cabeza, cuello y cara.
   su propia paleta en `art/pixel/` (`defArt`). Un SVG con
   `data-px-sprite="food.x"` se pinta en pixel con su dibujo hecho a
   mano.
+- **Temporadas** (`seasons.js`): fechas del año con cosas que solo se
+  venden esos días. Halloween va del 1 al 31 de octubre: disfraces y
+  accesorios en `art/mochi/wardrobe/halloween.js`, decoración en
+  `art/room/decorHalloween.js` (todo con `season: 'halloween'`), su
+  pestaña en la tienda (`components/game/SeasonShop.jsx`) y dos sucesos
+  (dulce o truco, fantasmitas). Lo comprado queda para siempre. En
+  desarrollo, `?temporada=halloween` o `?temporada=ninguna` fuerza una u
+  otra cara; en el laboratorio, `/arte?set=deco&temporada=halloween` y
+  `/arte?set=vestidor&temporada=halloween`.
 - **El mundo** (`world.js`): `phaseOf` (hora), `weatherOf` (clima del
   día), `tickVitals` (necesidades), `foodEffect` (comer). El cuarto
   recibe `world` y dibuja la noche, las luces y el clima en las

@@ -67,3 +67,22 @@ export function switchSvg(on) {
   s += face(rr(10, on ? 10 : 20, 10, 12, 2), on ? '#FFFFFF' : '#C9BFB0', { w: 1.4 });
   return piece(30, 42, s);
 }
+
+// Fantasmita de Halloween que flota por el cuarto (tres caritas).
+export function ghostSvg(i = 0) {
+  const v = i % 3;
+  let s = Ell(26, 58, 14, 3, { fill: '#2A1C24', opacity: 0.12, 'data-r': 'tone' });
+  s += part('M8 50 C4 34 6 14 18 8 C24 5 30 5 36 8 C48 14 50 34 46 50 Q42 46 38 50 Q34 46 29 50 Q25 46 21 50 Q16 46 12 50 Q10 48 8 50Z', '#FBF7FF', { w: 1.8 });
+  s += shade('M36 9 C46 15 48 32 45 48 Q42 46 40 48 C43 32 42 18 33 9Z', '#DCD4F0', 0.8);
+  s += part('M8 30 C2 28 0 34 3 37 C5 39 8 37 9 35Z', '#FBF7FF', { w: 1.5 }) + part('M46 30 C52 28 54 34 51 37 C49 39 46 37 45 35Z', '#FBF7FF', { w: 1.5 });
+  if (v === 1) {
+    s += line('M17 24 q3 -3 6 0 M31 24 q3 -3 6 0', INK, 1.8);
+  } else {
+    s += Ell(20, 24, 2.8, 3.6, { fill: INK, 'data-r': 'flat' }) + Ell(34, 24, 2.8, 3.6, { fill: INK, 'data-r': 'flat' });
+    s += Cir(21, 22.6, 1, { fill: '#FFFFFF', 'data-r': 'shine' }) + Cir(35, 22.6, 1, { fill: '#FFFFFF', 'data-r': 'shine' });
+  }
+  s += v === 2 ? part(ellD(27, 32, 2.6, 3.2), '#6A4258', { w: 1.1 }) : line('M24 31 q3 2.6 6 0', INK, 1.5);
+  s += Ell(15, 30, 3.4, 2, { fill: '#FFB6CC', opacity: 0.9, 'data-r': 'flat' }) + Ell(39, 30, 3.4, 2, { fill: '#FFB6CC', opacity: 0.9, 'data-r': 'flat' });
+  s += shine('M14 16 C16 12 19 10 22 9 C19 12 17 14 16 18Z', { opacity: 0.8 });
+  return piece(54, 62, s);
+}

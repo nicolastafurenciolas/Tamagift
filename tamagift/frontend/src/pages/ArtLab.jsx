@@ -53,7 +53,8 @@ function sets(name) {
   if (name === 'vestidor') {
     const slot = new URLSearchParams(window.location.search).get('slot') || 'ropa';
     const nuevos = new URLSearchParams(window.location.search).get('nuevos');
-    return WARDROBE.filter((w) => w.slot === slot && (!nuevos || !w.legacy)).map((w, i) => ({ name: w.label, r: { ...FAMILY[i % FAMILY.length].r, body: SHAPES[(i + 2) % 4].id, wear: { [slot]: { id: w.id } } } }));
+    const season = new URLSearchParams(window.location.search).get('temporada');
+    return WARDROBE.filter((w) => (season ? w.season === season : w.slot === slot) && (!nuevos || !w.legacy)).map((w, i) => ({ name: w.label, r: { ...FAMILY[i % FAMILY.length].r, body: SHAPES[(i + 2) % 4].id, wear: { [w.slot]: { id: w.id } } } }));
   }
   const q = new URLSearchParams(window.location.search);
   if (name === 'paredes2') {
@@ -87,7 +88,11 @@ function sets(name) {
   if (name === 'comida') return FOOD_SPRITES.map((f) => ({ name: f.id, markup: renderToStaticMarkup(f.render()), w: 100, h: 100 }));
   if (name === 'juegos') return GAME_ART_SET();
   if (name === 'cocina') return KITCHEN_ART_SET();
-  if (name === 'deco') return DECOR_DEFS.map((d) => ({ name: d.name, markup: d.svg(), w: d.w, h: d.h }));
+  if (name === 'deco') {
+    // &temporada=halloween: solo las de esa temporada
+    const season = q.get('temporada');
+    return DECOR_DEFS.filter((d) => !season || d.season === season).map((d) => ({ name: d.name, markup: d.svg(), w: d.w, h: d.h }));
+  }
   if (name === 'ui') return Object.entries(UI_SPRITES).map(([k, r]) => ({ name: k, markup: renderToStaticMarkup(r()), w: 90, h: 90 }));
   return FAMILY;
 }

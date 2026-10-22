@@ -7,6 +7,7 @@ import { rollEvent, endEvent, startEvent, EVENT_GAP } from './worldEvents.js';
 import { addDelivery, arriveAll, unpack, unpackAll, hasPendingTrip, parcelAtDoor } from './deliveries.js';
 import { chubOf } from './wardrobeState.js';
 import { foodKindOf } from './foodCatalog.js';
+import { activeSeason, seasonDaysLeft, seasonCountdown, onSale } from './seasons.js';
 
 let passed = 0;
 function test(name, fn) {
@@ -87,6 +88,48 @@ test('sucesos: primero el regalo del día, después la carta, y no se repiten el
   const r3 = rollEvent({ ...g, events: { ...g.events, nextAt: 0 } }, pet, { now, rnd: seq([0.5]) });
   assert.ok(!['regalo', 'carta'].includes(r3.type));
   assert.ok(g.events.nextAt >= now + EVENT_GAP * 0.69);
+});
+
+test('Halloween: del 1 al 31 de octubre, con cuenta regresiva', () => {
+  assert.equal(activeSeason(new Date(2026, 9, 1)).id, 'halloween');
+  assert.equal(activeSeason(new Date(2026, 9, 31, 23, 50)).id, 'halloween');
+  assert.equal(activeSeason(new Date(2026, 8, 30)), null);
+  assert.equal(activeSeason(new Date(2026, 10, 1)), null);
+  const hw = activeSeason(new Date(2026, 9, 22));
+  assert.equal(seasonDaysLeft(hw, new Date(2026, 9, 22, 21)), 10);
+  assert.equal(seasonCountdown(hw, new Date(2026, 9, 30)), 'Quedan 2 días');
+  assert.equal(seasonCountdown(hw, new Date(2026, 9, 31)), '¡Último día!');
+  assert.ok(onSale({ id: 'x' }, new Date(2026, 5, 1)));
+  assert.ok(onSale({ season: 'halloween' }, new Date(2026, 9, 5)));
+  assert.ok(!onSale({ season: 'halloween' }, new Date(2026, 10, 2)));
+});
+
+test('Halloween: la visita disfrazada viene una vez al día y los fantasmitas solo en temporada', () => {
+  const pet = { phrases: [], photos: [], food_preferences: [] };
+  const day = (d, h) => ({ now: new Date(2026, 9, d, h).getTime(), date: new Date(2026, 9, d, h) });
+  const done = (d) => ({ events: { lastDay: { regalo: `2026-10-${d}`, carta: `2026-10-${d}` } } });
+  const { now, date } = day(22, 20);
+  const ev = rollEvent(done(22), pet, { now, date, rnd: seq([0.3]) });
+  assert.equal(ev.type, 'dulceotruco');
+  assert.equal(ev.data.friend.wear.mano.id, 'cubetaDulces');
+  assert.ok(ev.data.friend.wear.ropa.id);
+  const after = endEvent(startEvent(done(22), ev), { now, date });
+  assert.equal(after.events.lastDay.dulceotruco, '2026-10-22');
+  const types = new Set();
+  for (let i = 0; i < 40; i++) {
+    const r = rollEvent({ ...after, events: { ...after.events, nextAt: 0 } }, pet, { now, date, rnd: seq([i / 40, 0.5]) });
+    if (r) types.add(r.type);
+  }
+  assert.ok(!types.has('dulceotruco'), 'una sola vez al día');
+  assert.ok(types.has('fantasmas'));
+  // en noviembre ya no
+  const nov = { now: new Date(2026, 10, 3, 20).getTime(), date: new Date(2026, 10, 3, 20) };
+  const novTypes = new Set();
+  for (let i = 0; i < 40; i++) {
+    const r = rollEvent({ events: { lastDay: { regalo: '2026-11-03', carta: '2026-11-03' } } }, pet, { ...nov, rnd: seq([i / 40, 0.5]) });
+    if (r) novTypes.add(r.type);
+  }
+  assert.ok(!novTypes.has('dulceotruco') && !novTypes.has('fantasmas'));
 });
 
 test('pedidos: llegan, se abren y lo comprado es tuyo', () => {

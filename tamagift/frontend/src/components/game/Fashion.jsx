@@ -58,7 +58,7 @@ function BuyButton({ owned, worn, pending, price, can, onBuy, onWear, wornLabel 
 }
 
 // ── Moda ─────────────────────────────────────────────────────────
-function FashionCard({ item, recipe, game, setGame, baseRecipe, coins, buy }) {
+export function FashionCard({ item, recipe, game, setGame, baseRecipe, coins, buy }) {
   const worn = wornNow(game, baseRecipe)[item.slot];
   const isWorn = !!worn && worn.id === item.id;
   const owned = ownsWear(game, baseRecipe, item.slot, item.id);
@@ -77,8 +77,8 @@ function FashionCard({ item, recipe, game, setGame, baseRecipe, coins, buy }) {
         <PetArt recipe={preview} mood="feliz" size={120} />
       </div>
       <div style={{ fontFamily: FONT.display, fontSize: 12.5, fontWeight: 700, color: C.ink, lineHeight: 1.15, margin: '6px 0 5px', minHeight: 29 }}>{item.label}</div>
-      {item.colors[0] && <Swatches colors={FABRIC_COLORS} value={c1} onPick={(v) => recolor('c1', v)} size={20} />}
-      {item.colors[1] && <div style={{ marginTop: 4 }}><Swatches colors={FABRIC_COLORS} value={c2} onPick={(v) => recolor('c2', v)} size={16} /></div>}
+      {item.colors[0] && <Swatches colors={item.palette || FABRIC_COLORS} value={c1} onPick={(v) => recolor('c1', v)} size={20} />}
+      {item.colors[1] && <div style={{ marginTop: 4 }}><Swatches colors={item.palette || FABRIC_COLORS} value={c2} onPick={(v) => recolor('c2', v)} size={16} /></div>}
       <BuyButton
         owned={owned} worn={isWorn} pending={pendingDelivery(game, 'ropa', `${item.slot}:${item.id}`)} price={item.price} can={coins >= item.price}
         onBuy={() => buy(item.price, (g) => addDelivery(g, { kind: 'ropa', refId: `${item.slot}:${item.id}`, label: item.label, wear: choice }))}
@@ -92,7 +92,8 @@ export function FashionShop({ game, setGame, coins, buy, baseLook }) {
   const [slot, setSlot] = useState('ropa');
   const baseRecipe = baseLook && baseLook.recipe;
   if (!baseRecipe) return <p style={{ fontSize: 12.5, color: C.inkSoft, textAlign: 'center' }}>Esta mascota se dibujó a mano, así que no usa la ropa de la tienda.</p>;
-  const items = WARDROBE.filter((w) => w.slot === slot);
+  // lo de temporada se vende en su propia pestaña (SeasonShop)
+  const items = WARDROBE.filter((w) => w.slot === slot && !w.season);
   return (
     <>
       <TabRow style={{ padding: '0 2px 8px' }}>
@@ -200,8 +201,8 @@ export function ClosetScreen({ game, setGame, baseLook, petName, onBack, onShop 
         {currentItem && currentItem.colors.length > 0 && (
           <div className="pg-card" style={{ padding: '8px 10px', marginBottom: 10 }}>
             <div style={{ fontFamily: FONT.display, fontSize: 11.5, fontWeight: 700, color: C.inkSoft, marginBottom: 5 }}>Color de {currentItem.label.toLowerCase()}</div>
-            <Swatches colors={FABRIC_COLORS} value={current.c1 || currentItem.colors[0]} onPick={(c) => setWear({ ...current, c1: c })} />
-            {currentItem.colors[1] && <div style={{ marginTop: 5 }}><Swatches colors={FABRIC_COLORS} value={current.c2 || currentItem.colors[1]} onPick={(c) => setWear({ ...current, c2: c })} size={18} /></div>}
+            <Swatches colors={currentItem.palette || FABRIC_COLORS} value={current.c1 || currentItem.colors[0]} onPick={(c) => setWear({ ...current, c1: c })} />
+            {currentItem.colors[1] && <div style={{ marginTop: 5 }}><Swatches colors={currentItem.palette || FABRIC_COLORS} value={current.c2 || currentItem.colors[1]} onPick={(c) => setWear({ ...current, c2: c })} size={18} /></div>}
           </div>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>

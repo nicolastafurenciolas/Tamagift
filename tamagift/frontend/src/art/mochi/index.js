@@ -54,7 +54,9 @@ export function mochiSvg(recipe = DEFAULT_MOCHI, mood = 'normal') {
   const c = colorsOf(r);
   const ears = renderEars(r.ears, g, c);
   const shift = ears.faceShift || { y: 0, dx: 0 };
-  const wear = renderWear(r, g, c, mood, { y: g.face.y + shift.y, dx: g.face.dx + (shift.dx || 0) });
+  // (la boca no se corre con los ojos: ver renderMouth más abajo)
+  const mouthY = g.face.mouthY + (ears.faceShift ? -4 : 0);
+  const wear = renderWear(r, g, c, mood, { y: g.face.y + shift.y, dx: g.face.dx + (shift.dx || 0), mouthY });
   const hair = renderHair(r.hair, g, c);
   const parts = [];
   parts.push(Ell(100, 185, g.w * 0.43, 6.5, { fill: '#2A1C30', opacity: 0.16, 'data-r': 'tone' }));
@@ -77,7 +79,7 @@ export function mochiSvg(recipe = DEFAULT_MOCHI, mood = 'normal') {
   parts.push(wear.under);
   parts.push(renderBrows(r.brows, g, mood, c, shift));
   parts.push(renderEyes(r.eyes, g, mood, c, shift, { brows: r.brows && r.brows !== 'ninguna' }));
-  parts.push(renderMouth(r.mouth, g, mood, c, { y: ears.faceShift ? -4 : 0 }));
+  parts.push(renderMouth(r.mouth, g, mood, c, { y: mouthY - g.face.mouthY }));
   parts.push(hair.top);
   parts.push(wear.front);
   parts.push(wear.hand);

@@ -574,6 +574,38 @@ minijuegos que den ganas de volver; rehacer la comida y los íconos
   neón el dock ya no corta "Alimentar"; la mascota "se siente tranquila"
   (el resto de los textos ya la trataban en femenino).
 
+## Halloween
+
+Del 1 al 31 de octubre (fecha del teléfono; `seasons.js`). Lo de
+temporada solo se compra esos días; lo comprado queda para siempre en el
+vestidor y en la decoración.
+
+- **Tienda**: mientras dura, la primera pestaña es "Halloween", con la
+  cuenta regresiva ("Quedan 10 días", "¡Último día!"), los disfraces y la
+  decoración. Fuera de temporada esa pestaña no aparece y esas cosas no
+  salen en Moda ni en Deco. Un puntito naranja en el botón de la tienda
+  avisa que hay temporada, y la mascota lo cuenta una vez al llegar.
+- **Disfraces y accesorios** (14): calabacita en la cabeza, diadema de
+  murciélago, sombrero de bruja con estrellas, antifaz de murciélago,
+  colmillitos de vampiro, collar de calabacitas, disfraz de calabaza,
+  disfraz de fantasmita (la sábana también tapa la cabeza), vestido de
+  brujita, pijama de esqueleto, capa de vampiro, cubeta de dulces,
+  escobita y piruleta embrujada. Se tiñen con una paleta de Halloween
+  (naranja, morado, negro…) seguida de los tonos de siempre.
+- **Decoración** (10): calabaza sonriente que brilla, montón de
+  calabazas, guirnalda de murciélagos, telaraña con arañita, fantasmita
+  de peluche, caldero de dulces, farolito embrujado, gatito negro de
+  peluche, banderín y escoba de bruja. Tiernas antes que tenebrosas.
+- **Sucesos**: una vez al día suena el timbre y llega una amiga
+  disfrazada con su cubeta: "¡Dulce o truco!". Darle un dulce saca uno de
+  la nevera (o cuesta 10 monedas) y deja caramelos o, a veces, una deco de
+  Halloween que llega en caja a la puerta; elegir truco apaga y prende la
+  luz y la mascota se asusta (y se ríe). Además salen fantasmitas
+  flotando por el cuarto (más de noche): atraparlos a todos da monedas.
+- El vestidor ahora recibe la altura real de la boca (`mouthY`; con
+  algunas orejas la boca no se corre junto con los ojos), así los
+  colmillos quedan justo debajo con cualquier oreja.
+
 ## Resumen de archivos tocados en toda la sesión
 
 **Backend:**

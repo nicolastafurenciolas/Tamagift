@@ -10,7 +10,7 @@ import {
 } from './kit.js';
 
 // Banda que sigue el escote (cuello del suéter, ribete).
-function neckBand(g, nl, w, fill) {
+export function neckBand(g, nl, w, fill) {
   const L = g.l - 10, R = g.r + 10;
   const c = nl.yc + (nl.yc - nl.ys) * 0.95;
   return part(`M${f(L)} ${f(nl.ys)} Q100 ${f(c)} ${f(R)} ${f(nl.ys)} L${f(R)} ${f(nl.ys + w)} Q100 ${f(c + w)} ${f(L)} ${f(nl.ys + w)}Z`, fill);
@@ -26,7 +26,7 @@ const half = (g, y) => g.chordAt(y) / 2;
 
 // Falda con vuelo desde `yW` hasta el borde de abajo, un poco más ancha
 // que el cuerpo; `scallop` la termina en ondas.
-function skirt(g, yW, fill, { flare = 9, scallop = 0, pleats = 0, hem = BOTTOM + 3 } = {}) {
+export function skirt(g, yW, fill, { flare = 9, scallop = 0, pleats = 0, hem = BOTTOM + 3 } = {}) {
   const hw = half(g, yW) + 1;
   const L = 100 - hw, R = 100 + hw;
   let bottom = '';

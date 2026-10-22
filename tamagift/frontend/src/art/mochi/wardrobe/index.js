@@ -27,6 +27,7 @@ import { NECK_ITEMS } from './neck.js';
 import { OUTFIT_ITEMS } from './outfit.js';
 import { BACK_ITEMS } from './back.js';
 import { HAND_ITEMS } from './hand.js';
+import { HALLOWEEN_WEAR } from './halloween.js';
 import { nid, T } from './kit.js';
 
 export const SLOTS = [
@@ -80,6 +81,8 @@ export const WARDROBE = [
   ...tag('ropa', OUTFIT_ITEMS),
   ...tag('espalda', BACK_ITEMS),
   ...tag('mano', HAND_ITEMS),
+  // de temporada (`season`): solo se venden esos días, ver seasons.js
+  ...HALLOWEEN_WEAR,
 ];
 
 export const findWearable = (slot, id) => WARDROBE.find((w) => w.slot === slot && w.id === id) || null;
@@ -88,6 +91,7 @@ export const findWearable = (slot, id) => WARDROBE.find((w) => w.slot === slot &
 const OUT_MAP = {
   alasHada: 42, alasAngel: 40, alasMurcielago: 38, alasMariposa: 42, mochila: 24, mochilaOso: 25, capaEstrellas: 14, caparazon: 12,
   velo: 22, flotador: 15, vestido: 11, maid: 9, lolita: 11, princesa: 17, tutu: 19, seifuku: 7,
+  capaVampiro: 18, disfrazFantasma: 13, vestidoBruja: 11,
 };
 const HAND_OUT = 32;
 
@@ -132,7 +136,7 @@ export function wearOverflow(r) {
 export function renderWear(r, g, c, mood, eyes) {
   const wear = resolveWear(r);
   const L = { back: '', outfit: '', neck: '', under: '', front: '', hand: '' };
-  const e = eyes || { y: g.face.y, dx: g.face.dx };
+  const e = eyes || { y: g.face.y, dx: g.face.dx, mouthY: g.face.mouthY };
   const colorsFor = (it, v) => {
     const base = r.accColor || r.accentColor || '#FF7FA8';
     const c1 = (v && v.c1) || (it.legacy ? base : it.colors[0]) || base;

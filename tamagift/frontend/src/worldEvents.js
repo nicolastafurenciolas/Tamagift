@@ -3,13 +3,17 @@
 // corto (ver DISENO_MUNDO_VIVO.md §3). Uno a la vez; como mucho uno cada
 // pocos minutos, y siempre algo al volver después de un rato.
 //
-//   game.events = { active, nextAt, lastDay: { regalo, carta, visita }, bugs: { id: n } }
+//   game.events = { active, nextAt, lastDay: { regalo, carta, visita, dulceotruco }, bugs: { id: n } }
+//
+// En Halloween (seasons.js) hay dos más: "dulce o truco" (una visita
+// disfrazada, una vez al día) y fantasmitas sueltos por el cuarto.
 //   active = { id, type, until, data }
 // ─────────────────────────────────────────────────────────────────
 
 import { todayKey } from './gameState.js';
 import { phaseOf } from './world.js';
 import { FOODS } from './foodCatalog.js';
+import { activeSeason } from './seasons.js';
 
 export const EVENT_GAP = 3.5 * 60 * 1000;         // entre un suceso y otro
 export const EVENT_FIRST = 25 * 1000;             // el primero, al entrar
@@ -43,9 +47,15 @@ export function rollEvent(game, pet, { now = Date.now(), rnd = Math.random, date
     return mk('carta', usePhoto ? { photo: pick(photos, rnd).url } : { text: pick(phrases, rnd).text }, 24 * 3600 * 1000);
   }
 
+  // Halloween: la visita disfrazada viene una vez al día, apenas pasa
+  // lo diario; los fantasmitas salen más de noche.
+  const halloween = (activeSeason(date) || {}).id === 'halloween';
+  if (halloween && last.dulceotruco !== today) return makeEvent('dulceotruco', game, pet, { now, rnd, date });
+
   const pool = [
     ['antojo', 3], ['bichito', 3], ['moneda', 2], ['hipo', 2],
     ...(last.visita !== today ? [['visita', 1.4]] : []),
+    ...(halloween ? [['fantasmas', phaseOf(date) === 'noche' ? 4 : 2]] : []),
   ];
   const total = pool.reduce((s, [, w]) => s + w, 0);
   let r = rnd() * total, type = pool[0][0];
@@ -84,6 +94,12 @@ export function makeEvent(type, game, pet, { now = Date.now(), rnd = Math.random
       return mk('hipo', { left: 3 }, 2 * 60 * 1000);
     case 'visita':
       return mk('visita', { friend: friendRecipe(rnd), gift: visitGift(rnd), line: pick(VISIT_LINES, rnd) }, 6 * 60 * 1000);
+    case 'dulceotruco':
+      return mk('dulceotruco', { friend: costumeRecipe(rnd), line: pick(TRICK_LINES, rnd) }, 8 * 60 * 1000);
+    case 'fantasmas':
+      return mk('fantasmas', {
+        ghosts: Array.from({ length: 5 }, (_, i) => ({ i, x: 200 + ((i + rnd()) / 5) * 1200, y: 50 + rnd() * 160, delay: rnd() * 1.6 })),
+      }, 3 * 60 * 1000);
     default:
       return null;
   }
@@ -140,12 +156,21 @@ function friendRecipe(rnd) {
   };
 }
 
+// La visita de Halloween: una amiga disfrazada con su cubeta de dulces.
+const TRICK_LINES = ['¡Dulce o truco!', '¡Dulce o truco! ¿Tienes un caramelito?', '¡Buuu! ¿Dulce o truco?'];
+function costumeRecipe(rnd) {
+  const r = friendRecipe(rnd);
+  const ropa = pick(['disfrazFantasma', 'disfrazCalabaza', 'vestidoBruja', 'pijamaEsqueleto'], rnd);
+  const cabeza = ropa === 'disfrazFantasma' ? null : pick(['sombreroEstrellas', 'calabacita', 'diademaMurcielago'], rnd);
+  return { ...r, hair: ropa === 'disfrazFantasma' ? 'ninguno' : r.hair, wear: { ropa: { id: ropa }, mano: { id: 'cubetaDulces' }, ...(cabeza ? { cabeza: { id: cabeza } } : {}) } };
+}
+
 // Cerrar un suceso: queda registrado y el próximo se agenda.
 export function endEvent(game, { now = Date.now(), date = new Date(now) } = {}) {
   const ev = game.events || {};
   const a = ev.active;
   const lastDay = { ...(ev.lastDay || {}) };
-  if (a && ['regalo', 'carta', 'visita'].includes(a.type)) lastDay[a.type] = todayKey(date);
+  if (a && ['regalo', 'carta', 'visita', 'dulceotruco'].includes(a.type)) lastDay[a.type] = todayKey(date);
   return { ...game, events: { ...ev, active: null, lastDay, nextAt: now + EVENT_GAP * (0.7 + Math.random() * 0.6) } };
 }
 

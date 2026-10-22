@@ -6,7 +6,7 @@ import PetArt from '../PetArt';
 import { play } from '../../sound';
 import { ROOM } from '../../gameState';
 import { UI_SPRITES, foodSpriteFor } from '../../sprites';
-import { BUG_ART, envelopeSvg, crumbSvg } from '../../art/room/world';
+import { BUG_ART, envelopeSvg, crumbSvg, ghostSvg } from '../../art/room/world';
 import { BUGS } from '../../worldEvents';
 import { findFood } from '../../foodCatalog';
 
@@ -29,7 +29,9 @@ function Tap({ x, y, w, h, onTap, label, children, className, style }) {
   );
 }
 
-export default function WorldEvents({ event, onResolve, onLetter, onHip }) {
+// `onTrickOrTreat('dulce' | 'truco')`: la respuesta a la visita de
+// Halloween (lo decide el juego, que sabe si hay dulces en la nevera).
+export default function WorldEvents({ event, onResolve, onLetter, onHip, onTrickOrTreat }) {
   const [gone, setGone] = useState(() => new Set());
   useEffect(() => { setGone(new Set()); }, [event && event.id]);
 
@@ -113,6 +115,40 @@ export default function WorldEvents({ event, onResolve, onLetter, onHip }) {
           </Tap>
         </>
       );
+    }
+    case 'dulceotruco':
+      return (
+        <>
+          {/* en un celular se ven ~320 de ancho alrededor de la mascota
+              (que espera en DOOR_SPOT + 60): la visita va delante de ella,
+              un poco a la izquierda, y todo entra en la pantalla */}
+          <div className="pg-anim-pop" style={{ position: 'absolute', left: 160, top: ROOM.H - 300, width: 222, zIndex: 5 }}>
+            <div style={{ background: C.glass, border: `1.5px solid ${C.amber}`, borderRadius: 14, padding: '7px 11px', boxShadow: SHADOW.soft, fontFamily: FONT.body, fontSize: 14, fontWeight: 700, color: C.ink, lineHeight: 1.3, textAlign: 'center' }}>
+              {d.line}
+            </div>
+            <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+              <button data-tap onClick={() => onTrickOrTreat('dulce')} className="pg-btn pg-btn-rose pg-focus" style={{ flex: 1, padding: '8px 6px', fontSize: 13 }}>Darle un dulce</button>
+              <button data-tap onClick={() => onTrickOrTreat('truco')} className="pg-btn pg-btn-ghost pg-focus" style={{ flex: 1, padding: '8px 6px', fontSize: 13 }}>¡Truco!</button>
+            </div>
+          </div>
+          <div style={{ position: 'absolute', left: 156, top: ROOM.H - 156, width: 140, height: 140, zIndex: 4, pointerEvents: 'none' }}>
+            <PetArt recipe={d.friend} mood="feliz" size={140} />
+          </div>
+        </>
+      );
+    case 'fantasmas': {
+      const left = (d.ghosts || []).filter((gh) => !gone.has(gh.i));
+      return left.map((gh) => (
+        <Tap key={gh.i} x={gh.x - 30} y={gh.y} w={60} h={68} label="Atrapar al fantasmita" className="pg-ghost" style={{ animationDelay: `${gh.delay}s` }}
+          onTap={() => {
+            play('pop');
+            const next = new Set(gone); next.add(gh.i); setGone(next);
+            if (next.size >= d.ghosts.length) onResolve({ coins: d.ghosts.length * 4 + 10, reason: 'fantasmitas atrapados', bubble: '¡Atrapaste a todos los fantasmitas!', react: 'happy' });
+          }}
+        >
+          <Sprite markup={ghostSvg(gh.i)} cacheKey={`ghost-${gh.i % 3}`} w={54} h={62} />
+        </Tap>
+      ));
     }
     default:
       return null;

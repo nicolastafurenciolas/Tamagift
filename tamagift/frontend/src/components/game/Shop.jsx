@@ -7,6 +7,8 @@ import Sprite from '../Sprite';
 import PetArt from '../PetArt';
 import { lookOf } from '../../petLook';
 import { DECOR_CATALOG } from '../../shopCatalog';
+import { seasonNow } from '../../seasons';
+import SeasonShop from './SeasonShop';
 import {
   FURNITURE, FURNITURE_CATEGORIES, WALL_STYLES, FLOOR_STYLES, FURNITURE_PAINTS,
   findWall, findFloor, wallSwatchSvg, floorSwatchSvg, ownsWall, ownsFloor,
@@ -120,7 +122,7 @@ function PlaceRow({ value, onChange }) {
 }
 
 // Adorno del catálogo: vista grande, pintura (si se puede) y compra.
-function DecorShopCard({ item, owned, pending, paint, canAfford, onBuy, onRepaint }) {
+export function DecorShopCard({ item, owned, pending, paint, canAfford, onBuy, onRepaint }) {
   const [choice, setChoice] = useState('natural');
   const active = owned ? (paint || 'natural') : choice;
   return (
@@ -343,7 +345,9 @@ export function RedesignScreen({ initialRecipe, onCancel, onSave, saving, error 
 }
 
 export default function ShopScreen({ coins, game, setGame, outfits, customDecor, posters, onBack, hasRedesign, onStartRedesign, baseLook, initialTab = 'moda', onStartWork = () => {} }) {
-  const [tab, setTab] = useState(initialTab);
+  // Temporada (Halloween…): su pestaña va primero mientras dura.
+  const season = seasonNow();
+  const [tab, setTab] = useState(initialTab === 'temporada' && !season ? 'moda' : initialTab);
   const [confirmingRedesign, setConfirmingRedesign] = useState(false);
 
   const buy = (cost, apply) => {
@@ -410,7 +414,7 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
     setGame((g) => ({ ...g, equippedOutfit: g.equippedOutfit === id ? null : id }));
   }
 
-  const TABS = [['moda', 'Moda'], ['peluqueria', 'Peluquería'], ['super', 'Súper'], ['muebles', 'Muebles'], ['decor', 'Deco'], ['pared', 'Pared'], ['piso', 'Piso'], ['posters', 'Pósters'], ['ropa', 'Trajes'], ['rediseño', 'Rediseño']];
+  const TABS = [...(season ? [['temporada', season.name]] : []), ['moda', 'Moda'], ['peluqueria', 'Peluquería'], ['super', 'Súper'], ['muebles', 'Muebles'], ['decor', 'Deco'], ['pared', 'Pared'], ['piso', 'Piso'], ['posters', 'Pósters'], ['ropa', 'Trajes'], ['rediseño', 'Rediseño']];
   const photoPosters = (posters || []).filter((p) => p.type === 'photo');
 
   return (
@@ -452,6 +456,12 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
           </div>
         ))}
 
+        {tab === 'temporada' && season && (
+          <SeasonShop
+            season={season} game={game} setGame={setGame} coins={coins} buy={buy} baseLook={baseLook}
+            onBuyDecor={buyDecor} onRepaintDecor={repaintDecor}
+          />
+        )}
         {tab === 'moda' && <FashionShop game={game} setGame={setGame} coins={coins} buy={buy} baseLook={baseLook} />}
         {tab === 'peluqueria' && <Salon game={game} setGame={setGame} coins={coins} buy={buy} baseLook={baseLook} />}
         {tab === 'super' && <SuperTab game={game} coins={coins} buy={buy} />}
@@ -490,7 +500,7 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
             <p style={{ fontFamily: FONT.display, fontSize: 12, fontWeight: 700, color: C.inkSoft, margin: '14px 0 8px' }}>Del catálogo</p>
             <PlaceRow value={place} onChange={setPlace} />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 9 }}>
-              {DECOR_CATALOG.filter((it) => place === 'todo' || it.place === place).map((item) => (
+              {DECOR_CATALOG.filter((it) => !it.season && (place === 'todo' || it.place === place)).map((item) => (
                 <DecorShopCard
                   key={item.id} item={item} owned={(game.ownedDecor || []).includes(item.id)} pending={pendingDelivery(game, 'decor', item.id)} paint={game.decorPaint?.[item.id]}
                   canAfford={coins >= item.price} onBuy={(paintId) => buyDecor(item.id, item.price, item.paintable ? paintId : null)} onRepaint={(paintId) => repaintDecor(item.id, paintId)}

@@ -109,18 +109,20 @@ export function MiniMeter({ kind, value, icon: Icon }) {
 }
 
 // Botón del dock de acciones de la pantalla principal.
-export function ActionButton({ icon: Icon, label, color, onClick, active, tut }) {
+// `badge`: color de un puntito de aviso (p. ej. que hay cosas de temporada).
+export function ActionButton({ icon: Icon, label, color, onClick, active, tut, badge }) {
   return (
     <button onClick={onClick} data-tut={tut} className="pg-focus" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flex: 1, minWidth: 0, padding: 0 }}>
       <span
         className="pg-card"
         style={{
-          width: 'min(54px, 100%)', aspectRatio: '1', borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          position: 'relative', width: 'min(54px, 100%)', aspectRatio: '1', borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
           background: active ? soft(color, 0.7) : C.surface,
           borderColor: active ? color : C.line,
         }}
       >
         <Icon size={27} color={color} stroke={2.1} />
+        {badge && <span className="pg-keep-round" style={{ position: 'absolute', top: -3, right: -3, width: 11, height: 11, borderRadius: '50%', background: badge, border: `2px solid ${C.surface}` }} />}
       </span>
       <span className="pg-dock-label" style={{ fontFamily: FONT.display, fontWeight: 700, fontSize: 11, color: C.ink, whiteSpace: 'nowrap', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
     </button>

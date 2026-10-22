@@ -51,6 +51,9 @@ import { IconBolt, IconDrop, IconFridge } from './icons';
 import { buildPosterList } from './game/posters';
 import { OpeningScreen, CinematicScreen, LoadErrorScreen } from './game/Scenes';
 import Tutorial, { TUTORIAL_STEPS, TUTORIAL_REWARD } from './game/Tutorial';
+import { seasonNow } from '../seasons';
+import { DECOR_CATALOG } from '../shopCatalog';
+import { pendingDelivery } from '../deliveries';
 
 // ─────────────────────────────────────────────────────────────────
 // El juego de quien recibe el regalo: el cuarto con la mascota, el
@@ -318,7 +321,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
     const ev = makeEvent(t, gameRef.current, pet);
     if (ev) {
       setGame((g) => startEvent({ ...g, events: { ...(g.events || {}), lastDay: { regalo: 'x', carta: 'x' } } }, ev));
-      if (t === 'visita' || t === 'carta') setTimeout(() => setSummon({ key: Date.now(), x: DOOR_SPOT + 60 }), 400);
+      if (t === 'visita' || t === 'carta' || t === 'dulceotruco') setTimeout(() => setSummon({ key: Date.now(), x: DOOR_SPOT + 60 }), 400);
     }
   }, [!!pet]); // eslint-disable-line react-hooks/exhaustive-deps
   function toggleLights() {
@@ -348,6 +351,51 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
   function tutorialSkip() {
     setGame((g) => ({ ...g, tutorial: 'listo' }));
     awardCoins(TUTORIAL_REWARD, 'bienvenida');
+  }
+
+  // ── Temporada (Halloween…) ────────────────────────────────────────
+  const season = seasonNow(clock);
+  const seasonKey = season ? `${season.id}-${clock.getFullYear()}` : null;
+  useEffect(() => {
+    if (!season || !opened || screen !== 'main' || tutorialActive || !guideReady) return;
+    if ((gameRef.current.seasonSeen || []).includes(seasonKey)) return;
+    setGame((g) => ({ ...g, seasonSeen: [...(g.seasonSeen || []), seasonKey] }));
+    later(() => setBubble({ text: `¡Llegó ${season.name}! Hasta ${season.until} hay disfraces y decoración en la tienda`, tone: 'gusta' }), 600);
+  }, [seasonKey, opened, screen, tutorialActive, guideReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Dulce o truco: la respuesta a la visita disfrazada.
+  const [flicker, setFlicker] = useState(0);
+  function handleTrickOrTreat(choice) {
+    const g = gameRef.current;
+    const ev = (g.events || {}).active;
+    if (!ev || ev.type !== 'dulceotruco') return;
+    if (choice === 'truco') {
+      play('bad');
+      setFlicker(Date.now());
+      setMood('sorprendido');
+      setBubble({ text: '¡Buuu! ¡Ay, qué susto!', tone: 'casual' });
+      later(() => { setBubble({ text: 'Jajaja, me asustó de verdad', tone: 'gusta' }); fireReaction('happy'); addVitals({ love: 3 }); }, 1600);
+      setGame((st) => endEvent(st));
+      return;
+    }
+    // el dulce sale de la nevera si hay; si no, se compra uno (10 monedas)
+    const sweet = Object.entries(g.fridge || {}).find(([id, n]) => n > 0 && (findFood(id) || {}).kind === 'dulce');
+    const paid = !sweet && g.coins >= 10 ? 10 : 0;
+    // a veces deja de regalo una deco de Halloween que todavía no tienes
+    const options = DECOR_CATALOG.filter((d) => d.season === 'halloween' && d.price <= 85 && !(g.ownedDecor || []).includes(d.id) && !pendingDelivery(g, 'decor', d.id));
+    const gift = options.length && Math.random() < 0.5 ? options[Math.floor(Math.random() * options.length)] : null;
+    play('buy');
+    setGame((st) => {
+      let next = endEvent(st);
+      if (sweet) next = { ...next, fridge: { ...(next.fridge || {}), [sweet[0]]: Math.max(0, ((next.fridge || {})[sweet[0]] || 0) - 1) } };
+      if (paid) next = { ...next, coins: Math.max(0, next.coins - paid) };
+      if (gift) next = addDelivery(next, { kind: 'decor', refId: gift.id, label: gift.name });
+      return next;
+    });
+    addVitals({ love: 8 });
+    fireReaction('love');
+    if (gift) setBubble({ text: `¡Gracias! Te dejó de regalo: ${gift.name.toLowerCase()}`, tone: 'gusta' });
+    else { awardCoins(20 + Math.floor(Math.random() * 4) * 5, 'dulce o truco'); setBubble({ text: '¡Feliz Halloween! Nos dejó caramelos', tone: 'gusta' }); }
   }
 
   // sueño: de noche y cansada lo pide
@@ -390,6 +438,8 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
       if (next.type === 'visita') { play('timbre'); setBubble({ text: '¡Din-don! Alguien vino a visitarte', tone: 'gusta' }); setSummon({ key: Date.now(), x: DOOR_SPOT + 60 }); }
       if (next.type === 'antojo') setBubble({ text: `Tengo antojo de ${next.data.food.name.toLowerCase()}…`, tone: 'gusta' });
       if (next.type === 'hipo') setBubble({ text: '¡Hip! … ¡hip! Tócame cuando salte', tone: 'casual' });
+      if (next.type === 'dulceotruco') { play('timbre'); setBubble({ text: '¡Din-don! Alguien disfrazado tocó la puerta…', tone: 'gusta' }); setSummon({ key: Date.now(), x: DOOR_SPOT + 60 }); }
+      if (next.type === 'fantasmas') setBubble({ text: '¡Hay fantasmitas sueltos por el cuarto! Atrápalos a todos', tone: 'gusta' });
       if (next.type === 'carta') { setBubble({ text: 'Mira, ¡llegó una carta por debajo de la puerta!', tone: 'gusta' }); setSummon({ key: Date.now(), x: DOOR_SPOT + 40 }); }
     };
     tick();
@@ -884,10 +934,11 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
               onPokePet={pokePet} reaction={reaction} cameraRef={cameraRef}
               parcel={parcelAtDoor(game)} onOpenParcel={() => { play('pop'); setUnboxOpen(true); }} summon={summon}
               world={{ phase, weather, lightsOff: asleep }} onToggleLights={toggleLights} asleep={asleep} cleanLevel={clean}
-              eventLayer={<WorldEvents event={(game.events || {}).active} onResolve={resolveEvent} onLetter={(l) => { setLetter(l); play('unbox'); }} onHip={() => { hipRef.current.at = Date.now(); play('pop'); fireReaction('happy'); setBubble({ text: '¡Hip!', tone: 'casual' }); }} />}
+              eventLayer={<WorldEvents event={(game.events || {}).active} onResolve={resolveEvent} onTrickOrTreat={handleTrickOrTreat} onLetter={(l) => { setLetter(l); play('unbox'); }} onHip={() => { hipRef.current.at = Date.now(); play('pop'); fireReaction('happy'); setBubble({ text: '¡Hip!', tone: 'casual' }); }} />}
               paintJob={paintJob} onPaintDone={(job) => { if (job) { setGame((g) => ({ ...g, [job.kind === 'pared' ? 'wall' : 'floor']: job.value })); fireReaction('happy'); setBubble({ text: job.kind === 'pared' ? '¡Quedó precioso!' : '¡Qué piso tan lindo!', tone: 'gusta' }); } setPaintJob(null); }}
               fullBleed extraReserved={(foodOpen && !decorating ? 104 : 0) + (musicOpen ? 66 : 0)}
             />
+            {flicker > 0 && <div key={flicker} className="pg-flicker" style={{ position: 'absolute', inset: 0, background: '#120C1E', pointerEvents: 'none', zIndex: 3 }} />}
             <div data-tut="meters" style={{ position: 'absolute', left: 12, top: 10, display: 'flex', flexDirection: 'column', gap: 5, pointerEvents: 'none', zIndex: 4 }}>
               <MiniMeter kind="hunger" value={hunger} icon={IconBowl} />
               <MiniMeter kind="love" value={love} icon={IconHeart} />
@@ -932,7 +983,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
             <ActionButton tut="dock-jugar" icon={IconBall} label="Jugar" color={C.amber} onClick={() => { play('swoosh'); setScreen('games'); }} />
             <ActionButton icon={IconShirt} label="Vestir" color={C.peach} onClick={() => { play('swoosh'); setScreen('closet'); }} />
             <ActionButton icon={IconFrame} label={decorating ? 'Listo' : 'Decorar'} color={C.sage} active={decorating} onClick={() => { play('pop'); setDecorating((v) => !v); setFoodOpen(false); }} />
-            <ActionButton tut="dock-tienda" icon={IconBag} label="Tienda" color={C.lavender} onClick={() => { play('swoosh'); setShopTab('moda'); setScreen('shop'); }} />
+            <ActionButton tut="dock-tienda" icon={IconBag} label="Tienda" color={C.lavender} badge={season ? season.color : null} onClick={() => { play('swoosh'); setShopTab(season ? 'temporada' : 'moda'); setScreen('shop'); }} />
           </div>
 
           {decorating && (
