@@ -59,6 +59,11 @@ export const DEFAULT_GAME_STATE = {
   // Partidas de hoy por juego ({ [gameId]: { day, n } }): repetir el
   // mismo juego muchas veces el mismo día paga menos.
   playsToday: {},
+  // ── Progreso de minijuegos (ver gameProgress.js) ───────────────
+  progress: {},          // { [juego]: { unlocked, stars } (niveles) | { rank, rankStars } (puntaje) }
+  challengesDone: {},    // { [juego]: 'AAAA-MM-DD' } día en que se cumplió su reto
+  seenGames: [],         // juegos ya abiertos alguna vez (los demás dicen "Nuevo")
+  cooked: {},            // { [idComida]: n } platos de la Cocina que aún no pasan a la nevera
   // ── Estado de la mascota en este dispositivo ───────────────────
   // Hambre y amor con la hora del último cálculo. Antes no se guardaban:
   // al recargar volvían a los valores del servidor (el amor siempre en

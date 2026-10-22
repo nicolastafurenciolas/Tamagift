@@ -4,6 +4,7 @@ import {
   IconHeart, IconCards, IconCookie, IconSparkle, IconPaw, IconCatch,
   IconPuzzle, IconMole, IconSnake, IconRoad, IconTower,
 } from '../icons';
+import { IconPot } from './gameIcons';
 
 // ─────────────────────────────────────────────────────────────────
 // Catálogo de minijuegos: lo que define a cada uno (cuánto paga, cuánto
@@ -15,23 +16,23 @@ import {
 
 export const GAME_META = {
   memoria: {
-    title: 'Encuentra las parejas', unit: 'movimientos', lowerIsBetter: true,
-    coins: (s) => Math.min(40, Math.max(12, 42 - s)), love: 10, done: '¡Las encontraste todas!',
+    title: 'Encuentra las parejas', unit: 'movimientos', lowerIsBetter: true, levels: true,
+    coins: (s, x) => (x && x.won ? 12 + (x.stars || 1) * 8 : 4), love: 10, done: '¡Las encontraste todas!',
   },
   atrapar: {
-    title: 'Atrapa la comida', unit: 'atrapadas',
-    coins: (s) => Math.min(45, Math.round(s * 1.6)), love: 8, done: '¡Buena atrapada!',
+    title: 'Atrapa la comida', unit: 'puntos',
+    coins: (s) => Math.min(50, Math.round(s * 1.1)), love: 8, done: '¡Buena atrapada!',
   },
   rompecabezas: {
-    title: 'Rompecabezas', unit: 'movimientos', lowerIsBetter: true,
-    coins: (s) => Math.min(55, Math.max(18, 85 - s)), love: 10, done: '¡Armaste la foto!',
+    title: 'Rompecabezas', unit: 'movimientos', lowerIsBetter: true, levels: true,
+    coins: (s, x) => (x && x.won ? 14 + (x.stars || 1) * 10 : 0), love: 10, done: '¡Armaste la foto!',
   },
   topos: {
-    title: 'Dale al que salga', unit: 'aciertos',
+    title: 'Dale al que salga', unit: 'puntos',
     coins: (s) => Math.min(45, Math.round(s * 1.5)), love: 5, done: '¡Qué reflejos!',
   },
   serpiente: {
-    title: 'Serpiente golosa', unit: 'comidas',
+    title: 'Serpiente golosa', unit: 'puntos',
     coins: (s) => Math.min(50, s * 2), love: 5, done: '¡Buena partida!',
   },
   cruzar: {
@@ -39,8 +40,8 @@ export const GAME_META = {
     coins: (s) => Math.min(50, s * 5), love: 6, done: '¡Lo lograste!',
   },
   torre: {
-    title: 'Torre de bloques', unit: 'pisos',
-    coins: (s) => Math.min(45, s * 2), love: 6, done: '¡Qué pulso!',
+    title: 'Torre de pastel', unit: 'puntos',
+    coins: (s) => Math.min(50, Math.round(s * 1.6)), love: 6, done: '¡Qué pulso!',
   },
   trivia: {
     // Las preguntas son siempre las mismas: después de la primera
@@ -58,16 +59,24 @@ export const GAME_META = {
     coins: (s) => Math.min(50, s * 4), love: 6, done: '¡Buen vuelo!',
   },
   golosinas: {
-    title: 'Conecta 3 golosinas', unit: 'golosinas',
-    coins: (s) => Math.min(55, Math.round(s * 0.9)), love: 8, done: '¡Qué combos!',
+    title: 'Conecta 3 golosinas', unit: 'puntos', levels: true,
+    coins: (s, x) => (x && x.won ? 12 + (x.stars || 1) * 10 : 4), love: 8, done: '¡Qué combos!',
+  },
+  cocina: {
+    title: 'Cocina', unit: 'puntos', levels: true,
+    coins: (s, x) => 8 + ((x && x.stars) || 0) * 8, love: 10, done: '¡Qué rico quedó!',
   },
 };
 
+// Juegos nuevos: llevan la etiqueta "Nuevo" hasta que se abren.
+export const NEW_GAMES = new Set(['cocina']);
+
 // Lista del menú. Los colores son tokens: cambian con el estilo.
 export const GAME_LIST = [
+  { id: 'cocina', desc: 'Recetas con tus manos', icon: IconPot, color: C.peach },
   { id: 'trivia', desc: 'Cuánto se conocen de verdad', icon: IconHeart, color: C.rose },
   { id: 'memoria', desc: 'Memoria con sus fotos', icon: IconCards, color: C.lavender },
-  { id: 'golosinas', desc: 'Junta 3 de sus comidas', icon: IconCookie, color: C.peach },
+  { id: 'golosinas', desc: '30 niveles dulces', icon: IconCookie, color: C.peach },
   { id: 'simon', desc: 'Repite la secuencia', icon: IconSparkle, color: C.amber },
   { id: 'volar', desc: 'Un toque para volar', icon: IconPaw, color: C.sky },
   { id: 'atrapar', desc: 'Muévete y atrápala', icon: IconCatch, color: C.amber },
@@ -106,10 +115,12 @@ export function useFinish(onComplete) {
     timers.current.push(t);
     return t;
   }, []);
-  const finish = useCallback((score, delay = 500) => {
+  // `extra` (opcional) viaja con el resultado: nivel, estrellas, lo que
+  // pasó en la partida (para los retos del día), platos cocinados…
+  const finish = useCallback((score, delay = 500, extra) => {
     if (done.current) return;
     done.current = true;
-    later(() => cb.current(score), delay);
+    later(() => cb.current(score, extra), delay);
   }, [later]);
   return { finish, later, done };
 }

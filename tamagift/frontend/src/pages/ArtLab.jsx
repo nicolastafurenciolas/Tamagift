@@ -12,6 +12,7 @@ import { WALLS, wallSvg } from '../art/room/walls';
 import { FLOORS, floorSvg } from '../art/room/floors';
 import { FURNITURE_DEFS } from '../art/room/furniture';
 import { DECOR_DEFS } from '../art/room/decor';
+import { GAME_ART_SET } from '../art/minigames';
 
 const innerOf = (svg) => svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
 // Un rincón del cuarto (pared + piso) a escala del juego.
@@ -75,6 +76,7 @@ function sets(name) {
   if (name === 'paredes') return sets('paredes2');
   if (name === 'pisos') return sets('pisos2');
   if (name === 'comida') return FOOD_SPRITES.map((f) => ({ name: f.id, markup: renderToStaticMarkup(f.render()), w: 100, h: 100 }));
+  if (name === 'juegos') return GAME_ART_SET();
   if (name === 'deco') return DECOR_DEFS.map((d) => ({ name: d.name, markup: d.svg(), w: d.w, h: d.h }));
   if (name === 'ui') return Object.entries(UI_SPRITES).map(([k, r]) => ({ name: k, markup: renderToStaticMarkup(r()), w: 90, h: 90 }));
   return FAMILY;
