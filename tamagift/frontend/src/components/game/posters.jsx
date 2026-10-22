@@ -2,6 +2,7 @@ import React from 'react';
 import Sprite from '../Sprite';
 import { UISprite } from './common';
 import { DEMO_POSTER_ART } from '../../sprites';
+import { POSTER } from '../../roomCatalog';
 
 // Pósters: las fotos que subió quien regaló para colgar en el cuarto.
 // La mascota de demostración trae tres dibujos de muestra.
@@ -14,6 +15,23 @@ export function buildPosterList(pet) {
     .map((p, i) => ({ id: p.id ?? `poster-${i}`, type: 'photo', url: p.url, price: p.price || 0 }));
   if (real.length) return real;
   return DEMO_POSTER_ART.map((d) => ({ ...d, type: 'demo', price: 0 }));
+}
+
+// El póster colgado: marco dibujado (cada estilo lo redibuja, se pinta
+// como un mueble) y la foto adentro. Con solo `h`, el ancho sale del marco.
+export function FramedPoster({ poster, paint = 'natural', w, h, pixel }) {
+  const W = Math.round(w || (h * POSTER.vw) / POSTER.vh);
+  const H = Math.round(h || (w * POSTER.vh) / POSTER.vw);
+  const k = W / POSTER.vw;
+  const ph = POSTER.photo;
+  return (
+    <div style={{ position: 'relative', width: W, height: H }}>
+      <Sprite markup={POSTER.svg(paint)} cacheKey={`poster-frame-${paint}`} w={W} h={H} pixel={pixel} />
+      <div style={{ position: 'absolute', left: ph.x * k, top: ph.y * k, width: ph.w * k, height: ph.h * k, overflow: 'hidden' }}>
+        <PosterArt poster={poster} w={Math.round(ph.w * k)} h={Math.round(ph.h * k)} />
+      </div>
+    </div>
+  );
 }
 
 // Contenido de un póster a un tamaño dado. Las fotos pasan por el

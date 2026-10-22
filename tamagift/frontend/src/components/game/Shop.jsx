@@ -13,7 +13,7 @@ import {
   findWall, findFloor, wallSwatchSvg, floorSwatchSvg, ownsWall, ownsFloor,
 } from '../../roomCatalog';
 import { ModularPetStep, useDesignerState } from '../PetDesigner';
-import { PosterArt } from './posters';
+import { FramedPoster } from './posters';
 
 export const REDESIGN_COST = 1000;
 
@@ -90,6 +90,35 @@ function PaintRow({ value, onPick }) {
           }}
         />
       ))}
+    </div>
+  );
+}
+
+// Póster: se ve enmarcado y el marco se pinta antes (o después) de comprar.
+function PosterShopCard({ poster, owned, paint, canAfford, onBuy, onRepaint }) {
+  const [choice, setChoice] = useState('natural');
+  const active = owned ? (paint || 'natural') : choice;
+  const price = poster.price || 0;
+  const can = owned || canAfford;
+  return (
+    <div className="pg-card" style={{ padding: 10, display: 'flex', flexDirection: 'column', alignItems: 'stretch', minWidth: 0 }}>
+      <div style={{ height: 150, borderRadius: 12, background: C.paperDeep, border: `1.5px solid ${C.line}`, display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
+        <FramedPoster poster={poster} paint={active} h={136} />
+      </div>
+      <PaintRow value={active} onPick={(id) => (owned ? onRepaint(id) : setChoice(id))} />
+      <button
+        onClick={() => { if (!owned) onBuy(active); }} disabled={!can || owned} className="pg-focus"
+        style={{
+          marginTop: 8, padding: '7px 6px', borderRadius: 999, fontFamily: FONT.display, fontSize: 12, fontWeight: 700,
+          cursor: owned || !can ? 'default' : 'pointer',
+          background: owned ? C.surfaceAlt : can ? C.rose : C.track,
+          color: owned ? C.inkSoft : can ? C.onAccent : C.inkFaint,
+          border: `1.5px solid ${owned ? C.line : can ? C.rose : C.track}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+        }}
+      >
+        {owned ? 'Tuyo' : <><IconCoin size={12} color={can ? C.onAccent : C.inkFaint} /> {price}</>}
+      </button>
     </div>
   );
 }
@@ -349,9 +378,16 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
     if ((game.ownedDecor || []).map(String).includes(String(id))) return;
     buy(price, (g) => ({ ...g, ownedDecor: [...(g.ownedDecor || []), id] }));
   }
-  function buyPoster(p) {
+  function buyPoster(p, paintId) {
     if ((game.ownedPosters || []).includes(p.id)) return;
-    buy(p.price || 0, (g) => ({ ...g, ownedPosters: [...(g.ownedPosters || []), p.id] }));
+    buy(p.price || 0, (g) => ({ ...g, ownedPosters: [...(g.ownedPosters || []), p.id], posterPaint: { ...(g.posterPaint || {}), [p.id]: paintId || 'natural' } }));
+  }
+  function repaintPoster(p, paintId) {
+    setGame((g) => ({
+      ...g,
+      posterPaint: { ...(g.posterPaint || {}), [p.id]: paintId },
+      placed: (g.placed || []).map((it) => (it.kind === 'poster' && String(it.refId) === String(p.id) ? { ...it, paint: paintId } : it)),
+    }));
   }
   function applyWall(value) { play('place'); setGame((g) => ({ ...g, wall: value })); }
   function applyFloor(value) { play('place'); setGame((g) => ({ ...g, floor: value })); }
@@ -398,15 +434,21 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
             <IconFrame size={28} color={C.lavender} />
             <p style={{ fontSize: 12.5, color: C.inkSoft, margin: '10px 0 0' }}>Quien te regaló esta mascota no subió fotos para pósters</p>
           </div>
-        ) : photoPosters.map((p) => {
-          const owned = !p.price || (game.ownedPosters || []).includes(p.id);
-          return (
-            <ShopItemCard
-              key={p.id} image={<PosterArt poster={p} w={52} h={52} />} name="Póster" price={p.price || 0} owned={owned}
-              canAfford={coins >= (p.price || 0)} actionLabel={owned ? 'Tuyo' : 'Comprar'} onAction={() => buyPoster(p)}
-            />
-          );
-        }))}
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+            {photoPosters.map((p) => {
+              const owned = !p.price || (game.ownedPosters || []).includes(p.id);
+              // si ya cuelga en el cuarto, se muestra con el color de ahí
+              const placed = (game.placed || []).find((it) => it.kind === 'poster' && String(it.refId) === String(p.id));
+              return (
+                <PosterShopCard
+                  key={p.id} poster={p} owned={owned} paint={(placed && placed.paint) || game.posterPaint?.[p.id]}
+                  canAfford={coins >= (p.price || 0)} onBuy={(paintId) => buyPoster(p, paintId)} onRepaint={(paintId) => repaintPoster(p, paintId)}
+                />
+              );
+            })}
+          </div>
+        ))}
 
         {tab === 'accesorios' && <AccessoriesTab game={game} setGame={setGame} coins={coins} buy={buy} baseLook={baseLook} />}
 

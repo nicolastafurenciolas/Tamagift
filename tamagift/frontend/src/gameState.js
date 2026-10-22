@@ -33,6 +33,7 @@ export const DEFAULT_GAME_STATE = {
   ownedOutfits: [],     // ids ESTABLES (Outfit.id del backend) de las prendas que se poseen
   ownedFurniture: [],   // ids de muebles comprados
   furniturePaint: {},   // { [idMueble]: idColorFURNITURE_PAINTS }, elegido antes de comprar
+  posterPaint: {},      // { [idPóster]: idColorFURNITURE_PAINTS } del marco
   ownedWalls: ['liso'],    // diseños de pared comprados (el color se elige gratis)
   ownedFloors: ['tablas'],
   equippedOutfit: null, // id ESTABLE de la prenda puesta, o null

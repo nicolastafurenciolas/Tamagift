@@ -4,7 +4,7 @@ import Pet from './Pet';
 import Sprite from './Sprite';
 import { useStyle } from '../styles/StyleContext';
 import { getMotion } from '../styles/motion';
-import { PosterArt } from './game/posters';
+import { FramedPoster } from './game/posters';
 import { ROOM } from '../gameState';
 import { findFurniture, findWall, findFloor, wallSvg, floorSvg, FURNITURE_PAINTS, POSTER } from '../roomCatalog';
 import { findDecor } from '../shopCatalog';
@@ -223,18 +223,7 @@ function renderPlacedContent(item, posters, customDecor, pixel) {
   if (item.kind === 'poster') {
     const p = (posters || []).find((x) => String(x.id) === String(item.refId));
     if (!p) return null;
-    // marco dibujado (cada estilo lo redibuja) y la foto adentro
-    const paint = item.paint || 'natural';
-    const k = sw / POSTER.vw;
-    const ph = POSTER.photo;
-    return (
-      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-        <Sprite markup={POSTER.svg(paint)} cacheKey={`poster-frame-${paint}`} w={sw} h={sh} pixel={pixel} />
-        <div style={{ position: 'absolute', left: ph.x * k, top: ph.y * k, width: ph.w * k, height: ph.h * k, overflow: 'hidden' }}>
-          <PosterArt poster={p} w={Math.round(ph.w * k)} h={Math.round(ph.h * k)} />
-        </div>
-      </div>
-    );
+    return <FramedPoster poster={p} paint={item.paint || 'natural'} w={sw} h={sh} pixel={pixel} />;
   }
   // decoración: primero la que subió quien regaló, si no la del catálogo
   const custom = (customDecor || []).find((d) => String(d.id) === String(item.refId));
@@ -471,7 +460,8 @@ export default function Room({
                   key={pt.id} title={pt.name} aria-label={`Pintar ${pt.name}`} className="pg-focus pg-keep-round"
                   onClick={() => {
                     updateSel(setGame, sel.key, (it) => ({ ...it, paint: pt.id }));
-                    if (sel.kind === 'mueble') setGame((g) => ({ ...g, furniturePaint: { ...(g.furniturePaint || {}), [sel.refId]: pt.id } }));
+                    const field = sel.kind === 'mueble' ? 'furniturePaint' : 'posterPaint';
+                    setGame((g) => ({ ...g, [field]: { ...(g[field] || {}), [sel.refId]: pt.id } }));
                   }}
                   style={{
                     width: 26, height: 26, flexShrink: 0, borderRadius: '50%', padding: 0, cursor: 'pointer',

@@ -56,7 +56,7 @@ export default function DecorTrays({ posters, customDecor, game, setGame, camera
         ...defaultPlacement(kind, refId, posters, customDecor, {
           centerX: cameraRef ? cameraRef.current : ROOM.W / 2,
           placed: g.placed || [],
-          paint: kind === 'mueble' ? (g.furniturePaint?.[refId] || 'natural') : 'natural',
+          paint: (kind === 'mueble' ? g.furniturePaint?.[refId] : kind === 'poster' ? g.posterPaint?.[refId] : null) || 'natural',
         }),
       }],
     }));
