@@ -107,10 +107,13 @@ export function SimonPad({ shape, color, lit, dim }) {
       {/* brillo superior: lo que la hace ver de vidrio y no plana */}
       <path d="M11 16 Q20 6 34 6.5 Q24 11 18.5 21 Z" fill="#fff" opacity={lit ? 0.75 : 0.42} />
 
-      {/* la figura */}
-      <g transform="translate(32 33) scale(0.62) translate(-32 -32)" opacity={dim ? 0.55 : 1}>
+      {/* la figura (en pixel art, su versión hecha a mano: simétrica) */}
+      <g transform="translate(32 33) scale(0.62) translate(-32 -32)" opacity={dim ? 0.55 : 1} data-skip="pixel">
         <path d={PAD_SHAPES[shape]} fill={lit ? '#FFFFFF' : 'rgba(255,255,255,0.9)'} stroke={INK} strokeWidth="2.2" strokeLinejoin="round" />
         {shape === 'flor' && <circle cx="32" cy="33" r="8.5" fill={lit ? glow : color} stroke={INK} strokeWidth="2" />}
+      </g>
+      <g data-only="pixel" data-px={`pad.${shape}`}>
+        <rect x="12" y="13" width="40" height="40" fill="#FFFFFF" opacity="0" />
       </g>
     </svg>
   );
@@ -146,7 +149,7 @@ export function Candy({ type = 0, label }) {
   }[shape];
 
   return (
-    <svg viewBox="0 0 64 64" width="100%" height="100%" style={{ display: 'block' }} role="img" aria-label={label}>
+    <svg viewBox="0 0 64 64" width="100%" height="100%" style={{ display: 'block' }} role="img" aria-label={label} data-px-sprite={`candy.${type % CANDY_SHAPES.length}`}>
       <defs>
         <radialGradient id={gid} cx="34%" cy="26%" r="80%">
           <stop offset="0%" stopColor={light} />

@@ -9,6 +9,7 @@
 
 import { FOOD_PIXELS } from './pixel/food.js';
 import { UI_PIXELS } from './pixel/ui.js';
+import { GAME_PIXELS } from './pixel/game.js';
 
 const S = {};
 const def = (name, sizes) => { S[name] = sizes.map((rows) => ({ rows: typeof rows === 'string' ? rows.trim().split(/\s+/) : rows })).sort((a, b) => a.rows.length - b.rows.length); };
@@ -110,7 +111,7 @@ export function defArt(name, pal, sizes) {
 export const artStampSizes = (name) => ART[name] || null;
 
 // Los dibujos hechos a mano viven en art/pixel/ (uno por tema).
-[FOOD_PIXELS, UI_PIXELS].forEach((group) => {
+[FOOD_PIXELS, UI_PIXELS, GAME_PIXELS].forEach((group) => {
   Object.entries(group).forEach(([name, v]) => defArt(name, v.pal, v.sizes));
 });
 

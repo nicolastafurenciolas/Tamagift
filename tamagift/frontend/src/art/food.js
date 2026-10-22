@@ -51,11 +51,11 @@ const FOOD = {
   },
   banano: () => {
     let s = ground(33, 56, 22);
-    s += part('M9 19C11 35 23 49 41 49C49 49 55 45 58 39C55 41 50 43 44 42C30 41 19 31 15 17C14 13 10 14 9 19Z', '#F6C945');
-    s += line('M15 23C19 35 29 43 43 44', '#D59B1E', 2, { opacity: 0.9 });
-    s += shine('M11 21C12 28 15 34 20 39C15 35 12 29 11 21Z', { opacity: 0.7 });
-    s += part('M8 18L8 12C8 10 12 10 12 12L13 16Z', '#5A2F20', { w: 1.8 });
-    s += Cir(57.5, 39.5, 1.8, { fill: '#5A2F20', 'data-r': 'flat' });
+    s += part('M8 18C9 38 22 54 41 54C50 54 56 49 59 40C55 43 49 45 43 44C29 43 18 32 15 16C14 12 9 12 8 18Z', '#F6C945');
+    s += line('M14 24C18 38 28 47 42 49', '#D59B1E', 2, { opacity: 0.9 });
+    s += shine('M10 21C11 30 14 37 20 43C14 38 11 31 10 21Z', { opacity: 0.7 });
+    s += part('M8 18L8 11C8 9 12 9 12 11L14 16Z', '#5A2F20', { w: 1.8 });
+    s += Cir(58.5, 40.5, 1.8, { fill: '#5A2F20', 'data-r': 'flat' });
     return s;
   },
   sandia: () => {
@@ -146,13 +146,16 @@ const FOOD = {
     // media luna acostada: el doblez atrás y el borde curvo con repulgue
     s += part('M5 24C12 20 22 18 32 18C42 18 52 20 59 24C60 38 49 50 32 50C15 50 4 38 5 24Z', '#E8B05E');
     s += shine('M12 26C18 23 26 22 32 22C25 24 18 27 14 31Z', { opacity: 0.6 });
+    // repulgue: un cordón más tostado por todo el borde curvo, con las
+    // marcas del tenedor
+    s += line('M8 27C9 38 19 47 32 47C45 47 55 38 56 27', '#D29A4A', 5);
     let crimp = '';
-    for (let i = 0; i <= 12; i++) {
-      const a = Math.PI * (0.06 + 0.88 * (i / 12));
-      const x = 32 - Math.cos(a) * 25.5, y = 25 + Math.sin(a) * 22;
-      crimp += Ell(x, y, 2.2, 1.5, { fill: '#C58A3E', transform: `rotate(${(a * 180) / Math.PI - 90} ${x.toFixed(1)} ${y.toFixed(1)})`, 'data-r': 'flat' });
+    for (let i = 0; i <= 14; i++) {
+      const a = Math.PI * (0.04 + 0.92 * (i / 14));
+      const c = Math.cos(a), sn = Math.sin(a);
+      crimp += `M${(32 - c * 22).toFixed(1)} ${(26 + sn * 18).toFixed(1)}L${(32 - c * 26).toFixed(1)} ${(26 + sn * 22.6).toFixed(1)}`;
     }
-    s += crimp;
+    s += line(crimp, '#9A5A34', 1.6);
     [[26, 32], [36, 31], [31, 39]].forEach(([x, y]) => { s += dot(x, y, 1.4, '#C58A3E'); });
     return s;
   },
@@ -235,16 +238,17 @@ const FOOD = {
     return s;
   },
   tacos: () => {
-    let s = ground(32, 58, 25);
-    // la mitad de atrás de la tortilla asoma detrás del relleno
-    s += part('M7 22A25 25 0 0 0 57 22Z', '#E3B04A');
-    [[14, 21], [22, 17], [32, 16], [42, 17], [50, 21]].forEach(([x, y]) => { s += ball(x, y, 6, '#4FA358', 1.8); });
-    [[19, 22], [34, 21], [46, 23]].forEach(([x, y]) => { s += ball(x, y, 3.2, '#E23B4E', 1.6); });
-    s += flat('M10 25C20 22 44 22 54 25L54 28L10 28Z', '#7A3A1E');
-    [[25, 25], [38, 25]].forEach(([x, y]) => { s += flat(`M${x} ${y}h6v2h-6Z`, '#FFE08A'); });
-    s += part('M5 27A27 27 0 0 0 59 27Z', '#F6C945');
-    [[20, 38], [34, 44], [44, 36], [26, 49]].forEach(([x, y]) => { s += dot(x, y, 1.6, '#D59B1E'); });
-    s += shine('M9 31C10 38 14 44 19 48C13 45 9 39 9 31Z', { opacity: 0.6 });
+    let s = ground(32, 59, 25);
+    // tortilla doblada de lado: la mitad de atrás asoma detrás del relleno
+    // y la de adelante sube en dos puntas (no un borde recto de tazón)
+    s += part('M8 14C8 30 19 42 32 42C45 42 56 30 56 14C48 20 40 22 32 22C24 22 16 20 8 14Z', '#E3B04A');
+    [[13, 22], [21, 19], [30, 18], [39, 18], [48, 20], [53, 24]].forEach(([x, y]) => { s += ball(x, y, 5.6, '#4FA358', 1.8); });
+    [[18, 25], [33, 24], [45, 25]].forEach(([x, y]) => { s += ball(x, y, 3, '#E23B4E', 1.6); });
+    s += flat('M10 27C20 25 44 25 54 27L54 31L10 31Z', '#7A3A1E');
+    [[24, 27], [37, 27]].forEach(([x, y]) => { s += flat(`M${x} ${y}h6v2h-6Z`, '#FFE08A'); });
+    s += part('M4 21C4 42 17 57 32 57C47 57 60 42 60 21C51 29 42 32 32 32C22 32 13 29 4 21Z', '#F6C945');
+    [[18, 41], [33, 47], [45, 40], [25, 51]].forEach(([x, y]) => { s += dot(x, y, 1.6, '#D59B1E'); });
+    s += shine('M8 29C9 38 13 45 19 50C12 46 8 39 8 29Z', { opacity: 0.6 });
     return s;
   },
   pizza: () => {
