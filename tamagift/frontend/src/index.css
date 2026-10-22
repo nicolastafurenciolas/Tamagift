@@ -530,3 +530,15 @@ input::placeholder, textarea::placeholder { color: var(--pg-c-inkFaint); }
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
 }
+
+/* Pedidos: la caja en la puerta salta para que la veas, y tiembla al
+   abrirla. */
+@keyframes pg-parcel-hop {
+  0%, 70%, 100% { transform: translateY(0) scale(1, 1); }
+  78% { transform: translateY(0) scale(1.06, 0.92); }
+  86% { transform: translateY(-10px) scale(0.96, 1.05); }
+  94% { transform: translateY(0) scale(1.04, 0.96); }
+}
+.pg-parcel { animation: pg-parcel-hop 1.8s ease-in-out infinite; transform-origin: 50% 100%; }
+.pg-wiggle { animation: pg-wiggle 0.3s ease-in-out infinite; }
+[data-style="pixel"] .pg-parcel { animation-timing-function: steps(2); }

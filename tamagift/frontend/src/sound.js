@@ -306,6 +306,9 @@ const SOUNDS = {
   // cambio de pantalla
   swoosh: () => noise({ dur: 0.24, gain: 0.12, freq: 500, q: 0.6, sweep: 1400 }),
   // cambiar de estilo: un acorde que se abre
+  // Din-don del timbre (dos notas que bajan) y caja que se abre.
+  timbre: () => { note({ freq: 880, dur: 0.32, gain: 0.3 }); note({ freq: 698, dur: 0.5, gain: 0.3, delay: 0.3 }); },
+  unbox: () => { noise({ dur: 0.18, gain: 0.14, freq: 900, q: 0.8, sweep: 600 }); [784, 988, 1175, 1568].forEach((f, i) => note({ freq: f, dur: 0.12, gain: 0.22, delay: 0.12 + i * 0.06 })); crackle(0.6); },
   style: () => { [392, 523, 659, 784].forEach((f, i) => note({ freq: f, dur: 0.26, gain: 0.22, delay: i * 0.05 })); },
 };
 

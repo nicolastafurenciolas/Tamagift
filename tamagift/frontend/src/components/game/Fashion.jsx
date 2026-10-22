@@ -10,6 +10,7 @@ import {
   ownsWear, ownedInSlot, wornNow, ownsHair, ownsHairColor, applyLook,
 } from '../../wardrobeState';
 import { ShopTab, TabRow } from './Shop';
+import { addDelivery, pendingDelivery } from '../../deliveries';
 
 // ─────────────────────────────────────────────────────────────────
 // Moda, peluquería y el vestidor.
@@ -54,11 +55,11 @@ function Pill({ children, tone = C.lavender }) {
   return <span style={{ fontFamily: FONT.display, fontSize: 9.5, fontWeight: 700, color: tone, border: `1px solid ${tone}`, borderRadius: 999, padding: '1px 6px', whiteSpace: 'nowrap' }}>{children}</span>;
 }
 
-function BuyButton({ owned, worn, price, can, onBuy, onWear, wornLabel = 'Quitármelo' }) {
-  const label = worn ? wornLabel : owned ? 'Ponérmelo' : null;
+function BuyButton({ owned, worn, pending, price, can, onBuy, onWear, wornLabel = 'Quitármelo' }) {
+  const label = pending ? 'En camino' : worn ? wornLabel : owned ? 'Ponérmelo' : null;
   return (
     <button
-      onClick={owned ? onWear : onBuy} disabled={!owned && !can} className="pg-focus"
+      onClick={pending ? undefined : owned ? onWear : onBuy} disabled={pending || (!owned && !can)} className="pg-focus"
       style={{
         marginTop: 7, width: '100%', padding: '7px 6px', borderRadius: 999, fontFamily: FONT.display, fontSize: 12, fontWeight: 700,
         cursor: !owned && !can ? 'default' : 'pointer',
@@ -99,8 +100,8 @@ function FashionCard({ item, recipe, game, setGame, baseRecipe, coins, buy }) {
       {item.colors[0] && <Swatches colors={FABRIC_COLORS} value={c1} onPick={(v) => recolor('c1', v)} size={20} />}
       {item.colors[1] && <div style={{ marginTop: 4 }}><Swatches colors={FABRIC_COLORS} value={c2} onPick={(v) => recolor('c2', v)} size={16} /></div>}
       <BuyButton
-        owned={owned} worn={isWorn} price={item.price} can={coins >= item.price}
-        onBuy={() => buy(item.price, (g) => ({ ...g, ownedWear: [...(g.ownedWear || []), `${item.slot}:${item.id}`], wear: { ...(g.wear || {}), [item.slot]: choice } }), { kind: 'ropa', slot: item.slot, id: item.id })}
+        owned={owned} worn={isWorn} pending={pendingDelivery(game, 'ropa', `${item.slot}:${item.id}`)} price={item.price} can={coins >= item.price}
+        onBuy={() => buy(item.price, (g) => addDelivery(g, { kind: 'ropa', refId: `${item.slot}:${item.id}`, label: item.label, wear: choice }))}
         onWear={() => { play(isWorn ? 'pop' : 'place'); setWear(isWorn ? { id: 'ninguno' } : choice); }}
       />
     </div>

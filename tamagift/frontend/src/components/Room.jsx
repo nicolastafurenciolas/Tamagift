@@ -8,6 +8,13 @@ import { FramedPoster } from './game/posters';
 import { ROOM } from '../gameState';
 import { findFurniture, findWall, findFloor, wallSvg, floorSvg, FURNITURE_PAINTS, POSTER } from '../roomCatalog';
 import { findDecor } from '../shopCatalog';
+import { doorSvg, doormatSvg, parcelSvg, DOOR } from '../art/room/door';
+
+// La puerta de entrada vive a la izquierda del cuarto: nada se puede poner
+// encima (los pedidos y las visitas llegan por ahí).
+export const DOOR_X = 34;
+export const DOOR_ZONE = 176;      // hasta dónde llega la zona de la puerta
+export const DOOR_SPOT = 252;      // dónde se para la mascota a abrir
 
 // ─────────────────────────────────────────────────────────────────
 // El cuarto.
@@ -78,7 +85,8 @@ export function stepPet(p, dt, rnd = Math.random) {
     const absd = Math.abs(dist);
     // Acelera al arrancar y frena al llegar. Sin esto el paseo se ve
     // robótico: arranque instantáneo y parada seca.
-    const wanted = WALK_SPEED * clamp(absd / 70, 0.25, 1);
+    // corre cuando la llaman (el timbre, una visita)
+    const wanted = WALK_SPEED * (p.rush ? 3.4 : 1) * clamp(absd / 70, 0.25, 1);
     p.speed += (wanted - p.speed) * Math.min(1, dt * 4);
     p.x += dir * p.speed * dt;
     p.phase += dt * (p.speed / WALK_SPEED) * 7.5;
@@ -86,7 +94,8 @@ export function stepPet(p, dt, rnd = Math.random) {
       p.x = p.target;
       p.state = 'idle';
       p.speed = 0;
-      p.timer = 2.6 + rnd() * 6.5;
+      p.timer = p.rush ? 7 : 2.6 + rnd() * 6.5;
+      p.rush = false;
       // A veces se queda mirando para el otro lado.
       if (rnd() < 0.35) p.facing = -p.facing;
     }
@@ -238,6 +247,11 @@ export default function Room({
   petName, mood, look, posters, customDecor,
   game, setGame, editing, onPokePet, reaction, cameraRef, fullBleed = false,
   extraReserved = 0,   // alto que ocupan paneles abiertos debajo (comida, música)
+  parcel = false,      // hay una caja en la puerta
+  onOpenParcel,
+  summon = null,       // { key, x }: la mascota camina hasta x (p. ej. a abrir la puerta)
+  paintJob = null,     // { kind: 'pared'|'piso', value, key }: obra en curso
+  onPaintDone,
 }) {
   const viewportRef = useRef(null);
   const worldRef = useRef(null);
@@ -327,6 +341,23 @@ export default function Room({
     return () => cancelAnimationFrame(raf);
   }, [worldViewW, maxCam, editing, paint, zoom, walk]);
 
+  // Obra: por ahora se aplica de una (el modo de pintar con el dedo va en
+  // PaintJob).
+  useEffect(() => {
+    if (paintJob && onPaintDone) onPaintDone(paintJob);
+  }, [paintJob && paintJob.key]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Que vaya a algún lado (al timbre, a recibir una visita).
+  useEffect(() => {
+    if (!summon) return;
+    const p = pet.current;
+    p.target = clamp(summon.x, ROOM.PET_W * 0.5, ROOM.W - ROOM.PET_W * 0.5);
+    p.state = 'walk';
+    p.rush = true;
+    p.facing = p.target > p.x ? 1 : -1;
+    cam.current.manualUntil = 0;
+  }, [summon && summon.key]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Guarda dónde quedó la mascota al salir, para que no reaparezca
   // siempre en el mismo sitio.
   useEffect(() => () => {
@@ -338,7 +369,7 @@ export default function Room({
     if (drag.current) return;
     // Si se tocó a la mascota, el clic tiene que llegarle a ella: capturar
     // el puntero aquí se lo robaba y con mouse no se podía acariciar.
-    if (!editing && e.target.closest && e.target.closest('[data-pet-button]')) return;
+    if (!editing && e.target.closest && e.target.closest('[data-pet-button],[data-tap]')) return;
     viewportRef.current.setPointerCapture(e.pointerId);
     drag.current = { mode: 'cam', x0: e.clientX, cam0: cam.current.x, moved: 0 };
   }, [editing]);
@@ -379,7 +410,9 @@ export default function Room({
   // Se dibujan de atrás hacia adelante: primero las alfombras (siempre
   // debajo de todo), después muebles y cuadros según qué tan adelante
   // estén, y al final lo chico que va encima de los muebles.
-  const sorted = [...placed].sort((a, b) => layerOf(a) - layerOf(b) || a.y - b.y);
+  // (las partidas de antes de la puerta pueden tener algo encima de ella:
+  // se muestra corrido, y al moverlo queda guardado en su sitio)
+  const sorted = [...placed].map((it) => (it.x < DOOR_ZONE + 60 ? clampPlacement(it, posters, customDecor) : it)).sort((a, b) => layerOf(a) - layerOf(b) || a.y - b.y);
   const sel = placed.find((p) => p.key === selected) || null;
 
   return (
@@ -410,12 +443,29 @@ export default function Room({
           <Floor value={findFloor(game.floor).value} pixel={pixel} />
           <Ambience styleId={style.id} layer="back" />
 
+          {/* puerta de entrada y su tapete (fijos) */}
+          <div style={{ position: 'absolute', left: DOOR_X, top: ROOM.FLOOR_Y + 6 - DOOR.h, width: DOOR.w, height: DOOR.h, pointerEvents: 'none' }}>
+            <Sprite markup={doorSvg()} cacheKey="door" w={DOOR.w} h={DOOR.h} pixel={pixel} />
+          </div>
+          <div style={{ position: 'absolute', left: DOOR_X - 12, top: ROOM.FLOOR_Y + 4, width: 140, height: 44, pointerEvents: 'none' }}>
+            <Sprite markup={doormatSvg()} cacheKey="doormat" w={140} h={44} pixel={pixel} />
+          </div>
+
           {sorted.map((item) => (
             <PlacedItem
               key={item.key} item={item} posters={posters} customDecor={customDecor}
               selected={selected === item.key} editing={editing} onPointerDown={onItemPointerDown} pixel={pixel}
             />
           ))}
+
+          {parcel && (
+            <button
+              data-tap onClick={onOpenParcel} aria-label="Abrir el pedido" className="pg-parcel"
+              style={{ position: 'absolute', left: DOOR_X + 4, top: ROOM.H - 104, width: 100, height: 96, padding: 0, border: 'none', background: 'none', cursor: 'pointer', zIndex: 2 }}
+            >
+              <Sprite markup={parcelSvg(false)} cacheKey="parcel-closed" w={100} h={96} pixel={pixel} />
+            </button>
+          )}
 
           {/* La mascota va siempre delante de los muebles: por eso los
               muebles quedan pegados al fondo del piso. */}
@@ -533,7 +583,7 @@ export function clampPlacement(item, posters, customDecor) {
   const d = item.kind === 'decor' ? findDecor(item.refId) : null;
   const onWall = item.kind === 'poster' || (f && f.place === 'pared');
   const anywhere = d && d.place === 'sobre';   // encima de una mesa, una repisa…
-  const x = clamp(item.x, sw / 2 + 8, ROOM.W - sw / 2 - 8);
+  const x = clamp(item.x, DOOR_ZONE + sw / 2, ROOM.W - sw / 2 - 8);
   let y;
   if (onWall) y = clamp(item.y, ROOM.WALL_PAD + sh, ROOM.FLOOR_Y - 14);
   else if (anywhere) y = clamp(item.y, ROOM.WALL_PAD + sh, ROOM.H - 30);

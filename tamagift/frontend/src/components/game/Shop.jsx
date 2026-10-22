@@ -15,6 +15,7 @@ import { VIBES } from '../../art/mochi';
 import { ModularPetStep, useDesignerState } from '../PetDesigner';
 import { FramedPoster } from './posters';
 import { FashionShop, Salon } from './Fashion';
+import { addDelivery, pendingDelivery } from '../../deliveries';
 
 export const REDESIGN_COST = 1000;
 
@@ -115,7 +116,7 @@ export function VibeRow({ items, value, onChange }) {
 const byVibe = (vibe) => (it) => vibe === 'todo' || vibesOf(it).includes(vibe);
 
 // Adorno del catálogo: vista grande, pintura (si se puede) y compra.
-function DecorShopCard({ item, owned, paint, canAfford, onBuy, onRepaint }) {
+function DecorShopCard({ item, owned, pending, paint, canAfford, onBuy, onRepaint }) {
   const [choice, setChoice] = useState('natural');
   const active = owned ? (paint || 'natural') : choice;
   return (
@@ -127,7 +128,7 @@ function DecorShopCard({ item, owned, paint, canAfford, onBuy, onRepaint }) {
       <div style={{ fontSize: 10.5, color: C.inkFaint, lineHeight: 1.2 }}>{item.place === 'sobre' ? 'Va encima de muebles o colgado' : 'Va en el piso'}</div>
       {item.paintable && <PaintRow value={active} onPick={(id) => (owned ? onRepaint(id) : setChoice(id))} />}
       <button
-        onClick={() => { if (!owned) onBuy(active); }} disabled={owned || !canAfford} className="pg-focus"
+        onClick={() => { if (!owned && !pending) onBuy(active); }} disabled={owned || pending || !canAfford} className="pg-focus"
         style={{
           marginTop: 7, padding: '7px 6px', borderRadius: 999, fontFamily: FONT.display, fontSize: 12, fontWeight: 700,
           cursor: owned || !canAfford ? 'default' : 'pointer',
@@ -137,14 +138,14 @@ function DecorShopCard({ item, owned, paint, canAfford, onBuy, onRepaint }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
         }}
       >
-        {owned ? 'Tuyo' : <><IconCoin size={12} color={canAfford ? C.onAccent : C.inkFaint} /> {item.price}</>}
+        {pending ? 'En camino' : owned ? 'Tuyo' : <><IconCoin size={12} color={canAfford ? C.onAccent : C.inkFaint} /> {item.price}</>}
       </button>
     </div>
   );
 }
 
 // Póster: se ve enmarcado y el marco se pinta antes (o después) de comprar.
-function PosterShopCard({ poster, owned, paint, canAfford, onBuy, onRepaint }) {
+function PosterShopCard({ poster, owned, pending, paint, canAfford, onBuy, onRepaint }) {
   const [choice, setChoice] = useState('natural');
   const active = owned ? (paint || 'natural') : choice;
   const price = poster.price || 0;
@@ -156,7 +157,7 @@ function PosterShopCard({ poster, owned, paint, canAfford, onBuy, onRepaint }) {
       </div>
       <PaintRow value={active} onPick={(id) => (owned ? onRepaint(id) : setChoice(id))} />
       <button
-        onClick={() => { if (!owned) onBuy(active); }} disabled={!can || owned} className="pg-focus"
+        onClick={() => { if (!owned && !pending) onBuy(active); }} disabled={!can || owned || pending} className="pg-focus"
         style={{
           marginTop: 8, padding: '7px 6px', borderRadius: 999, fontFamily: FONT.display, fontSize: 12, fontWeight: 700,
           cursor: owned || !can ? 'default' : 'pointer',
@@ -166,13 +167,13 @@ function PosterShopCard({ poster, owned, paint, canAfford, onBuy, onRepaint }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
         }}
       >
-        {owned ? 'Tuyo' : <><IconCoin size={12} color={can ? C.onAccent : C.inkFaint} /> {price}</>}
+        {pending ? 'En camino' : owned ? 'Tuyo' : <><IconCoin size={12} color={can ? C.onAccent : C.inkFaint} /> {price}</>}
       </button>
     </div>
   );
 }
 
-function FurnitureShopCard({ item, owned, ownedPaint, canAfford, onBuy, onRepaint }) {
+function FurnitureShopCard({ item, owned, pending, ownedPaint, canAfford, onBuy, onRepaint }) {
   const [choice, setChoice] = useState('natural');
   const activePaint = owned ? (ownedPaint || 'natural') : choice;
   return (
@@ -193,7 +194,7 @@ function FurnitureShopCard({ item, owned, ownedPaint, canAfford, onBuy, onRepain
           )}
         </div>
         <button
-          onClick={() => onBuy(choice)} disabled={owned || !canAfford} className="pg-focus"
+          onClick={() => onBuy(choice)} disabled={owned || pending || !canAfford} className="pg-focus"
           style={{
             padding: '8px 13px', borderRadius: 999, fontFamily: FONT.display, fontSize: 12, fontWeight: 700,
             cursor: owned || !canAfford ? 'default' : 'pointer',
@@ -202,7 +203,7 @@ function FurnitureShopCard({ item, owned, ownedPaint, canAfford, onBuy, onRepain
             border: `1.5px solid ${owned ? C.line : !canAfford ? C.track : C.rose}`, whiteSpace: 'nowrap', flexShrink: 0,
           }}
         >
-          {owned ? 'Comprado' : 'Comprar'}
+          {pending ? 'En camino' : owned ? 'Comprado' : 'Comprar'}
         </button>
       </div>
       <PaintRow value={activePaint} onPick={(id) => (owned ? onRepaint(id) : setChoice(id))} />
@@ -212,7 +213,7 @@ function FurnitureShopCard({ item, owned, ownedPaint, canAfford, onBuy, onRepain
 
 // Una pared o un piso: el diseño con todos sus colores. Comprar el
 // diseño deja usar cualquiera de sus colores.
-function SurfaceCard({ pattern, kind, owned, current, canAfford, onBuy, onApply }) {
+function SurfaceCard({ pattern, kind, owned, pending, current, canAfford, onBuy, onApply }) {
   const curTint = current && current.pattern.id === pattern.id ? current.tint.id : pattern.tints[0].id;
   const [tint, setTint] = useState(curTint);
   const value = `${pattern.id}.${tint}`;
@@ -228,11 +229,11 @@ function SurfaceCard({ pattern, kind, owned, current, canAfford, onBuy, onApply 
           <div style={{ fontFamily: FONT.display, fontSize: 14, fontWeight: 700, color: C.ink }}>{pattern.name}</div>
           <div style={{ fontSize: 11.5, color: C.inkFaint, lineHeight: 1.25, marginTop: 1 }}>{pattern.tints.length} colores · {(pattern.tints.find((t) => t.id === tint) || pattern.tints[0]).name}</div>
           <div style={{ fontSize: 12, color: C.inkSoft, display: 'flex', alignItems: 'center', gap: 4 }}>
-            {!owned && <IconCoin size={13} color={C.amber} />} {owned ? (inUse ? 'Puesto' : 'Tuyo') : pattern.price ? `${pattern.price} monedas` : 'Gratis'}
+            {!owned && !pending && <IconCoin size={13} color={C.amber} />} {pending ? 'Llega en tu próximo pedido' : owned ? (inUse ? 'Puesto' : 'Tuyo · elige color y ponlo') : pattern.price ? `${pattern.price} monedas` : 'Gratis'}
           </div>
         </div>
         <button
-          onClick={() => (owned ? onApply(value) : onBuy(value))} disabled={inUse || (!owned && !canAfford)} className="pg-focus"
+          onClick={() => (owned ? onApply(value) : onBuy(value))} disabled={inUse || pending || (!owned && !canAfford)} className="pg-focus"
           style={{
             padding: '8px 13px', borderRadius: 999, fontFamily: FONT.display, fontSize: 12, fontWeight: 700,
             cursor: inUse || (!owned && !canAfford) ? 'default' : 'pointer',
@@ -241,14 +242,14 @@ function SurfaceCard({ pattern, kind, owned, current, canAfford, onBuy, onApply 
             border: `1.5px solid ${inUse ? C.sage : owned ? C.line : !canAfford ? C.track : C.rose}`, whiteSpace: 'nowrap', flexShrink: 0,
           }}
         >
-          {inUse ? 'Puesto' : owned ? 'Poner' : 'Comprar'}
+          {inUse ? 'Puesto' : pending ? 'En camino' : owned ? (kind === 'pared' ? 'Pintar' : 'Enchapar') : 'Comprar'}
         </button>
       </div>
       <div className="pg-scroll-x" style={{ display: 'flex', gap: 6, marginTop: 10, overflowX: 'auto', paddingBottom: 2 }}>
         {pattern.tints.map((t) => (
           <button
             key={t.id} title={t.name} aria-label={t.name} className="pg-focus pg-keep-round"
-            onClick={() => { play('pop'); setTint(t.id); if (owned) onApply(`${pattern.id}.${t.id}`); }}
+            onClick={() => { play('pop'); setTint(t.id); }}
             style={{
               width: 26, height: 26, flexShrink: 0, borderRadius: '50%', padding: 0, cursor: 'pointer',
               background: t.c.length > 1 ? `linear-gradient(135deg, ${t.c[0]} 50%, ${t.c[1]} 50%)` : t.c[0],
@@ -300,7 +301,7 @@ export function RedesignScreen({ initialRecipe, onCancel, onSave, saving, error 
   );
 }
 
-export default function ShopScreen({ coins, game, setGame, outfits, customDecor, posters, onBack, hasRedesign, onStartRedesign, baseLook, initialTab = 'moda' }) {
+export default function ShopScreen({ coins, game, setGame, outfits, customDecor, posters, onBack, hasRedesign, onStartRedesign, baseLook, initialTab = 'moda', onStartWork = () => {} }) {
   const [tab, setTab] = useState(initialTab);
   const [confirmingRedesign, setConfirmingRedesign] = useState(false);
 
@@ -321,16 +322,14 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
     }));
   }
   function buyFurniture(item, paintId) {
-    if ((game.ownedFurniture || []).includes(item.id)) return;
-    buy(item.price, (g) => ({
-      ...g,
-      ownedFurniture: [...(g.ownedFurniture || []), item.id],
-      furniturePaint: { ...(g.furniturePaint || {}), [item.id]: paintId || 'natural' },
-    }));
+    if ((game.ownedFurniture || []).includes(item.id) || pendingDelivery(game, 'mueble', item.id)) return;
+    buy(item.price, (g) => addDelivery(g, { kind: 'mueble', refId: item.id, label: item.name, paint: paintId || 'natural' }));
   }
   function buyDecor(id, price, paintId) {
     if ((game.ownedDecor || []).map(String).includes(String(id))) return;
-    buy(price, (g) => ({ ...g, ownedDecor: [...(g.ownedDecor || []), id], ...(paintId ? { decorPaint: { ...(g.decorPaint || {}), [id]: paintId } } : {}) }));
+    if (pendingDelivery(game, 'decor', id)) return;
+    const name = (DECOR_CATALOG.find((d) => d.id === id) || (customDecor || []).find((d) => String(d.id) === String(id)) || {}).name || 'Decoración';
+    buy(price, (g) => addDelivery(g, { kind: 'decor', refId: id, label: name, ...(paintId ? { paint: paintId } : {}) }));
   }
   function repaintDecor(id, paintId) {
     setGame((g) => ({
@@ -340,8 +339,8 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
     }));
   }
   function buyPoster(p, paintId) {
-    if ((game.ownedPosters || []).includes(p.id)) return;
-    buy(p.price || 0, (g) => ({ ...g, ownedPosters: [...(g.ownedPosters || []), p.id], posterPaint: { ...(g.posterPaint || {}), [p.id]: paintId || 'natural' } }));
+    if ((game.ownedPosters || []).includes(p.id) || pendingDelivery(game, 'poster', p.id)) return;
+    buy(p.price || 0, (g) => addDelivery(g, { kind: 'poster', refId: p.id, label: 'Póster', paint: paintId || 'natural' }));
   }
   function repaintPoster(p, paintId) {
     setGame((g) => ({
@@ -350,15 +349,16 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
       placed: (g.placed || []).map((it) => (it.kind === 'poster' && String(it.refId) === String(p.id) ? { ...it, paint: paintId } : it)),
     }));
   }
-  function applyWall(value) { play('place'); setGame((g) => ({ ...g, wall: value })); }
-  function applyFloor(value) { play('place'); setGame((g) => ({ ...g, floor: value })); }
+  // Pintar y enchapar se hace en el cuarto, con el dedo (ver PaintJob).
+  function applyWall(value) { play('pop'); onStartWork({ kind: 'pared', value }); }
+  function applyFloor(value) { play('pop'); onStartWork({ kind: 'piso', value }); }
   function buyWall(pattern, value) {
     if (ownsWall(game, pattern.id)) { applyWall(value); return; }
-    buy(pattern.price, (g) => ({ ...g, ownedWalls: [...(g.ownedWalls || []), pattern.id], wall: value }));
+    buy(pattern.price, (g) => addDelivery(g, { kind: 'pared', refId: pattern.id, value, label: `Pintura: ${pattern.name}` }));
   }
   function buyFloor(pattern, value) {
     if (ownsFloor(game, pattern.id)) { applyFloor(value); return; }
-    buy(pattern.price, (g) => ({ ...g, ownedFloors: [...(g.ownedFloors || []), pattern.id], floor: value }));
+    buy(pattern.price, (g) => addDelivery(g, { kind: 'piso', refId: pattern.id, value, label: `Piso: ${pattern.name}` }));
   }
   function buyOutfit(outfit) {
     if ((game.ownedOutfits || []).includes(outfit.id)) return;
@@ -403,7 +403,7 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
               const placed = (game.placed || []).find((it) => it.kind === 'poster' && String(it.refId) === String(p.id));
               return (
                 <PosterShopCard
-                  key={p.id} poster={p} owned={owned} paint={(placed && placed.paint) || game.posterPaint?.[p.id]}
+                  key={p.id} poster={p} owned={owned} pending={pendingDelivery(game, 'poster', p.id)} paint={(placed && placed.paint) || game.posterPaint?.[p.id]}
                   canAfford={coins >= (p.price || 0)} onBuy={(paintId) => buyPoster(p, paintId)} onRepaint={(paintId) => repaintPoster(p, paintId)}
                 />
               );
@@ -424,7 +424,7 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
             <VibeRow items={FURNITURE} value={vibe} onChange={setVibe} />
             {FURNITURE.filter((it) => (cat === 'todo' || it.cat === cat) && byVibe(vibe)(it)).map((item) => (
               <FurnitureShopCard
-                key={item.id} item={item} owned={(game.ownedFurniture || []).includes(item.id)} ownedPaint={game.furniturePaint?.[item.id]}
+                key={item.id} item={item} owned={(game.ownedFurniture || []).includes(item.id)} pending={pendingDelivery(game, 'mueble', item.id)} ownedPaint={game.furniturePaint?.[item.id]}
                 canAfford={coins >= item.price} onBuy={(paintId) => buyFurniture(item, paintId)} onRepaint={(paintId) => repaintFurniture(item, paintId)}
               />
             ))}
@@ -451,7 +451,7 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 9 }}>
               {DECOR_CATALOG.filter(byVibe(vibe)).map((item) => (
                 <DecorShopCard
-                  key={item.id} item={item} owned={(game.ownedDecor || []).includes(item.id)} paint={game.decorPaint?.[item.id]}
+                  key={item.id} item={item} owned={(game.ownedDecor || []).includes(item.id)} pending={pendingDelivery(game, 'decor', item.id)} paint={game.decorPaint?.[item.id]}
                   canAfford={coins >= item.price} onBuy={(paintId) => buyDecor(item.id, item.price, item.paintable ? paintId : null)} onRepaint={(paintId) => repaintDecor(item.id, paintId)}
                 />
               ))}
@@ -461,14 +461,14 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
 
         {tab === 'pared' && WALL_STYLES.map((w) => (
           <SurfaceCard
-            key={w.id} pattern={w} kind="pared" owned={ownsWall(game, w.id)} current={findWall(game.wall)}
+            key={w.id} pattern={w} kind="pared" owned={ownsWall(game, w.id)} pending={pendingDelivery(game, 'pared', w.id)} current={findWall(game.wall)}
             canAfford={coins >= w.price} onBuy={(value) => buyWall(w, value)} onApply={applyWall}
           />
         ))}
 
         {tab === 'piso' && FLOOR_STYLES.map((f) => (
           <SurfaceCard
-            key={f.id} pattern={f} kind="piso" owned={ownsFloor(game, f.id)} current={findFloor(game.floor)}
+            key={f.id} pattern={f} kind="piso" owned={ownsFloor(game, f.id)} pending={pendingDelivery(game, 'piso', f.id)} current={findFloor(game.floor)}
             canAfford={coins >= f.price} onBuy={(value) => buyFloor(f, value)} onApply={applyFloor}
           />
         ))}

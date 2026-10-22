@@ -6,7 +6,7 @@ import {
   loadGameState, saveGameState, ROOM, registerPlay, isDailyBonusReady, isNewRecord,
   DAILY_BONUS_MULTIPLIER, playsTodayFor,
 } from '../gameState';
-import Room from './Room';
+import Room, { defaultPlacement, DOOR_SPOT } from './Room';
 import MusicBar from './MusicBar';
 import Sprite from './Sprite';
 import StylePicker from './StylePicker';
@@ -36,6 +36,9 @@ import Bathroom, { PET_CENTER } from './game/Bathroom';
 import ShopScreen, { RedesignScreen, REDESIGN_COST } from './game/Shop';
 import DecorTrays from './game/DecorTrays';
 import { ClosetScreen } from './game/Fashion';
+import DeliveryModal from './game/Delivery';
+import { hasPendingTrip, parcelAtDoor, arriveAll, unpack, unpackAll } from '../deliveries';
+import { newPlacementKey } from '../gameState';
 import { buildPosterList } from './game/posters';
 import { OpeningScreen, CinematicScreen, LoadErrorScreen } from './game/Scenes';
 
@@ -137,6 +140,10 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
   const [coinToast, setCoinToast] = useState(null);
   const [gameResult, setGameResult] = useState(null);
   const [shopTab, setShopTab] = useState('moda');
+  // Pedidos y obras (pintar / enchapar)
+  const [summon, setSummon] = useState(null);
+  const [unboxOpen, setUnboxOpen] = useState(false);
+  const [paintJob, setPaintJob] = useState(null);
   const [replayKey, setReplayKey] = useState(0);
   const cameraRef = useRef(ROOM.W / 2);
   const timers = useRef([]);
@@ -221,6 +228,43 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
     }, 12000);
     return () => clearInterval(id);
   }, [pet, screen, cinematicAvailable]);
+
+  // ── Pedidos: al volver al cuarto suena el timbre ───────────────────
+  useEffect(() => {
+    if (screen !== 'main' || !opened || !hasPendingTrip(game)) return undefined;
+    const t = setTimeout(() => {
+      setGame((g) => arriveAll(g));
+      play('timbre');
+      setBubble({ text: '¡Din-don! Llegó un paquete', tone: 'gusta' });
+      setSummon({ key: Date.now(), x: DOOR_SPOT });
+    }, 2200);
+    return () => clearTimeout(t);
+  }, [screen, opened, (game.deliveries || []).length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function useDelivered(d) {
+    const rest = (gameRef.current.deliveries || []).filter((x) => x.arrived && x.id !== d.id);
+    if (!rest.length) setUnboxOpen(false);
+    if (d.kind === 'mueble' || d.kind === 'decor' || d.kind === 'poster') {
+      const kind = d.kind;
+      setGame((g) => {
+        const g2 = unpack(g, d);
+        return {
+          ...g2,
+          placed: [...(g2.placed || []), { key: newPlacementKey(kind), ...defaultPlacement(kind, d.refId, posters, pet.decor_items || [], { centerX: DOOR_SPOT + 220, placed: g2.placed || [], paint: d.paint || 'natural' }) }],
+        };
+      });
+      setDecorating(true); setFoodOpen(false);
+    } else if (d.kind === 'ropa') {
+      const [slot] = d.refId.split(':');
+      setGame((g) => ({ ...unpack(g, d), wear: { ...(g.wear || {}), [slot]: d.wear } }));
+      fireReaction('happy');
+      setBubble({ text: '¡Me encanta cómo me queda!', tone: 'gusta' });
+    } else if (d.kind === 'pared' || d.kind === 'piso') {
+      setGame((g) => unpack(g, d));
+      setUnboxOpen(false);
+      setPaintJob({ kind: d.kind, value: d.value, key: Date.now() });
+    } else setGame((g) => unpack(g, d));
+  }
 
   function awardCoins(amount, reason) {
     if (amount <= 0) return;
@@ -499,6 +543,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
         <ShopScreen
           coins={game.coins} game={game} setGame={setGame} outfits={outfits} baseLook={baseLook} initialTab={shopTab}
           customDecor={pet.decor_items || []} posters={posters} onBack={() => { play('swoosh'); setScreen('main'); }}
+          onStartWork={(job) => { setScreen('main'); setPaintJob({ ...job, key: Date.now() }); }}
           hasRedesign={!!pet.recipe_redesign} onStartRedesign={() => { setRedesignError(''); setScreen('redesign'); }}
         />
       )}
@@ -609,6 +654,8 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
               posters={posters} customDecor={pet.decor_items || []}
               game={game} setGame={setGame} editing={decorating}
               onPokePet={pokePet} reaction={reaction} cameraRef={cameraRef}
+              parcel={parcelAtDoor(game)} onOpenParcel={() => { play('pop'); setUnboxOpen(true); }} summon={summon}
+              paintJob={paintJob} onPaintDone={(job) => { if (job) { setGame((g) => ({ ...g, [job.kind === 'pared' ? 'wall' : 'floor']: job.value })); fireReaction('happy'); setBubble({ text: job.kind === 'pared' ? '¡Quedó precioso!' : '¡Qué piso tan lindo!', tone: 'gusta' }); } setPaintJob(null); }}
               fullBleed extraReserved={(foodOpen && !decorating ? 104 : 0) + (musicOpen ? 66 : 0)}
             />
             <div style={{ position: 'absolute', left: 12, top: 10, display: 'flex', flexDirection: 'column', gap: 5, pointerEvents: 'none', zIndex: 4 }}>
@@ -684,6 +731,14 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
             </div>
           )}
         </>
+      )}
+
+      {unboxOpen && (
+        <DeliveryModal
+          items={(game.deliveries || []).filter((d) => d.arrived)} posters={posters} baseRecipe={baseLook && baseLook.recipe} game={game}
+          onUse={useDelivered}
+          onKeepAll={() => { setGame((g) => unpackAll(g)); setUnboxOpen(false); }}
+        />
       )}
 
       {styleOpen && (
