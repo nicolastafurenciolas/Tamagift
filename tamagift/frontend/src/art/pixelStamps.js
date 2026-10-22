@@ -7,6 +7,9 @@
 //   d un tono más oscuro que lo de abajo    l uno más claro
 //   . transparente (se ve lo de abajo)
 
+import { FOOD_PIXELS } from './pixel/food.js';
+import { UI_PIXELS } from './pixel/ui.js';
+
 const S = {};
 const def = (name, sizes) => { S[name] = sizes.map((rows) => ({ rows: typeof rows === 'string' ? rows.trim().split(/\s+/) : rows })).sort((a, b) => a.rows.length - b.rows.length); };
 
@@ -85,9 +88,52 @@ def('motif.flower', [
   '.ee.ee. eeeeeee .eebee. eebbbee .eebee. eeeeeee .ee.ee.',
 ]);
 
+// ── Dibujos enteros hechos a mano (comida, objetos, íconos) ─────────
+// Tienen su propia paleta: cada letra es un color (ver pixel/palette.js;
+// cada dibujo puede cambiar o agregar letras). Se usan de dos formas:
+//   · el SVG entero lleva data-px-sprite="food.fresa": en pixel se pinta
+//     directamente este dibujo, en el tamaño que mejor llene la caja;
+//   · un grupo con data-px="…" dentro de otro dibujo: se pinta en su
+//     caja, agrandado por un entero si la caja es el doble o más.
+const ART = {};
+export function defArt(name, pal, sizes) {
+  const list = sizes.map((rows) => {
+    const r = typeof rows === 'string' ? rows.trim().split(/\s+/) : rows;
+    if (import.meta.env && import.meta.env.DEV && r.some((x) => x.length !== r[0].length)) {
+      console.warn(`pixel ${name}: filas de largo distinto`, r.map((x) => x.length));
+    }
+    return { rows: r, pal };
+  }).sort((a, b) => a.rows.length - b.rows.length);
+  ART[name] = list;
+  S[name] = list;
+}
+export const artStampSizes = (name) => ART[name] || null;
+
+// Los dibujos hechos a mano viven en art/pixel/ (uno por tema).
+[FOOD_PIXELS, UI_PIXELS].forEach((group) => {
+  Object.entries(group).forEach(([name, v]) => defArt(name, v.pal, v.sizes));
+});
+
+// El tamaño del dibujo que mejor llena una caja de w×h píxeles de
+// rejilla, y por cuánto agrandarlo (siempre un entero: así cada píxel
+// del dibujo es un cuadrado parejo).
+export function pickArtStamp(name, w, h) {
+  const sizes = ART[name];
+  if (!sizes) return null;
+  let best = null;
+  for (const s of sizes) {
+    const k = Math.floor(Math.min((w + 0.5) / s.rows[0].length, (h + 0.5) / s.rows.length));
+    if (k < 1) continue;
+    const size = s.rows.length * k;
+    if (!best || size > best.size || (size === best.size && s.rows.length > best.st.rows.length)) best = { st: s, k, size };
+  }
+  return best ? { ...best.st, k: best.k } : { ...sizes[0], k: 1 };
+}
+
 // Elige la pieza: por nombre exacto, si no por estilo genérico del
 // mismo ánimo, si no la normal de ese estilo.
 export function stampFor(name, w, h) {
+  if (ART[name]) return pickArtStamp(name, w, h);
   const [kind, style, mood] = name.split('.');
   const tries = [name, `${kind}.${style}.normal`, `${kind}.redondos.${mood}`, `${kind}.sonrisa.${mood}`, `${kind}.redondos.normal`, `${kind}.sonrisa.normal`];
   if (kind === 'mouth' && mood !== 'normal' && !S[name]) tries.splice(1, 0, `${kind}.sonrisa.${mood}`);
