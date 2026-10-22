@@ -255,5 +255,7 @@ export function GAME_ART_SET() {
     c('Hoyo atrás', holeBackSvg(), 100, 100),
     c('Hoyo adelante', holeFrontSvg(), 100, 100),
     ...['iman', 'reloj', 'doble', 'escudo'].map((k) => c(k, powerSvg(k))),
+    c('Estallido', burstSvg('#FFE37A')),
+    c('Camión', truckSvg('#8FC7EE'), 110, 40),
   ];
 }

@@ -11,7 +11,7 @@ import { useFinish } from './meta';
 // ancho; clavar varios seguidos da puntos extra (×2 desde el segundo).
 
 const W = 300;
-const BLOCK_H = 20;
+const BLOCK_H = 22;
 // Sabores: bizcocho y glaseado (colores del pastel, no de la interfaz).
 const FLAVORS = [
   { cake: '#F6D9A6', icing: '#FFFFFF' },  // vainilla

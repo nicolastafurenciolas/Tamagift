@@ -181,7 +181,7 @@ export default function SnakeGame({ onBack, onComplete, treat, look, rank = 1 })
           </div>
         )}
         {!started && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 4, pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', left: 0, right: 0, top: '72%', display: 'flex', justifyContent: 'center', zIndex: 4, pointerEvents: 'none' }}>
             <span style={{ fontFamily: 'var(--pg-font-display)', fontSize: 14, fontWeight: 700, color: C.ink, background: C.glass, padding: '7px 14px', borderRadius: 999 }}>Desliza para empezar</span>
           </div>
         )}
