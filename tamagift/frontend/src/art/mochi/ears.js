@@ -25,6 +25,14 @@ export const EARS = [
   { id: 'dragon', label: 'Dragoncito' },
   { id: 'murcielago', label: 'Murciélago' },
   { id: 'alas', label: 'Angelito' },
+  { id: 'axolote', label: 'Ajolote' },
+  { id: 'capibara', label: 'Capibara' },
+  { id: 'ardilla', label: 'Ardillita' },
+  { id: 'hamster', label: 'Hámster' },
+  { id: 'leon', label: 'Leoncito' },
+  { id: 'vaca', label: 'Vaquita' },
+  { id: 'ciervo', label: 'Cervatillo' },
+  { id: 'abeja', label: 'Abejita' },
 ];
 
 const shade = (c, k) => hex(ramp(parseColor(c), k));
@@ -168,6 +176,65 @@ export function renderEars(id, g, c) {
       out.back = wing + mirrorX(wing);
       break;
     }
+    case 'axolote': {
+      // branquias: tres plumitas rosadas a cada lado, saliendo de los costados
+      const frond = part('M-2.6 2 C-3.6 -8 -2.6 -16 0 -23 C2.6 -16 3.6 -8 2.6 2Z', c.gill, { 'stroke-width': 2 });
+      const fluff = [[-4.2, -5, 2.6], [4.2, -5, 2.6], [-4.2, -11, 2.4], [4.2, -11, 2.4], [-3.4, -16.5, 2], [3.4, -16.5, 2]].map(([x, y, r]) => Cir(x, y, r, { fill: c.gill, stroke: '#3A2A3E', 'stroke-width': 1.6, 'data-r': 'part' })).join('');
+      const s = 1.2 * Math.pow(g.wf, 0.3);
+      const y0 = g.ys - (g.ys - g.top) * 0.62;
+      const L = [-64, -38, -12].map((a, i) => {
+        const y = y0 + i * 10;
+        const x = 100 - g.chordAt(y) / 2 + 4;
+        return G({ transform: `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${a}) scale(${s.toFixed(3)})` }, fluff + frond);
+      }).join('');
+      out.back = L + mirrorX(L);
+      break;
+    }
+    case 'capibara':
+      out.back = pair(g, 0.3, 5, Cir(0, -6, 9.5, { fill: shade(c.body, -0.3), stroke: '#3A2A3E', 'stroke-width': 2.4, 'data-r': 'part' }) + Cir(0, -5.4, 4.6, { fill: shade(c.body, -1), 'data-r': 'flat' }), { tilt: 0.55 });
+      break;
+    case 'hamster':
+      out.back = pair(g, 0.33, 6, Cir(0, -7, 10.5, { fill: c.body, stroke: '#3A2A3E', 'stroke-width': 2.4, 'data-r': 'part' }) + Cir(0, -6.4, 5.6, { fill: inner, 'data-r': 'flat' }), { tilt: 0.7 });
+      break;
+    case 'ardilla':
+      out.back = pair(g, 0.25, 9, part('M-11 8 L-5 -17 Q0 -23 5 -17 L11 8Z', c.body)
+        + flat('M-5.5 4 L-2.4 -10 Q0 -13 2.4 -10 L5.5 4Z', inner)
+        + part('M-2 -20 C-6 -26 -4 -33 0 -38 C0.6 -32 4 -29 3 -22Z', shade(c.body, -0.8), { 'stroke-width': 2 }), { tilt: 0.85 });
+      break;
+    case 'leon': {
+      // melena alrededor de la cabeza (detrás) y orejitas redondas encima
+      const n = 13;
+      let mane = '';
+      for (let i = 0; i <= n; i++) {
+        const th = Math.PI + 0.12 - ((Math.PI + 0.24) * i) / n;
+        const x = 100 + (g.hw + 8) * Math.cos(th), y = g.ys - (g.ys - g.top + 8) * Math.sin(th);
+        mane += Cir(x, y, 12.5, { fill: c.mane, stroke: '#3A2A3E', 'stroke-width': 2.4, 'data-r': 'part' });
+      }
+      out.back = mane + pair(g, 0.27, 5, Cir(0, -5, 9, { fill: c.body, stroke: '#3A2A3E', 'stroke-width': 2.4, 'data-r': 'part' }) + Cir(0, -4.6, 4.6, { fill: inner, 'data-r': 'flat' }), { tilt: 0.6 });
+      break;
+    }
+    case 'vaca':
+      out.back = pair(g, 0.42, 14, part('M4 3 C-6 -9 -27 -9 -32 1 C-27 10 -8 10 4 8Z', c.body) + flat('M-1 3 C-8 -3 -20 -3 -25 2 C-20 6 -8 6 -1 5Z', inner), { tilt: 0.2, rot: -12 })
+        + pair(g, 0.17, 6, part('M-4 4 C-6 -4 -4 -12 2 -16 C1 -10 3 -4 4 4Z', '#F3E6C8', { stroke: '#8A7350' }), { tilt: 0.9 });
+      break;
+    case 'ciervo': {
+      const antler = part('M-2 4 C-3 -6 -2 -14 1 -25 L4.4 -24 C2 -14 2 -6 3 4Z', '#C8955E', { stroke: '#6E4A2C', 'stroke-width': 2 })
+        + part('M-0.5 -9 C-6 -13 -9 -17 -9.5 -22 L-6.4 -22.4 C-6 -18 -3 -14.5 0.6 -12.4Z', '#C8955E', { stroke: '#6E4A2C', 'stroke-width': 2 })
+        + part('M2 -17 C6 -20 8 -23 8.4 -27 L11 -26 C10.6 -22 7.6 -18.4 3 -14.6Z', '#C8955E', { stroke: '#6E4A2C', 'stroke-width': 2 });
+      out.back = pair(g, 0.17, 7, antler, { tilt: 0.85, rot: -4 })
+        + pair(g, 0.36, 14, part('M3 2 C-3 -8 -17 -10 -21 -2 C-16 4 -6 6 3 6Z', c.body) + flat('M-1 2 C-5 -3 -13 -4 -16 -1 C-12 2 -6 3 -1 4Z', inner), { tilt: 0.3, rot: -18 });
+      break;
+    }
+    case 'abeja': {
+      const t = g.top;
+      const ant = (s) => P(`M${100 + s * 9} ${t + 6} C${100 + s * 9} ${t - 6} ${100 + s * 13} ${t - 14} ${100 + s * 19} ${t - 18}`, { fill: 'none', stroke: '#3A2A3E', 'stroke-width': 2.6, 'stroke-linecap': 'round', 'data-r': 'line' })
+        + Cir(100 + s * 20, t - 19, 4, { fill: '#3A3044', stroke: '#3A2A3E', 'stroke-width': 1.6, 'data-r': 'part' }) + Cir(100 + s * 19, t - 20.5, 1.2, { fill: '#FFFFFF', 'data-r': 'shine' });
+      const wy = g.ys - (g.ys - g.top) * 0.62;
+      const wing = part(`M${g.l + 10} ${wy + 6} C${g.l - 6} ${wy - 6} ${g.l - 16} ${wy - 22} ${g.l - 6} ${wy - 26} C${g.l + 4} ${wy - 28} ${g.l + 10} ${wy - 12} ${g.l + 12} ${wy}Z`, '#EAF6FF', { stroke: '#7FA9C8', 'stroke-width': 2 });
+      out.back = wing + mirrorX(wing);
+      out.front = ant(-1) + ant(1);
+      break;
+    }
     default: break;
   }
   return out;
@@ -181,5 +248,7 @@ export function colorsForEars(c) {
     wool: mixc('#FFFFFF', c.body, 0.08),
     mane1: c.accent,
     mane2: c.accentAlt === '#FFFFFF' ? '#B8A1FF' : c.accentAlt,
+    gill: mixc(c.accent, '#FF7FA8', 0.75),
+    mane: shade(mixc(c.accent, '#E89A3C', 0.5), -0.4),
   };
 }

@@ -5,6 +5,7 @@ import { BODY_COLORS, ACCENT_COLORS, BELLY_COLORS, EYE_COLORS } from '../art/moc
 import {
   SHAPES as BODIES, EARS, EYES, MOUTHS, CHEEKS as CHEEK_STYLES, TAILS, PATTERNS,
   HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES, geometry,
+  HAIRSTYLES, HAIR_COLORS, BROWS, MARKS,
 } from '../art/mochi';
 import { DEFAULT_RECIPE, randomRecipe, recipeToPngDataUrl } from '../PetRecipe';
 import PetArt from './PetArt';
@@ -72,6 +73,7 @@ function Chip({ active, onClick, children, color }) {
 const PART_GROUPS = [
   { id: 'cuerpo', label: 'Cuerpo' },
   { id: 'cara', label: 'Cara' },
+  { id: 'pelo', label: 'Pelo' },
   { id: 'detalles', label: 'Detalles' },
 ];
 
@@ -103,6 +105,9 @@ function thumbView(field, recipe) {
     case 'neckAcc': return box(100, g.neckY + 8, 120);
     case 'extraAcc': return box(100, fy + 2, 110);
     case 'tail': return box(130, 140, 130);
+    case 'hair': return box(100, g.top + 26, 156);
+    case 'brows': return box(100, fy - 8, 84);
+    case 'marks': return box(100, fy + 2, 100);
     default: return '0 0 200 200';
   }
 }
@@ -355,6 +360,14 @@ export function ModularPetStep({
           <ColorPickerRow label="Color de los ojos" value={recipe.eyeColor} options={EYE_COLORS} onPick={(c) => setRecipe((r) => ({ ...r, eyeColor: c }))} />
           <PartPicker label="Boca" field="mouth" options={MOUTHS} recipe={recipe} setRecipe={setRecipe} styleId={petStyle} />
           <PartPicker label="Cachetes" field="cheeks" options={CHEEK_STYLES} recipe={recipe} setRecipe={setRecipe} styleId={petStyle} />
+          <PartPicker label="Marquitas" field="marks" options={MARKS} recipe={recipe} setRecipe={setRecipe} styleId={petStyle} />
+        </>
+      )}
+      {partGroup === 'pelo' && (
+        <>
+          <PartPicker label="Peinado" field="hair" options={HAIRSTYLES} recipe={recipe} setRecipe={setRecipe} styleId={petStyle} />
+          <ColorPickerRow label="Color del pelo" value={recipe.hairColor || HAIR_COLORS[2]} options={HAIR_COLORS} onPick={(c) => setRecipe((r) => ({ ...r, hairColor: c }))} />
+          <PartPicker label="Cejas" field="brows" options={BROWS} recipe={recipe} setRecipe={setRecipe} styleId={petStyle} />
         </>
       )}
       {partGroup === 'detalles' && (

@@ -4,6 +4,9 @@
 // versión hecha a mano píxel a píxel (art/pixelStamps.js).
 
 import { G, P, Ell, Cir, E } from '../svg.js';
+import { parseColor, hex, mixRgb } from '../color.js';
+
+const mixc = (a, b, t) => hex(mixRgb(parseColor(a), parseColor(b), t));
 
 export const INK = '#3A2A3E';
 export const MOODS = ['normal', 'feliz', 'triste', 'enojado', 'dormido', 'sorprendido'];
@@ -23,6 +26,12 @@ export const EYES = [
   { id: 'rebelde', label: 'Rebeldes' },
   { id: 'pestanudos', label: 'Pestañudos' },
   { id: 'cruzados', label: 'Equis' },
+  { id: 'anime', label: 'Anime' },
+  { id: 'gato', label: 'De gatito' },
+  { id: 'guino', label: 'Guiño' },
+  { id: 'brillitos', label: 'Con brillitos' },
+  { id: 'llorosos', label: 'Brillosos' },
+  { id: 'botones', label: 'Botones' },
 ];
 
 const shine = (x, y, r) => Cir(x, y, r, { fill: '#FFFFFF', 'data-r': 'shine' });
@@ -45,6 +54,8 @@ const starPath = (x, y, r) => {
   }
   return `${d}Z`;
 };
+// Destello de cuatro puntas (brillo de ojos).
+const sparkle = (x, y, r) => `M${x} ${y - r} Q${x + r * 0.16} ${y - r * 0.16} ${x + r} ${y} Q${x + r * 0.16} ${y + r * 0.16} ${x} ${y + r} Q${x - r * 0.16} ${y + r * 0.16} ${x - r} ${y} Q${x - r * 0.16} ${y - r * 0.16} ${x} ${y - r}Z`;
 const heartPath = (x, y, s) => `M${x} ${y + s * 0.85} C${x - s * 1.1} ${y + s * 0.1} ${x - s * 1.05} ${y - s * 0.95} ${x} ${y - s * 0.35} C${x + s * 1.05} ${y - s * 0.95} ${x + s * 1.1} ${y + s * 0.1} ${x} ${y + s * 0.85}Z`;
 
 // Ojo de un estilo, en su forma "abierta" (base de casi todos los ánimos).
@@ -86,6 +97,42 @@ function openEye(style, x, y, side, c, k = 1) {
     }
     case 'cruzados':
       return ink(`M${x - 5.5 * k} ${y - 5.5 * k} L${x + 5.5 * k} ${y + 5.5 * k} M${x + 5.5 * k} ${y - 5.5 * k} L${x - 5.5 * k} ${y + 5.5 * k}`, 3);
+    case 'anime': {
+      // ojo alto de anime: pestaña gruesa arriba con colita hacia afuera,
+      // iris con dos tonos, pupila y dos brillos
+      const o = side, RX = 7.4 * k, RY = 9.8 * k;
+      const shape = `M${x - RX} ${y - RY * 0.3} Q${x - RX} ${y - RY} ${x} ${y - RY} Q${x + RX} ${y - RY} ${x + RX} ${y - RY * 0.3} L${x + RX * 0.92} ${y + RY * 0.45} Q${x + RX * 0.75} ${y + RY} ${x} ${y + RY} Q${x - RX * 0.75} ${y + RY} ${x - RX * 0.92} ${y + RY * 0.45}Z`;
+      return P(shape, { fill: INK, 'data-r': 'flat' })
+        + Ell(x, y + RY * 0.18, RX * 0.76, RY * 0.7, { fill: c.eye, 'data-r': 'flat' })
+        + Ell(x, y + RY * 0.52, RX * 0.58, RY * 0.32, { fill: mixc(c.eye, '#FFFFFF', 0.45), 'data-r': 'flat' })
+        + Ell(x, y + RY * 0.05, RX * 0.34, RY * 0.4, { fill: INK, 'data-r': 'flat' })
+        + shine(x + RX * 0.3, y - RY * 0.32, RX * 0.36) + shine(x - RX * 0.34, y + RY * 0.36, RX * 0.15)
+        + ink(`M${x - o * RX * 1.08} ${y - RY * 0.42} Q${x} ${y - RY * 1.28} ${x + o * RX * 1.12} ${y - RY * 0.6} L${x + o * (RX * 1.12 + 3.4)} ${y - RY * 0.88}`, 3);
+    }
+    case 'gato': {
+      // almendra con la pupila en rendija y la esquina de afuera arriba
+      const o = side, RX = 8.4 * k, RY = 6.6 * k;
+      const d = `M${x - RX} ${y} Q${x} ${y - RY * 1.75} ${x + RX} ${y} Q${x} ${y + RY * 1.55} ${x - RX} ${y}Z`;
+      return G({ transform: `rotate(${-o * 9} ${x} ${y})` },
+        P(d, { fill: c.eye, stroke: INK, 'stroke-width': 2.4, 'stroke-linejoin': 'round', 'data-r': 'part' })
+        + Ell(x, y - 0.3, 1.9 * k, RY * 0.86, { fill: INK, 'data-r': 'flat' })
+        + shine(x + RX * 0.36, y - RY * 0.42, 1.7 * k));
+    }
+    case 'brillitos':
+      return Ell(x, y, rx * k, ry * k, { fill: INK, 'data-r': 'flat' })
+        + Ell(x, y + ry * k * 0.42, rx * k * 0.64, ry * k * 0.4, { fill: c.eye, 'data-r': 'flat', opacity: 0.85 })
+        + P(sparkle(x + rx * k * 0.22, y - ry * k * 0.22, rx * k * 0.72), { fill: '#FFFFFF', 'data-r': 'shine' })
+        + shine(x - rx * k * 0.4, y + ry * k * 0.4, rx * k * 0.16);
+    case 'llorosos':
+      return roundEye(x, y, rx * 1.06, ry * 1.06, c, k)
+        + P(`M${x - rx * 0.66} ${y + ry * 0.62} Q${x} ${y + ry * 0.92} ${x + rx * 0.66} ${y + ry * 0.62}`, { fill: 'none', stroke: '#CDEBFF', 'stroke-width': 1.7, 'stroke-linecap': 'round', 'data-r': 'line' })
+        + shine(x - rx * 0.08, y - ry * 0.6, rx * 0.14);
+    case 'botones':
+      // ojitos de peluche: botón con cuatro agujeritos
+      return Cir(x, y, 7 * k, { fill: '#4A3A52', stroke: INK, 'stroke-width': 2, 'data-r': 'part' })
+        + Cir(x, y, 4.9 * k, { fill: 'none', stroke: '#6E5A78', 'stroke-width': 1.3, 'data-r': 'line' })
+        + [[-1.6, -1.6], [1.6, -1.6], [-1.6, 1.6], [1.6, 1.6]].map(([a, b]) => Cir(x + a * k, y + b * k, 1.05 * k, { fill: '#CDBFD6', 'data-r': 'flat' })).join('')
+        + shine(x + 3.4 * k, y - 3.6 * k, 1.2 * k);
     case 'somnolientos': {
       const id = clipId();
       return E('clipPath', { id }, P(`M${x - 12} ${y - 1.5} L${x + 12} ${y - 1.5} L${x + 12} ${y + 14} L${x - 12} ${y + 14}Z`))
@@ -97,7 +144,9 @@ function openEye(style, x, y, side, c, k = 1) {
   }
 }
 
-function eye(style, x, y, side, mood, c) {
+function eye(style, x, y, side, mood, c, opts = {}) {
+  // Los botones son botones: no se cierran ni cambian con el ánimo.
+  if (style === 'botones') return openEye(style, x, y, side, c, mood === 'sorprendido' ? 1.08 : 1);
   const arcUp = (w = 7) => ink(`M${x - w} ${y + 2.5} Q${x} ${y - 8.5} ${x + w} ${y + 2.5}`, 2.9);
   const arcDown = (w = 7) => ink(`M${x - w} ${y - 1} Q${x} ${y + 6.5} ${x + w} ${y - 1}`, 2.7);
   switch (mood) {
@@ -117,7 +166,8 @@ function eye(style, x, y, side, mood, c) {
         + ink(`M${x - side * 8} ${yi - 2.5} L${x + side * 8.5} ${yo - 4.5}`, 3);
     }
     case 'triste': {
-      const brow = ink(`M${x + side * 8} ${y - 11} Q${x + side * 1} ${y - 12.5} ${x - side * 7} ${y - 16}`, 2.3);
+      // con cejas propias (rasgo) no se dibuja la ceja triste del ojo
+      const brow = opts.brows ? '' : ink(`M${x + side * 8} ${y - 11} Q${x + side * 1} ${y - 12.5} ${x - side * 7} ${y - 16}`, 2.3);
       const tear = side > 0 ? P(`M${x + 5} ${y + 7} q-3.6 6.5 0 9.5 q3.6 -3 0 -9.5z`, { fill: '#8FD3FF', stroke: '#4F9FD6', 'stroke-width': 1.2, 'data-r': 'part' }) : '';
       return openEye(style, x, y, side, c) + brow + tear;
     }
@@ -130,11 +180,17 @@ function eye(style, x, y, side, mood, c) {
   }
 }
 
-export function renderEyes(style, g, mood, c, shift = { x: 0, y: 0, dx: 0 }) {
+export function renderEyes(style, g, mood, c, shift = { x: 0, y: 0, dx: 0 }, opts = {}) {
   const y = g.face.y + shift.y;
   const dx = g.face.dx + (shift.dx || 0);
-  const one = (side) => G({ 'data-px': `eye.${style}.${mood}`, 'data-c1': c.eye, 'data-flip': side > 0 ? '1' : null, 'data-ink': INK },
-    eye(style, 100 + side * dx, y, side, mood, c));
+  const one = (side) => {
+    // Guiño: el ojo derecho cerrado en arquito (solo en ánimo normal).
+    const wink = style === 'guino' && side > 0 && mood === 'normal';
+    const st = style === 'guino' ? 'redondos' : style;
+    const md = wink ? 'feliz' : mood;
+    return G({ 'data-px': `eye.${st}.${md}`, 'data-c1': c.eye, 'data-flip': side > 0 ? '1' : null, 'data-ink': INK },
+      eye(st, 100 + side * dx, y, side, md, c, opts));
+  };
   return one(-1) + one(1);
 }
 
@@ -149,6 +205,11 @@ export const MOUTHS = [
   { id: 'ladeada', label: 'Ladeada' },
   { id: 'labios', label: 'Labios' },
   { id: 'grito', label: 'Gritito' },
+  { id: 'abierta', label: 'Contenta' },
+  { id: 'dientito', label: 'Dientito' },
+  { id: 'triangulo', label: 'Anime' },
+  { id: 'beso', label: 'Besito' },
+  { id: 'pucheros', label: 'Puchero' },
 ];
 
 const RED = '#8E3048', TONGUE = '#FF8FA3';
@@ -200,6 +261,18 @@ function mouth(style, x, y, mood, c) {
         + ink(`M${x - 7} ${y + 1} Q${x} ${y + 2.4} ${x + 7} ${y + 1}`, 1.3);
     case 'grito':
       return Ell(x, y + 3, 5.5, 6.5, { fill: RED, stroke: INK, 'stroke-width': 2, 'data-r': 'part' }) + Ell(x, y + 6.5, 3, 2, { fill: TONGUE, 'data-r': 'flat' });
+    case 'abierta':
+      return openMouth(x, y, 6.5, 9);
+    case 'dientito':
+      return ink(`M${x - 6.5} ${y} Q${x} ${y + 6} ${x + 6.5} ${y}`)
+        + P(`M${x - 2.1} ${y + 2.6} h4.2 v3.4 q0 1 -1 1 h-2.2 q-1 0 -1 -1Z`, { fill: '#FFFFFF', stroke: INK, 'stroke-width': 1.2, 'stroke-linejoin': 'round', 'data-r': 'part' });
+    case 'triangulo':
+      return P(`M${x - 6.5} ${y - 1} L${x + 6.5} ${y - 1} Q${x + 1.2} ${y + 9.5} ${x} ${y + 9.5} Q${x - 1.2} ${y + 9.5} ${x - 6.5} ${y - 1}Z`, { fill: RED, stroke: INK, 'stroke-width': 2.1, 'stroke-linejoin': 'round', 'data-r': 'part' })
+        + P(`M${x - 3} ${y + 5} Q${x} ${y + 3.4} ${x + 3} ${y + 5} Q${x} ${y + 8.6} ${x - 3} ${y + 5}Z`, { fill: TONGUE, 'data-r': 'flat' });
+    case 'beso':
+      return ink(`M${x - 2} ${y - 3.6} Q${x + 4.4} ${y - 4} ${x + 0.6} ${y + 0.3} Q${x + 4.6} ${y + 4.2} ${x - 2} ${y + 4.2}`, 2.3);
+    case 'pucheros':
+      return P(`M${x - 4.6} ${y + 1.4} Q${x - 2.2} ${y - 2.6} ${x} ${y - 0.2} Q${x + 2.2} ${y - 2.6} ${x + 4.6} ${y + 1.4} Q${x} ${y + 5.4} ${x - 4.6} ${y + 1.4}Z`, { fill: c.lips, stroke: INK, 'stroke-width': 1.6, 'stroke-linejoin': 'round', 'data-r': 'part' });
     default:
       return ink(`M${x - 6.5} ${y} Q${x} ${y + 6} ${x + 6.5} ${y}`);
   }
@@ -222,6 +295,9 @@ export const CHEEKS = [
   { id: 'rayitas', label: 'Rayitas' },
   { id: 'brillos', label: 'Con brillitos' },
   { id: 'sombras', label: 'Ojeras' },
+  { id: 'grandes', label: 'Grandotas' },
+  { id: 'estrellas', label: 'Estrellitas' },
+  { id: 'lineas', label: 'Rayitas de anime' },
 ];
 
 function cheek(style, x, y, side, c, mood) {
@@ -235,6 +311,10 @@ function cheek(style, x, y, side, c, mood) {
     case 'brillos': return Ell(x, y, 7.5, 4.6, { fill: col, opacity: op, 'data-r': 'tone' })
       + P(starPath(x + side * 9, y - 8, 3), { fill: '#FFFFFF', 'data-r': 'shine' });
     case 'sombras': return Ell(x - side * 11, y - 6, 9, 5, { fill: '#3A2A3E', opacity: 0.22, 'data-r': 'tone' });
+    case 'grandes': return Ell(x, y + 1, 10.5, 6.2, { fill: col, opacity: op, 'data-r': 'tone' });
+    case 'estrellas': return P(starPath(x, y, 4.8), { fill: col, opacity: Math.min(1, op + 0.3), 'data-r': 'flat' });
+    case 'lineas': return Ell(x, y, 8, 4.6, { fill: col, opacity: op * 0.7, 'data-r': 'tone' })
+      + [-3.4, 0, 3.4].map((d) => P(`M${x + d + 1.5} ${y - 2.4} l-3 4.6`, { stroke: mixc(col, '#3A2A3E', 0.35), 'stroke-width': 1.3, 'stroke-linecap': 'round', fill: 'none', 'data-r': 'line' })).join('');
     default: return Ell(x, y, 7.5, 4.6, { fill: col, opacity: op, 'data-r': 'tone' });
   }
 }

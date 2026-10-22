@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   mochiSvg, DEFAULT_MOCHI, SHAPES, EARS, EYES, MOUTHS, CHEEKS, TAILS, PATTERNS,
-  HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES,
+  HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES, HAIRSTYLES, HAIR_COLORS, BROWS, MARKS,
 } from './art/mochi';
 import { artToPng } from './art/render';
 
@@ -56,6 +56,10 @@ export function randomRecipe() {
     headAcc: Math.random() < 0.45 ? 'ninguno' : pick(HEAD_ACCESSORIES).id,
     neckAcc: Math.random() < 0.5 ? 'ninguno' : pick(NECK_ACCESSORIES).id,
     extraAcc: Math.random() < 0.7 ? 'ninguno' : pick(EXTRA_ACCESSORIES).id,
+    hair: Math.random() < 0.55 ? 'ninguno' : pick(HAIRSTYLES.filter((h) => h.id !== 'ninguno')).id,
+    hairColor: pick(HAIR_COLORS),
+    brows: Math.random() < 0.6 ? 'ninguna' : pick(BROWS.filter((b) => b.id !== 'ninguna')).id,
+    marks: Math.random() < 0.75 ? 'ninguna' : pick(MARKS.filter((m) => m.id !== 'ninguna')).id,
     ...pick(RANDOM_PALETTES),
   };
 }

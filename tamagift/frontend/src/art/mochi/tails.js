@@ -16,6 +16,10 @@ export const TAILS = [
   { id: 'lazo', label: 'Con lacito' },
   { id: 'demonio', label: 'De diablito' },
   { id: 'puas', label: 'De dragón' },
+  { id: 'sirena', label: 'De sirena' },
+  { id: 'ardilla', label: 'De ardilla' },
+  { id: 'leon', label: 'De leoncito' },
+  { id: 'corazon', label: 'Con corazón' },
 ];
 
 // Una cola de "tubo": contorno grueso + relleno, con punta opcional.
@@ -51,6 +55,28 @@ export function renderTail(id, g, c) {
       const sp = [[x + 8, y + 2], [x + 18, y], [x + 28, y - 5]].map(([sx, sy]) => P(`M${sx - 5} ${sy + 1} L${sx} ${sy - 9} L${sx + 5} ${sy}Z`, { fill: c.accent, stroke: OUT, 'stroke-width': 2.2, 'stroke-linejoin': 'round', 'data-r': 'part' })).join('');
       return sp + P(d, { fill: c.body, stroke: OUT, 'stroke-width': 2.6, 'stroke-linejoin': 'round', 'data-r': 'part' });
     }
+    case 'sirena': {
+      // aleta de sirena: dos lóbulos que se abren, con nervaduras
+      const col = c.accent;
+      const d = `M${x - 6} ${y + 14} C${x + 8} ${y + 16} ${x + 14} ${y + 6} ${x + 16} ${y - 4} C${x + 20} ${y - 14} ${x + 26} ${y - 22} ${x + 34} ${y - 24} C${x + 30} ${y - 14} ${x + 30} ${y - 6} ${x + 38} ${y + 2} C${x + 28} ${y + 2} ${x + 20} ${y + 8} ${x + 10} ${y + 16} C${x + 4} ${y + 18} ${x - 2} ${y + 18} ${x - 6} ${y + 18}Z`;
+      return P(d, { fill: col, stroke: OUT, 'stroke-width': 2.6, 'stroke-linejoin': 'round', 'data-r': 'part' })
+        + P(`M${x + 18} ${y - 4} L${x + 30} ${y - 18} M${x + 19} ${y} L${x + 33} ${y - 4} M${x + 16} ${y + 4} L${x + 30} ${y + 4}`, { fill: 'none', stroke: shade(col, 1.2), 'stroke-width': 1.5, 'stroke-linecap': 'round', 'data-r': 'line', opacity: 0.85 });
+    }
+    case 'ardilla': {
+      const d = `M${x - 8} ${y + 14} C${x + 28} ${y + 22} ${x + 44} ${y - 8} ${x + 32} ${y - 38} C${x + 26} ${y - 56} ${x + 4} ${y - 56} ${x + 6} ${y - 40} C${x + 16} ${y - 38} ${x + 22} ${y - 26} ${x + 15} ${y - 13} C${x + 9} ${y - 3} ${x - 2} ${y + 2} ${x - 8} ${y + 2}Z`;
+      const id2 = `ta${Math.round(x * 7)}`;
+      return E('clipPath', { id: id2 }, P(d)) + P(d, { fill: c.body, stroke: OUT, 'stroke-width': 2.6, 'stroke-linejoin': 'round', 'data-r': 'part' })
+        + G({ 'clip-path': `url(#${id2})` }, Ell(x + 16, y - 50, 16, 12, { fill: c.tailTip, 'data-r': 'flat' }))
+        + P(`M${x + 6} ${y + 6} C${x + 26} ${y + 2} ${x + 32} ${y - 18} ${x + 26} ${y - 34}`, { fill: 'none', stroke: shade(c.body, -0.8), 'stroke-width': 1.6, 'stroke-linecap': 'round', 'data-r': 'line', opacity: 0.7 });
+    }
+    case 'leon':
+      return tube(`M${x - 6} ${y + 10} C${x + 14} ${y + 12} ${x + 20} ${y - 2} ${x + 20} ${y - 16}`, c.body, 5)
+        + P(`M${x + 20} ${y - 30} C${x + 13} ${y - 26} ${x + 13} ${y - 16} ${x + 20} ${y - 14} C${x + 27} ${y - 16} ${x + 27} ${y - 26} ${x + 20} ${y - 30}Z`, { fill: shade(c.accent, -0.6), stroke: OUT, 'stroke-width': 2.4, 'data-r': 'part' });
+    case 'corazon': {
+      const hx = x + 20, hy = y - 22, s2 = 6.5;
+      return tube(`M${x - 6} ${y + 10} C${x + 14} ${y + 12} ${x + 20} ${y - 2} ${x + 20} ${y - 14}`, c.body, 5)
+        + P(`M${hx} ${hy + s2 * 0.85} C${hx - s2 * 1.1} ${hy + s2 * 0.1} ${hx - s2 * 1.05} ${hy - s2 * 0.95} ${hx} ${hy - s2 * 0.35} C${hx + s2 * 1.05} ${hy - s2 * 0.95} ${hx + s2 * 1.1} ${hy + s2 * 0.1} ${hx} ${hy + s2 * 0.85}Z`, { fill: c.accent, stroke: OUT, 'stroke-width': 2.4, 'stroke-linejoin': 'round', 'data-r': 'part' });
+    }
     default: return '';
   }
 }
@@ -69,6 +95,11 @@ export const PATTERNS = [
   { id: 'leopardo', label: 'Leopardo' },
   { id: 'camuflaje', label: 'Camuflaje' },
   { id: 'rayos', label: 'Rayos' },
+  { id: 'vaca', label: 'Vaquita' },
+  { id: 'galaxia', label: 'Galaxia' },
+  { id: 'degrade', label: 'Degradé' },
+  { id: 'fresa', label: 'Fresita' },
+  { id: 'sakura', label: 'Sakura' },
 ];
 
 const star = (x, y, r) => {
@@ -146,6 +177,27 @@ export function renderPattern(id, g, c) {
       break;
     case 'camuflaje':
       s = spots(g, 34, 0.4).map(([x, y], i) => fl(`M${x - 12} ${y} C${x - 10} ${y - 9} ${x + 2} ${y - 8} ${x + 6} ${y - 4} C${x + 13} ${y - 3} ${x + 12} ${y + 7} ${x + 3} ${y + 6} C${x - 5} ${y + 9} ${x - 12} ${y + 6} ${x - 12} ${y}Z`, [a, b, shade(c.body, -1.4)][i % 3])).join('');
+      break;
+    case 'vaca':
+      s = spots(g, 50, 0.32).map(([x, y], i) => fl(`M${x - 14} ${y - 2} C${x - 15} ${y - 12} ${x - 3} ${y - 15} ${x + 6} ${y - 11} C${x + 15} ${y - 8} ${x + 16} ${y + 3} ${x + 8} ${y + 9} C${x + 1} ${y + 14} ${x - 8} ${y + 12} ${x - 12} ${y + 6} C${x - 16} ${y + 4} ${x - 13} ${y + 1} ${x - 14} ${y - 2}Z`, i % 4 === 3 ? b : '#3A3540')).join('');
+      break;
+    case 'galaxia':
+      s = [[g.l + g.w * 0.25, g.top + 24, 34, '#3B2A7A'], [g.r - g.w * 0.22, g.top + 40, 30, '#1F3A7A'], [g.l + g.w * 0.15, 168, 26, '#5A2A7A'], [g.r - g.w * 0.12, 166, 26, '#2A2A6A']]
+        .map(([x, y, r, col]) => Cir(x, y, r, { fill: col, opacity: 0.55, 'data-r': 'tone' })).join('')
+        + spots(g, 15, 0.45).map(([x, y], i) => (i % 5 === 0
+          ? P(`M${x} ${y - 3.4} Q${x + 0.6} ${y - 0.6} ${x + 3.4} ${y} Q${x + 0.6} ${y + 0.6} ${x} ${y + 3.4} Q${x - 0.6} ${y + 0.6} ${x - 3.4} ${y} Q${x - 0.6} ${y - 0.6} ${x} ${y - 3.4}Z`, { fill: '#FFF6C8', 'data-r': 'flat' })
+          : Cir(x, y, 1.1, { fill: '#FFFFFF', 'data-r': 'flat' }))).join('');
+      break;
+    case 'degrade':
+      [0.62, 0.48, 0.34, 0.2, 0.1].forEach((op, i) => { s += E('rect', { x: g.l - 4, y: 182 - (i + 1) * 15, width: g.w + 8, height: 16, fill: a, opacity: op, 'data-r': 'tone' }); });
+      break;
+    case 'fresa':
+      s = spots(g, 17, 0.22).map(([x, y], i) => Ell(x, y, 1.7, 2.6, { fill: '#FFE7A3', stroke: '#C99A3A', 'stroke-width': 0.6, transform: `rotate(${(i % 3 - 1) * 14} ${x} ${y})`, 'data-r': 'flat' })).join('');
+      break;
+    case 'sakura':
+      s = spots(g, 33, 0.3).map(([x, y], i) => (i % 3 === 2
+        ? fl(`M${x} ${y - 3} C${x + 3} ${y - 3} ${x + 3} ${y + 2} ${x} ${y + 3} C${x - 1} ${y + 1} ${x - 1} ${y - 1} ${x} ${y - 3}Z`, '#FFB7CF', { transform: `rotate(${i * 37} ${x} ${y})` })
+        : [0, 72, 144, 216, 288].map((k) => { const r = (k - 90) * Math.PI / 180; return Ell(x + Math.cos(r) * 4, y + Math.sin(r) * 4, 3.1, 2.4, { fill: i % 2 ? '#FF9EC0' : '#FFC2D6', transform: `rotate(${k} ${x + Math.cos(r) * 3.4} ${y + Math.sin(r) * 3.4})`, 'data-r': 'flat' }); }).join('') + Cir(x, y, 1.7, { fill: '#D9467A', 'data-r': 'flat' }))).join('');
       break;
     case 'rayos':
       s = spots(g, 34, 0.25).map(([x, y], i) => fl(`M${x + 1} ${y - 8} L${x - 4} ${y + 1} L${x} ${y + 1} L${x - 2} ${y + 8} L${x + 5} ${y - 2} L${x + 1} ${y - 2}Z`, i % 2 ? a : '#FFD23F')).join('');

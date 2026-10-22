@@ -1,3 +1,5 @@
+import { registerFaceStamps } from './mochi/faceStamps.js';
+
 // Piezas de pixel art hechas a mano (ojos, bocas, mejillas).
 // Cada pieza tiene varios tamaños; se usa el más grande que entra en la
 // caja que ocupa la pieza vectorial en la rejilla.
@@ -84,6 +86,9 @@ def('motif.flower', [
   '.e.e. eeeee .ebe. eeeee .e.e.',
   '.ee.ee. eeeeeee .eebee. eebbbee .eebee. eeeeeee .ee.ee.',
 ]);
+
+// Rasgos que se agregaron después (cada módulo registra los suyos).
+registerFaceStamps(def);
 
 // Elige la pieza: por nombre exacto, si no por estilo genérico del
 // mismo ánimo, si no la normal de ese estilo.

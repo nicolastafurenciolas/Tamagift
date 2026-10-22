@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { drawArt } from '../art/kit';
-import { mochiSvg, SHAPES, MOODS, HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES, EARS, EYES, MOUTHS, TAILS, PATTERNS, CHEEKS } from '../art/mochi';
+import { mochiSvg, SHAPES, MOODS, HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES, EARS, EYES, MOUTHS, TAILS, PATTERNS, CHEEKS, HAIRSTYLES, HAIR_COLORS, BROWS, MARKS } from '../art/mochi';
 import { STYLE_LIST } from '../styles/registry';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { FURNITURE } from '../roomCatalog';
@@ -45,6 +45,9 @@ function sets(name) {
   if (name === 'colas') return cyc(TAILS, 'tail');
   if (name === 'estampados') return cyc(PATTERNS, 'pattern', { accentColor: '#E9799A', accentAlt: '#7FC8F8' });
   if (name === 'mejillas') return cyc(CHEEKS, 'cheeks');
+  if (name === 'pelo') return HAIRSTYLES.filter((h) => h.id !== 'ninguno').map((h, i) => ({ name: h.label, r: { ...FAMILY[i % FAMILY.length].r, body: SHAPES[i % 4].id, hair: h.id, hairColor: HAIR_COLORS[(i * 3) % HAIR_COLORS.length], brows: 'finas' } }));
+  if (name === 'cejas') return BROWS.filter((x) => x.id !== 'ninguna').flatMap((b) => ['normal', 'enojado', 'triste'].map((m) => ({ name: `${b.label} · ${m}`, mood: m, r: { ...FAMILY[0].r, brows: b.id, hair: 'flequillo' } })));
+  if (name === 'marcas') return cyc(MARKS, 'marks');
   const q = new URLSearchParams(window.location.search);
   if (name === 'paredes2') {
     const t = Number(q.get('t') || 0);

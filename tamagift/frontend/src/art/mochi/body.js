@@ -18,9 +18,13 @@ export function shapeOf(id) {
   return SHAPES.find((s) => s.id === id) || SHAPES.find((s) => s.id === LEGACY[id]) || SHAPES[2];
 }
 
-export function geometry(shapeId) {
+// `chub` (0 a 1): cuánto más redondita está por comer chatarra y dulces
+// (ver DISENO_MUNDO_VIVO.md §3). Más ancha y un poco más bajita; con 0 es
+// la mochi de siempre.
+export function geometry(shapeId, chub = 0) {
   const s = shapeOf(shapeId);
-  const { l, r, top, ys } = s;
+  const ch = Math.max(0, Math.min(1, chub || 0));
+  const l = s.l - 10 * ch, r = s.r + 10 * ch, top = s.top + 6 * ch, ys = s.ys + 2 * ch;
   const cx = 100;
   const w = r - l, hw = w / 2;
   const k = 0.555;
