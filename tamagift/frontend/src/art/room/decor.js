@@ -2,7 +2,7 @@
 // quieras, y se dibuja por delante de los muebles) o 'piso'.
 // Misma vista 3/4 que todo el cuarto.
 
-import { face, part, flat, line, shade, shine, rr, rrTop, ellD, tone, mix, mat, box, floorShadow, cylinder, pot, Cir, Ell, INK, piece } from './draw.js';
+import { face, part, flat, line, shade, shine, rr, rrTop, ellD, tone, mix, mat, box, floorShadow, cylinder, pot, Cir, Ell, INK, piece, FOOT } from './draw.js';
 
 const surfaceShadow = (cx, y, rx) => Ell(cx, y, rx, rx * 0.22, { fill: '#2A1C24', opacity: 0.22, 'data-r': 'tone' });
 
@@ -252,5 +252,5 @@ const DEFS = [
   },
 ];
 
-export const DECOR_DEFS = DEFS.map((d) => ({ ...d, svg: () => piece(d.w, d.h, d.draw()) }));
+export const DECOR_DEFS = DEFS.map((d) => ({ ...d, h: d.h + FOOT, foot: FOOT, svg: () => piece(d.w, d.h + FOOT, d.draw()) }));
 export const findDecorDef = (id) => DECOR_DEFS.find((d) => d.id === id) || null;

@@ -506,8 +506,12 @@ function processLofi(img, w, h, opts) {
   const ac = ctx2d(art);
   const id = ac.getImageData(0, 0, W, H);
   const d = id.data;
-  const night = isSurface ? 1 : 0.6;
-  const dim = isSurface ? 0.62 : 1;
+  // Las fotos (pósters, cartas de memoria) solo toman el tono del
+  // atardecer: oscurecerlas como una pared de noche las dejaba moradas y
+  // apagadas al lado de los muebles.
+  const photo = opts.kind === 'photo';
+  const night = photo ? 0.32 : isSurface ? 1 : 0.6;
+  const dim = photo ? 0.96 : isSurface ? 0.62 : 1;
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = (y * W + x) * 4;

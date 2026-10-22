@@ -125,7 +125,7 @@ function drawRoom(rm, styleId, S) {
   const layers = [];
   layers.push({ ...d(wallSvg(rm.wall, RW, ROOM.FLOOR_Y), RW, ROOM.FLOOR_Y, 'surface'), x: 0, y: 0 });
   layers.push({ ...d(floorSvg(rm.floor, RW, ROOM.H - ROOM.FLOOR_Y), RW, ROOM.H - ROOM.FLOOR_Y, 'surface'), x: 0, y: ROOM.FLOOR_Y });
-  const put = ([id, paint], cx, base) => { const f = findFurniture(id); layers.push({ ...d(f.svg(paint), f.w, f.h), x: cx - f.w / 2, y: base - f.h }); };
+  const put = ([id, paint], cx, base) => { const f = findFurniture(id); layers.push({ ...d(f.svg(paint), f.w, f.h), x: cx - f.w / 2, y: base - f.h + f.foot }); };
   put(rm.rug, RW / 2, ROOM.H - 6);
   put(rm.hang, RW / 2, 236);
   put(rm.left, 200, 404);

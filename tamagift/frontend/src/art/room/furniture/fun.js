@@ -214,7 +214,7 @@ export const FUN = [
     id: 'lamparaArco', name: 'Lámpara de arco', cat: 'luces', price: 150, w: 156, h: 222, place: 'piso', tags: ['elegante', 'aesthetic'],
     draw: (p) => {
       let s = floorShadow(30, 218, 26, 4);
-      s += Ell(118, 104, 40, 26, { fill: '#FFE9A8', opacity: 0.28, 'data-r': 'tone' });
+      s += Ell(120, 104, 34, 26, { fill: '#FFE9A8', opacity: 0.28, 'data-r': 'tone' });
       s += cylinder(30, 218, 22, 16, mix(p.wood, '#FFFFFF', 0.25), { w: 1.8 });
       s += tube('M30 204C26 120 40 40 92 26C118 20 124 40 124 62', 6.5, p.wood);
       s += face('M100 82C100 66 110 60 120 60C130 60 140 66 140 82Z', mat(p.cloth).front);

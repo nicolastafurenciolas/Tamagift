@@ -23,14 +23,15 @@ function monstera(x, y, len, ang, col) {
 
 export const PLANTS = [
   {
-    id: 'planta', name: 'Monstera', cat: 'plantas', price: 110, w: 132, h: 206, place: 'piso', tags: ['aesthetic', 'hippie', 'rustico'],
+    id: 'planta', name: 'Monstera', cat: 'plantas', price: 110, w: 180, h: 206, place: 'piso', tags: ['aesthetic', 'hippie', 'rustico'],
     draw: (p) => {
-      let s = floorShadow(66, 202, 34, 5);
-      // tallos y hojas, de atrás para adelante (hojas grandes, con cortes)
-      s += line('M66 162C60 124 44 98 30 78M66 162C70 118 84 92 104 70M66 162C64 126 62 96 66 50M66 162C74 140 96 128 114 120M66 162C58 142 36 132 18 128M66 162C70 136 80 120 92 104', '#5E8F5E', 3);
-      s += monstera(66, 52, 52, -92, G2) + monstera(30, 80, 52, -136, G1) + monstera(104, 72, 50, -46, G1);
-      s += monstera(92, 106, 40, -20, G2) + monstera(18, 128, 46, -168, G3) + monstera(114, 120, 46, -10, G3);
-      s += pot(66, 202, 30, 22, 46, p.cloth);
+      let s = floorShadow(90, 202, 34, 5);
+      // tallos y hojas, de atrás para adelante (hojas grandes, con cortes);
+      // todas caben en el dibujo, ninguna se corta en el borde
+      s += line('M90 162C84 124 68 98 54 80M90 162C94 118 108 92 128 72M90 162C88 126 86 96 90 56M90 162C94 136 104 120 116 106M90 162C82 142 64 132 50 128M90 162C98 140 118 126 132 120', '#5E8F5E', 3);
+      s += monstera(90, 56, 52, -92, G2) + monstera(54, 80, 52, -136, G1) + monstera(128, 72, 50, -46, G1);
+      s += monstera(116, 106, 40, -20, G2) + monstera(50, 128, 42, -168, G3) + monstera(132, 120, 42, -10, G3);
+      s += pot(90, 202, 30, 22, 46, p.cloth);
       return s;
     },
   },

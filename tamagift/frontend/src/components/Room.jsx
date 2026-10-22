@@ -6,7 +6,7 @@ import { useStyle } from '../styles/StyleContext';
 import { getMotion } from '../styles/motion';
 import { PosterArt } from './game/posters';
 import { ROOM } from '../gameState';
-import { findFurniture, findWall, findFloor, wallSvg, floorSvg, FURNITURE_PAINTS } from '../roomCatalog';
+import { findFurniture, findWall, findFloor, wallSvg, floorSvg, FURNITURE_PAINTS, POSTER } from '../roomCatalog';
 import { findDecor } from '../shopCatalog';
 
 // ─────────────────────────────────────────────────────────────────
@@ -150,7 +150,7 @@ function Ambience({ styleId, layer }) {
 function PlacedItem({ item, posters, customDecor, selected, editing, onPointerDown, pixel }) {
   const inner = renderPlacedContent(item, posters, customDecor, pixel);
   if (!inner) return null;
-  const { w, h } = placedSize(item, posters, customDecor);
+  const { w, h, foot = 0 } = placedSize(item, posters, customDecor);
   // Los muebles y la decoración del catálogo traen su sombra dibujada;
   // solo lo que subió quien regaló necesita una.
   const onFloor = item.kind === 'decor' && (customDecor || []).some((d) => String(d.id) === String(item.refId));
@@ -178,7 +178,7 @@ function PlacedItem({ item, posters, customDecor, selected, editing, onPointerDo
       style={{
         position: 'absolute',
         left: item.x - (w * item.scale) / 2,
-        top: item.y - h * item.scale,
+        top: item.y - (h - foot) * item.scale,
         width: w * item.scale,
         height: h * item.scale,
         transform: `scaleX(${item.flip || 1})`,
@@ -198,9 +198,9 @@ function PlacedItem({ item, posters, customDecor, selected, editing, onPointerDo
 function placedSize(item, posters, customDecor) {
   if (item.kind === 'mueble') {
     const f = findFurniture(item.refId);
-    return f ? { w: f.w, h: f.h } : { w: 100, h: 100 };
+    return f ? { w: f.w, h: f.h, foot: f.foot } : { w: 100, h: 100 };
   }
-  if (item.kind === 'poster') return { w: 120, h: 156 };
+  if (item.kind === 'poster') return { w: POSTER.w, h: POSTER.h };
   const custom = (customDecor || []).find((d) => String(d.id) === String(item.refId));
   if (custom) {
     const ratio = custom.ratio || 1;
@@ -208,7 +208,7 @@ function placedSize(item, posters, customDecor) {
     return { w: base, h: base / (ratio || 1) };
   }
   const d = findDecor(item.refId);
-  return d ? { w: Math.round(d.w * 1.25), h: Math.round(d.h * 1.25) } : { w: 92, h: 92 };
+  return d ? { w: Math.round(d.w * 1.25), h: Math.round(d.h * 1.25), foot: d.foot * 1.25 } : { w: 92, h: 92 };
 }
 
 function renderPlacedContent(item, posters, customDecor, pixel) {
@@ -223,15 +223,16 @@ function renderPlacedContent(item, posters, customDecor, pixel) {
   if (item.kind === 'poster') {
     const p = (posters || []).find((x) => String(x.id) === String(item.refId));
     if (!p) return null;
-    const pad = Math.round(7 * item.scale);
-    const border = Math.max(3, Math.round(4 * item.scale));
+    // marco dibujado (cada estilo lo redibuja) y la foto adentro
+    const paint = item.paint || 'natural';
+    const k = sw / POSTER.vw;
+    const ph = POSTER.photo;
     return (
-      <div style={{
-        width: '100%', height: '100%', background: C.surface, padding: pad,
-        border: `${border}px solid ${C.ink}`, borderRadius: 4, boxShadow: '5px 7px 0 rgba(30,18,26,0.22)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', boxSizing: 'border-box',
-      }}>
-        <PosterArt poster={p} w={sw - (pad + border) * 2} h={sh - (pad + border) * 2} />
+      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <Sprite markup={POSTER.svg(paint)} cacheKey={`poster-frame-${paint}`} w={sw} h={sh} pixel={pixel} />
+        <div style={{ position: 'absolute', left: ph.x * k, top: ph.y * k, width: ph.w * k, height: ph.h * k, overflow: 'hidden' }}>
+          <PosterArt poster={p} w={Math.round(ph.w * k)} h={Math.round(ph.h * k)} />
+        </div>
       </div>
     );
   }
@@ -463,14 +464,14 @@ export default function Room({
           >
             Quitar
           </SmallBtn>
-          {sel.kind === 'mueble' && (
+          {(sel.kind === 'mueble' || sel.kind === 'poster') && (
             <div className="pg-scroll-x" style={{ display: 'flex', gap: 6, width: '100%', overflowX: 'auto', paddingTop: 4 }}>
               {FURNITURE_PAINTS.map((pt) => (
                 <button
                   key={pt.id} title={pt.name} aria-label={`Pintar ${pt.name}`} className="pg-focus pg-keep-round"
                   onClick={() => {
                     updateSel(setGame, sel.key, (it) => ({ ...it, paint: pt.id }));
-                    setGame((g) => ({ ...g, furniturePaint: { ...(g.furniturePaint || {}), [sel.refId]: pt.id } }));
+                    if (sel.kind === 'mueble') setGame((g) => ({ ...g, furniturePaint: { ...(g.furniturePaint || {}), [sel.refId]: pt.id } }));
                   }}
                   style={{
                     width: 26, height: 26, flexShrink: 0, borderRadius: '50%', padding: 0, cursor: 'pointer',

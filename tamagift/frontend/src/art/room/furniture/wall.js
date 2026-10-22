@@ -155,3 +155,16 @@ function pot(cx, y, rTop, rBot, h, color) {
   const M = mat(color);
   return face(`M${cx - rTop} ${y - h}L${cx - rBot} ${y}H${cx + rBot}L${cx + rTop} ${y - h}Z`, M.front, { w: 1.4 }) + face(rr(cx - rTop - 2, y - h - 4, rTop * 2 + 4, 5, 2), M.top, { w: 1.4 });
 }
+
+// Marco de un póster: la foto va encima, en `photo`. Lo cuelga un hilo de
+// un clavito, como el cuadro.
+export const POSTER_FRAME = { w: 120, h: 156, photo: { x: 17, y: 30, w: 86, h: 112 } };
+export function posterFrameDraw(p) {
+  const W = mat(p.wood);
+  let s = line('M40 18L60 4L80 18', '#8C7A70', 1.6) + Cir(60, 4, 2.4, { fill: '#8C7A70', 'data-r': 'flat' });
+  s += face(rr(4, 16, 112, 136, 3), W.front);
+  s += face(rr(11, 23, 98, 122, 2), '#FFF8EE', { w: 1.6 });
+  s += face(rr(16, 29, 88, 114, 1), '#D9D2DE', { w: 1.2 });
+  s += line('M8 20H112', W.hi, 1.4, { opacity: 0.6 });
+  return s;
+}

@@ -32,6 +32,7 @@ export default function DevGame() {
         localStorage.setItem(`tamagift:gamestate:${SLUG}`, JSON.stringify({
           ...base,
           ownedDecor: ['planta', 'libros', 'osito', 'lampara', 'velas', 'cojin'],
+          ownedPosters: ['local-photo-0'],
           wall: 'zocalo.crema',
           floor: 'tablas.miel',
           placed: [
@@ -44,6 +45,9 @@ export default function DevGame() {
             { key: 'd8', kind: 'mueble', refId: 'sofa', x: 1300, y: 404, scale: 1, flip: 1, paint: 'natural' },
             { key: 'd9', kind: 'mueble', refId: 'lampara', x: 1500, y: 400, scale: 1, flip: 1, paint: 'natural' },
             { key: 'd7', kind: 'decor', refId: 'osito', x: 1140, y: 410, scale: 1, flip: 1 },
+            { key: 'd10', kind: 'decor', refId: 'lampara', x: 1335, y: 268, scale: 1, flip: 1 },
+            { key: 'd11', kind: 'decor', refId: 'velas', x: 560, y: 158, scale: 0.8, flip: 1 },
+            { key: 'd12', kind: 'poster', refId: 'local-photo-0', x: 1130, y: 250, scale: 1, flip: 1, paint: 'natural' },
           ],
           petX: 800,
         }));

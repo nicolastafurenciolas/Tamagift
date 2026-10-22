@@ -163,6 +163,11 @@ export function tube(d, width, color, o = {}) {
 /** Una pieza completa: svg con viewBox w×h. */
 export const piece = (w, h, inner) => svgDoc(w, h, inner);
 
+// Margen bajo los dibujos que se apoyan: ahí caben la sombra en el piso y
+// la base redonda de macetas y lámparas sin que el borde las corte. Quien
+// los pone en el cuarto lo descuenta (`foot`), así siguen apoyados en `y`.
+export const FOOT = 10;
+
 /** Para quien usa React: <svg> con el contenido ya armado. */
 export function asElement(React, markup) {
   const m = markup.match(/^<svg([^>]*)>([\s\S]*)<\/svg>$/);

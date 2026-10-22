@@ -1,6 +1,6 @@
 import React from 'react';
 import { asElement } from './art/room/draw';
-import { FURNITURE_DEFS, FURNITURE_PAINTS, FURNITURE_CATEGORIES, findPaint } from './art/room/furniture';
+import { FURNITURE_DEFS, FURNITURE_PAINTS, FURNITURE_CATEGORIES, findPaint, POSTER } from './art/room/furniture';
 import { WALLS, WALL_ALIASES, parseWall, wallSvg, wallSwatchSvg } from './art/room/walls';
 import { FLOORS, FLOOR_ALIASES, parseFloor, floorSvg, floorSwatchSvg } from './art/room/floors';
 
@@ -16,7 +16,7 @@ import { FLOORS, FLOOR_ALIASES, parseFloor, floorSvg, floorSwatchSvg } from './a
 // Los ids viejos ("crema", "madera"…) se siguen entendiendo.
 // ─────────────────────────────────────────────────────────────────
 
-export { FURNITURE_PAINTS, FURNITURE_CATEGORIES, findPaint };
+export { FURNITURE_PAINTS, FURNITURE_CATEGORIES, findPaint, POSTER };
 
 export const FURNITURE = FURNITURE_DEFS.map((f) => ({
   ...f,

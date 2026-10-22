@@ -61,7 +61,7 @@ function sets(name) {
     const pet = innerOf(mochiSvg(FAMILY[0].r, 'normal'));
     return FURNITURE_DEFS.filter((f) => !cat || f.cat === cat).map((f) => {
       const onWall = f.place === 'pared';
-      const x = 190 - f.w / 2, y = onWall ? 210 - f.h : (f.layer === 'suelo' ? 418 - f.h : 404 - f.h);
+      const x = 190 - f.w / 2, y = (onWall ? 210 : f.layer === 'suelo' ? 418 : 404) - f.h + f.foot;
       const extra = `<g transform="translate(${x} ${y}) scale(${f.w / f.vw})">${innerOf(f.svg(paint))}</g><g transform="translate(330 224)">${pet}</g>`;
       return { name: f.name, kind: 'surface', w: 384, h: 344, markup: cornerSvg(q.get('pared') || 'liso.crema', q.get('piso') || 'tablas.miel', extra) };
     });

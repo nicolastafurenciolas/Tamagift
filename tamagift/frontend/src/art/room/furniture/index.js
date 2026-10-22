@@ -1,14 +1,14 @@
 // Catálogo de muebles: junta las categorías y los deja listos para la
 // tienda y el cuarto (svg en texto; `render` para quien usa React).
 
-import { piece } from '../draw.js';
+import { piece, FOOT } from '../draw.js';
 import { FURNITURE_PAINTS, findPaint } from './paints.js';
 import { REST } from './rest.js';
 import { STORAGE } from './storage.js';
 import { FUN } from './fun.js';
 import { PLANTS } from './plants.js';
 import { RUGS } from './rugs.js';
-import { WALL_ITEMS } from './wall.js';
+import { WALL_ITEMS, POSTER_FRAME, posterFrameDraw } from './wall.js';
 
 export const FURNITURE_CATEGORIES = [
   { id: 'camas', name: 'Camas' },
@@ -28,14 +28,24 @@ const ALL = [...REST, ...STORAGE, ...FUN, ...PLANTS, ...RUGS, ...WALL_ITEMS];
 export const FURNITURE_SCALE = 1.25;
 
 export const FURNITURE_DEFS = ALL.map((f) => {
-  const w = Math.round(f.w * FURNITURE_SCALE), h = Math.round(f.h * FURNITURE_SCALE);
+  const vh = f.h + FOOT;
+  const w = Math.round(f.w * FURNITURE_SCALE), h = Math.round(vh * FURNITURE_SCALE);
   return {
     ...f,
-    vw: f.w, vh: f.h,      // viewBox del dibujo
+    vw: f.w, vh,           // viewBox del dibujo (con el margen de abajo)
     w, h,                  // tamaño en el mundo del cuarto
+    foot: FOOT * FURNITURE_SCALE,  // cuánto del alto queda bajo el punto de apoyo
     layer: f.layer || (f.place === 'pared' ? 'pared' : 'piso'),
-    svg: (paint) => piece(f.w, f.h, f.draw(typeof paint === 'string' ? findPaint(paint) : (paint || FURNITURE_PAINTS[0]))).replace(/width="[\d.]+" height="[\d.]+"/, `width="${w}" height="${h}"`),
+    svg: (paint) => piece(f.w, vh, f.draw(typeof paint === 'string' ? findPaint(paint) : (paint || FURNITURE_PAINTS[0]))).replace(/width="[\d.]+" height="[\d.]+"/, `width="${w}" height="${h}"`),
   };
 });
 
 export { FURNITURE_PAINTS, findPaint };
+
+// Marco de póster (en el cuarto, 1.25× como los muebles).
+const PW = Math.round(POSTER_FRAME.w * FURNITURE_SCALE), PH = Math.round(POSTER_FRAME.h * FURNITURE_SCALE);
+export const POSTER = {
+  w: PW, h: PH, vw: POSTER_FRAME.w, vh: POSTER_FRAME.h, photo: POSTER_FRAME.photo,
+  svg: (paint) => piece(POSTER_FRAME.w, POSTER_FRAME.h, posterFrameDraw(typeof paint === 'string' ? findPaint(paint) : paint))
+    .replace(/width="[\d.]+" height="[\d.]+"/, `width="${PW}" height="${PH}"`),
+};
