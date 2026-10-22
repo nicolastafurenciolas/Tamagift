@@ -70,6 +70,9 @@ nada, el estilo es **Pixel art**.
 - `/hoja?estilo=<id>` — hoja completa de un estilo: cuartos, ánimos,
   estilos de partida, cada pieza de personalización, muebles, colores,
   paredes, pisos, decoración, comida, interfaz y minijuegos.
+- `/aleatorio` — cada 3 s una mascota con rasgos al azar, en un estilo y
+  un cuarto al azar (el fondo de la página sigue al estilo). Espacio
+  pausa, flecha derecha pasa a la siguiente.
 - `/dev/<pantalla>?estilo=<id>` — el juego con una mascota de prueba y un
   cuarto amoblado, directo en una pantalla: `main`, `comer`, `decorar`,
   `estilo`, `apertura`, `games`, `shop`, `bathroom`, `memoria`,
