@@ -1314,7 +1314,10 @@ function ProgressDots({ step, setStep }) {
 export default function TamagiftWizard() {
   const navigate = useNavigate();
   const { setStyleId } = useStyle();
-  const [step, setStep] = useState(0);
+  // Solo en desarrollo: /crear?paso=fotos abre directo en ese paso (para
+  // revisar cada pantalla en cada estilo sin llenar todo a mano).
+  const devStep = import.meta.env.DEV ? STEP_META.findIndex((x) => x.id === new URLSearchParams(window.location.search).get('paso')) : -1;
+  const [step, setStep] = useState(devStep > 0 ? devStep : 0);
   const [petName, setPetName] = useState('');
   const [partnerName, setPartnerName] = useState('');
   const [creatorName, setCreatorName] = useState('');
@@ -1348,6 +1351,7 @@ export default function TamagiftWizard() {
   const [draftReady, setDraftReady] = useState(false);
   useEffect(() => {
     loadDraft().then((d) => {
+      if (devStep > 0) { setDraftReady(true); return; }
       if (d && d.petName !== undefined && (d.petName || d.foods?.length || d.photos?.length || d.step > 1)) setDraftOffer(d);
       else setDraftReady(true);
     });
