@@ -1,28 +1,40 @@
 ﻿import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { C, FONT, SHADOW, DRAW_COLORS, tint } from '../theme';
+import { C, FONT, SHADOW, DRAW_COLORS, soft } from '../theme';
 import { IconGift, IconSparkle, IconClose, IconBack, IconCamera, IconPencil } from './icons';
-import { createPet, accessKeyRequired, checkAccessKey, AccessKeyError } from '../api';
+import { createPet, accessKeyRequired, checkAccessKey, AccessKeyError, CreatePetError } from '../api';
 import { toEmbedUrl, providerLabel } from '../embed';
-import { DEFAULT_RECIPE, PetRecipeMarkup, recipeToPngDataUrl } from '../PetRecipe';
+import { DEFAULT_RECIPE, recipeToPngDataUrl } from '../PetRecipe';
+import PetArt from './PetArt';
+import { parseRecipe } from '../petLook';
+import { HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES } from '../art/mochi';
 import BgRemover from './BgRemover';
 import { isTestKey, buildTestPet, testGameState } from '../testSeed';
 import { checkYouTubeEmbeddable, youtubeIdFromEmbed } from '../ytCheck';
 import { musicErrorText } from './MusicBar';
-import { ModularPetStep, useDesignerState } from './PetDesigner';
+import { ModularPetStep, useDesignerState, PartPicker } from './PetDesigner';
+import { compressImageFile, PHOTO_MAX_SIDE, FOOD_MAX_SIDE } from '../imageCompress';
+import Sprite from './Sprite';
+import StylePicker from './StylePicker';
+import { useStyle, styleFromUrl } from '../styles/StyleContext';
+import { DEFAULT_STYLE, getStyle, isStyleId } from '../styles/registry';
+import { hashString } from '../styles/spriteEngine';
+import { loadDraft, saveDraft, clearDraft } from '../draftStore';
+import { play } from '../sound';
 
 const CANVAS_SIZE = 320;
 
 const MOODS = [
-  { id: 'normal', label: 'Normal', emoji: '🙂' },
-  { id: 'feliz', label: 'Feliz', emoji: '😊' },
-  { id: 'enojado', label: 'Enojado', emoji: '😤' },
+  { id: 'normal', label: 'Normal' },
+  { id: 'feliz', label: 'Feliz' },
+  { id: 'enojado', label: 'Enojado' },
 ];
 
 const STEP_META = [
   { id: 'bienvenida', label: 'Inicio' },
   { id: 'nombres', label: 'Nombres' },
   { id: 'dibujar', label: 'Dibujar' },
+  { id: 'estilo', label: 'Estilo' },
   { id: 'comidas', label: 'Comidas' },
   { id: 'frases', label: 'Frases' },
   { id: 'fotos', label: 'Fotos' },
@@ -66,9 +78,9 @@ function Chip({ active, onClick, children, color }) {
       className="pg-focus"
       style={{
         fontFamily: FONT.display, padding: '7px 15px', borderRadius: 999, fontSize: 13.5, fontWeight: 700, cursor: 'pointer',
-        background: active ? c : C.surface, color: active ? '#fff' : C.ink,
+        background: active ? c : C.surface, color: active ? C.onAccent : C.ink,
         border: `1.5px solid ${active ? c : C.line}`,
-        boxShadow: active ? `0 3px 0 ${tint(c, -0.001) === c ? c : c}` : `0 2px 0 ${C.line}`,
+        boxShadow: active ? `0 3px 0 color-mix(in srgb, ${c}, black 22%)` : `0 2px 0 ${C.line}`,
         transition: 'transform 0.1s',
       }}
     >
@@ -77,19 +89,28 @@ function Chip({ active, onClick, children, color }) {
   );
 }
 
-function TextField({ label, value, onChange, placeholder, multiline }) {
+// `maxLength` es el mismo largo máximo que acepta el servidor: antes no
+// había ninguno y un texto largo hacía fallar la creación al final.
+function TextField({ label, value, onChange, placeholder, multiline, maxLength }) {
   const shared = {
     width: '100%', padding: '11px 14px', borderRadius: 14, fontSize: 14, color: C.ink,
     border: `1.5px solid ${C.line}`, background: C.surface, fontFamily: FONT.body,
-    outline: 'none', boxShadow: 'inset 0 1px 3px rgba(120,80,55,0.06)',
+    outline: 'none', boxShadow: SHADOW.pressed,
   };
+  const len = String(value || '').length;
+  const near = maxLength && len >= maxLength * 0.8;
   return (
     <div style={{ marginBottom: 14, width: '100%' }}>
-      {label && <label style={{ display: 'block', fontFamily: FONT.display, fontSize: 12, fontWeight: 700, marginBottom: 6, color: C.inkSoft }}>{label}</label>}
+      {label && (
+        <label style={{ display: 'flex', justifyContent: 'space-between', fontFamily: FONT.display, fontSize: 12, fontWeight: 700, marginBottom: 6, color: C.inkSoft }}>
+          <span>{label}</span>
+          {near && <span style={{ color: len >= maxLength ? C.rose : C.inkFaint }}>{len}/{maxLength}</span>}
+        </label>
+      )}
       {multiline ? (
-        <textarea value={value} onChange={onChange} placeholder={placeholder} rows={2} className="pg-focus" style={{ ...shared, resize: 'vertical' }} />
+        <textarea value={value} onChange={onChange} placeholder={placeholder} rows={2} maxLength={maxLength} className="pg-focus" style={{ ...shared, resize: 'vertical' }} />
       ) : (
-        <input value={value} onChange={onChange} placeholder={placeholder} className="pg-focus" style={shared} />
+        <input value={value} onChange={onChange} placeholder={placeholder} maxLength={maxLength} className="pg-focus" style={shared} />
       )}
     </div>
   );
@@ -107,13 +128,18 @@ function ItemCard({ onDelete, children, accent }) {
 function AddButton({ onClick, color, children }) {
   const c = color || C.rose;
   return (
-    <button onClick={onClick} className="pg-btn pg-focus" style={{ width: '100%', padding: '11px', fontSize: 14, background: c, color: '#fff', boxShadow: `0 4px 0 ${c === C.rose ? C.roseDeep : c === C.sage ? '#5E8873' : '#B98A1E'}` }}>
+    <button onClick={onClick} className="pg-btn pg-focus" style={{ width: '100%', padding: '11px', fontSize: 14, background: c, color: C.onAccent, boxShadow: `0 4px 0 color-mix(in srgb, ${c}, black 25%)` }}>
       {children}
     </button>
   );
 }
 
 // ── Paso: Bienvenida ──────────────────────────────────────────────
+// La clave de prueba sale en `npm run dev`. En un despliegue de pruebas
+// se puede encender con VITE_ENABLE_TEST_KEY=1; en el de producción no
+// se pone y el recuadro no aparece.
+const SHOW_TEST_KEY = import.meta.env.DEV || import.meta.env.VITE_ENABLE_TEST_KEY === '1';
+
 function WelcomeStep({ onTestKey, testState, keyRequired, accessKey, setAccessKey, keyState }) {
   const [key, setKey] = useState('');
   const wrong = key.length > 0 && !isTestKey(key);
@@ -122,13 +148,13 @@ function WelcomeStep({ onTestKey, testState, keyRequired, accessKey, setAccessKe
     <StepShell>
       <div style={{ textAlign: 'center' }}>
         <div style={{ display: 'inline-block', animation: 'pg-breathe 2.6s ease-in-out infinite', marginBottom: 8 }}>
-          <IconGift size={72} color={C.rose} fill={C.roseSoft} stroke={2.2} />
+          <Sprite art={GIFT_ART} cacheKey="wiz-gift" w={92} h={92} />
         </div>
         <h2 style={{ fontFamily: FONT.display, fontSize: 23, fontWeight: 800, marginBottom: 12 }}>Vas a crear un regalo único</h2>
         <p style={{ fontSize: 14.5, color: C.ink, lineHeight: 1.6, marginBottom: 10 }}>
-          En los próximos pasos vas a <b>dibujar su mascota</b> en 3 ánimos y darle sus comidas favoritas, frases, fotos y música.
+          En los próximos pasos vas a <b>armar su mascota</b>, elegir el <b>estilo</b> del juego y darle sus comidas favoritas, frases, fotos y música.
         </p>
-        <p style={{ fontFamily: FONT.hand, fontSize: 20, color: C.sage, lineHeight: 1.3 }}>Puedes ir y volver entre pasos cuando quieras — nada se pierde.</p>
+        <p style={{ fontFamily: FONT.hand, fontSize: 20, color: C.sage, lineHeight: 1.3 }}>Se guarda solo: puedes salir y volver cuando quieras.</p>
       </div>
 
       {/* Llave de acceso: la puerta. Sin ella no se puede avanzar. */}
@@ -159,7 +185,9 @@ function WelcomeStep({ onTestKey, testState, keyRequired, accessKey, setAccessKe
       )}
 
       {/* Atajo de pruebas: genera una mascota completa al azar y
-          entrega el link, sin pasar por los 10 pasos. */}
+          entrega el link, sin pasar por los 10 pasos. Solo para quien
+          desarrolla: quien compra no debe verlo. */}
+      {SHOW_TEST_KEY && (
       <div className="pg-card" style={{ marginTop: 22, padding: 14, background: C.surfaceAlt }}>
         <p style={{ fontFamily: FONT.display, fontSize: 12, fontWeight: 700, color: C.inkSoft, marginBottom: 6 }}>
           Clave de prueba
@@ -184,7 +212,7 @@ function WelcomeStep({ onTestKey, testState, keyRequired, accessKey, setAccessKe
             style={{
               padding: '10px 18px', fontSize: 13, whiteSpace: 'nowrap',
               background: isTestKey(key) ? C.sage : C.line,
-              color: '#fff', border: `1.5px solid ${isTestKey(key) ? C.sage : C.line}`,
+              color: C.onAccent, border: `1.5px solid ${isTestKey(key) ? C.sage : C.line}`,
               opacity: isTestKey(key) && testState !== 'working' ? 1 : 0.55,
             }}
           >
@@ -198,6 +226,7 @@ function WelcomeStep({ onTestKey, testState, keyRequired, accessKey, setAccessKe
           <p style={{ fontSize: 11.5, color: C.rose, marginTop: 7 }}>No se pudo generar. Intenta de nuevo.</p>
         )}
       </div>
+      )}
     </StepShell>
   );
 }
@@ -206,9 +235,9 @@ function WelcomeStep({ onTestKey, testState, keyRequired, accessKey, setAccessKe
 function NamesStep({ petName, setPetName, partnerName, setPartnerName, creatorName, setCreatorName }) {
   return (
     <StepShell title="Empecemos por los nombres" subtitle="Esto aparece en toda la experiencia">
-      <TextField label="¿Cómo se va a llamar la mascota?" value={petName} onChange={(e) => setPetName(e.target.value)} placeholder="Ej: Mochi" />
-      <TextField label="¿Para quién es este regalo? (opcional)" value={partnerName} onChange={(e) => setPartnerName(e.target.value)} placeholder="Ej: Sarah" />
-      <TextField label="¿De parte de quién? (opcional)" value={creatorName} onChange={(e) => setCreatorName(e.target.value)} placeholder="Tu nombre" />
+      <TextField label="¿Cómo se va a llamar la mascota?" value={petName} onChange={(e) => setPetName(e.target.value)} placeholder="Ej: Mochi" maxLength={60} />
+      <TextField label="¿Para quién es este regalo? (opcional)" value={partnerName} onChange={(e) => setPartnerName(e.target.value)} placeholder="Ej: Sarah" maxLength={80} />
+      <TextField label="¿De parte de quién? (opcional)" value={creatorName} onChange={(e) => setCreatorName(e.target.value)} placeholder="Tu nombre" maxLength={80} />
     </StepShell>
   );
 }
@@ -223,12 +252,12 @@ function FoodsStep({ foods, setFoods }) {
   const [msg, setMsg] = useState('');
   const [image, setImage] = useState(null);
 
+  const [imgError, setImgError] = useState('');
   function pickImage(e) {
     const file = (e.target.files || [])[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setImage(ev.target.result);
-    reader.readAsDataURL(file);
+    setImgError('');
+    compressImageFile(file, FOOD_MAX_SIDE).then(setImage).catch(() => setImgError(UNREADABLE_IMAGE));
     e.target.value = '';
   }
 
@@ -257,7 +286,8 @@ function FoodsStep({ foods, setFoods }) {
             <input type="file" accept="image/*" onChange={pickImage} style={{ display: 'none' }} />
           </label>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <TextField label="Comida" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Pizza" />
+            <TextField label="Comida" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Pizza" maxLength={60} />
+            {imgError && <p style={{ fontSize: 11.5, color: C.rose, margin: '-6px 0 6px' }}>{imgError}</p>}
             {image && (
               <button onClick={() => setImage(null)} className="pg-focus" style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FONT.display, fontSize: 11.5, fontWeight: 700, color: C.rose, padding: 0 }}>
                 Quitar imagen
@@ -269,7 +299,7 @@ function FoodsStep({ foods, setFoods }) {
           <Chip active={pref === 'gusta'} onClick={() => setPref('gusta')} color={C.sage}>Le gusta</Chip>
           <Chip active={pref === 'no_gusta'} onClick={() => setPref('no_gusta')} color={C.rose}>No le gusta</Chip>
         </div>
-        <TextField label="Qué dice al comerla" value={msg} onChange={(e) => setMsg(e.target.value)} placeholder={pref === 'gusta' ? 'Ej: ¡Mi favorita, gracias!' : 'Ej: Esto no, por favor otra cosa'} />
+        <TextField label="Qué dice al comerla" value={msg} onChange={(e) => setMsg(e.target.value)} placeholder={pref === 'gusta' ? 'Ej: ¡Mi favorita, gracias!' : 'Ej: Esto no, por favor otra cosa'} maxLength={200} />
         <AddButton onClick={add}>+ Agregar comida</AddButton>
       </div>
       {foods.length === 0 && <p style={{ fontSize: 12.5, textAlign: 'center', color: C.inkSoft }}>Todavía no agregas ninguna comida</p>}
@@ -279,7 +309,7 @@ function FoodsStep({ foods, setFoods }) {
             {f.image ? (
               <img src={f.image} alt="" style={{ width: 38, height: 38, borderRadius: 10, objectFit: 'cover', flexShrink: 0, border: `1.5px solid ${C.line}` }} />
             ) : (
-              <span style={{ width: 38, height: 38, borderRadius: '45% 55% 50% 50%', flexShrink: 0, background: f.preference === 'gusta' ? C.peach : '#D5DEE3', border: `2px solid ${C.ink}` }} />
+              <span style={{ width: 38, height: 38, borderRadius: '45% 55% 50% 50%', flexShrink: 0, background: f.preference === 'gusta' ? C.peach : C.lavenderSoft, border: `2px solid ${C.ink}` }} />
             )}
             <div style={{ minWidth: 0 }}>
               <div style={{ fontFamily: FONT.display, fontSize: 14, fontWeight: 700 }}>{f.food_name} <span style={{ fontSize: 11, fontWeight: 700, color: f.preference === 'gusta' ? C.sage : C.rose }}>{f.preference === 'gusta' ? '· le gusta' : '· no le gusta'}</span></div>
@@ -314,7 +344,7 @@ function PhrasesStep({ phrases, setPhrases }) {
         ))}
       </div>
       <div className="pg-card" style={{ padding: 16, marginBottom: 16 }}>
-        <TextField label={`Frase ${catLabel[cat].toLowerCase()}`} value={text} onChange={(e) => setText(e.target.value)} placeholder="Ej: Hoy me siento muy feliz" multiline />
+        <TextField label={`Frase ${catLabel[cat].toLowerCase()}`} value={text} onChange={(e) => setText(e.target.value)} placeholder="Ej: Hoy me siento muy feliz" multiline maxLength={200} />
         <AddButton onClick={add} color={catColor[cat]}>+ Agregar frase</AddButton>
       </div>
       {filtered.length === 0 && <p style={{ fontSize: 12.5, textAlign: 'center', color: C.inkSoft }}>Sin frases {catLabel[cat].toLowerCase()} todavía</p>}
@@ -357,20 +387,23 @@ function PriceHint({ price }) {
   if (!games) return null;
   return (
     <p style={{ fontSize: 11, color: C.inkFaint, margin: '2px 0 12px', lineHeight: 1.4 }}>
-      💡 Con los minijuegos se ganan {COINS_PER_GAME_MIN}-{COINS_PER_GAME_MAX} monedas por partida — a este precio equivale a {games} de minijuego.
+      Con los minijuegos se ganan {COINS_PER_GAME_MIN}-{COINS_PER_GAME_MAX} monedas por partida — a este precio equivale a {games} de minijuego.
     </p>
   );
 }
 
 function PhotosStep({ photos, setPhotos }) {
+  const [photoError, setPhotoError] = useState('');
   function handleFiles(e) {
-    const files = Array.from(e.target.files || []);
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        setPhotos((prev) => [...prev, { id: uid(), url: ev.target.result, caption: '', used_for: 'puzzle', price: DEFAULT_POSTER_PRICE }]);
-      };
-      reader.readAsDataURL(file);
+    const files = Array.from(e.target.files || []).slice(0, Math.max(0, MAX_PHOTOS - photos.length));
+    setPhotoError(files.length < (e.target.files || []).length ? `Caben hasta ${MAX_PHOTOS} fotos.` : '');
+    // Todas juntas y en el orden en que se eligieron. Las que el
+    // navegador no puede leer (HEIC en Chrome, por ejemplo) se avisan en
+    // vez de guardarse rotas.
+    Promise.all(files.map((file) => compressImageFile(file, PHOTO_MAX_SIDE).catch(() => null))).then((urls) => {
+      const ok = urls.filter(Boolean);
+      if (ok.length < urls.length) setPhotoError(UNREADABLE_IMAGE);
+      setPhotos((prev) => [...prev, ...ok.map((url) => ({ id: uid(), url, caption: '', used_for: 'puzzle', price: DEFAULT_POSTER_PRICE }))]);
     });
     e.target.value = '';
   }
@@ -382,7 +415,7 @@ function PhotosStep({ photos, setPhotos }) {
   function Counter({ label, count, color }) {
     const done = count >= PHOTO_MIN;
     return (
-      <div style={{ flex: 1, background: done ? tint(color, 0.78) : C.surfaceAlt, border: `1.5px solid ${done ? color : C.line}`, borderRadius: 14, padding: '9px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ flex: 1, background: done ? soft(color, 0.78) : C.surfaceAlt, border: `1.5px solid ${done ? color : C.line}`, borderRadius: 14, padding: '9px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontFamily: FONT.display, fontSize: 12.5, fontWeight: 700, color: C.ink }}>{label}</span>
         <span style={{ fontFamily: FONT.display, fontSize: 13, fontWeight: 800, color: done ? color : C.inkSoft }}>{done ? '✓ ' : ''}{count}/{PHOTO_MIN}</span>
       </div>
@@ -399,12 +432,13 @@ function PhotosStep({ photos, setPhotos }) {
         + Subir fotos
         <input type="file" accept="image/*" multiple onChange={handleFiles} style={{ display: 'none' }} />
       </label>
+      {photoError && <p style={{ fontSize: 12, color: C.rose, margin: '-8px 0 12px', textAlign: 'center' }}>{photoError}</p>}
       {photos.length === 0 && <p style={{ fontSize: 12.5, textAlign: 'center', color: C.inkSoft }}>Sube sus fotos y marca cada una como <b style={{ color: C.lavender }}>Póster</b> (para decorar el cuarto) o <b style={{ color: C.sage }}>Rompecabezas</b> (para el minijuego)</p>}
       {photos.map((p) => (
         <div key={p.id} className="pg-card" style={{ padding: 12, marginBottom: 10, display: 'flex', gap: 12 }}>
           <img src={p.url} alt="" style={{ width: 58, height: 58, objectFit: 'cover', borderRadius: 12, flexShrink: 0, border: `2px solid ${C.surface}`, boxShadow: SHADOW.soft }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <input value={p.caption} onChange={(e) => updatePhoto(p.id, { caption: e.target.value })} placeholder="Descripción (opcional)" className="pg-focus" style={{ width: '100%', padding: '7px 10px', borderRadius: 10, fontSize: 12.5, marginBottom: 8, border: `1.5px solid ${C.line}`, outline: 'none', fontFamily: FONT.body }} />
+            <input value={p.caption} onChange={(e) => updatePhoto(p.id, { caption: e.target.value })} placeholder="Descripción (opcional)" maxLength={150} className="pg-focus" style={{ width: '100%', padding: '7px 10px', borderRadius: 10, fontSize: 12.5, marginBottom: 8, border: `1.5px solid ${C.line}`, outline: 'none', fontFamily: FONT.body, background: C.surface, color: C.ink }} />
             <div className="flex gap-1.5" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
               <Chip active={p.used_for === 'puzzle'} onClick={() => updatePhoto(p.id, { used_for: 'puzzle' })} color={C.sage}>Rompecabezas</Chip>
               <Chip active={p.used_for === 'poster'} onClick={() => updatePhoto(p.id, { used_for: 'poster' })} color={C.lavender}>Póster</Chip>
@@ -416,7 +450,7 @@ function PhotosStep({ photos, setPhotos }) {
                     value={p.price ?? DEFAULT_POSTER_PRICE}
                     onChange={(e) => updatePhoto(p.id, { price: Math.max(0, Number(e.target.value) || 0) })}
                     className="pg-focus"
-                    style={{ width: 56, padding: '4px 6px', borderRadius: 8, fontSize: 11.5, border: `1.5px solid ${C.line}`, outline: 'none', fontFamily: FONT.body }}
+                    style={{ width: 56, padding: '4px 6px', borderRadius: 8, fontSize: 11.5, border: `1.5px solid ${C.line}`, outline: 'none', fontFamily: FONT.body, background: C.surface, color: C.ink }}
                   />
                   {gamesForPrice(p.price ?? DEFAULT_POSTER_PRICE) && (
                     <span style={{ color: C.inkFaint }}>({gamesForPrice(p.price ?? DEFAULT_POSTER_PRICE)})</span>
@@ -481,7 +515,7 @@ function MusicStep({ songs, setSongs }) {
   const blocked = check && check !== 'checking' && check.ok === false;
 
   function add() {
-    if (!url.trim() || blocked) return;
+    if (!url.trim() || blocked || songs.length >= MAX_SONGS) return;
     const finalUrl = parsed.url || url.trim();
     setSongs((prev) => [...prev, {
       id: uid(),
@@ -498,6 +532,10 @@ function MusicStep({ songs, setSongs }) {
     e.target.value = ''; // permite volver a elegir el mismo archivo después
     if (!file) return;
     setUploadError('');
+    if (songs.filter((x) => x.source_type === 'upload').length >= MAX_UPLOADED_SONGS) {
+      setUploadError(`Caben hasta ${MAX_UPLOADED_SONGS} canciones subidas como archivo (pesan mucho). Agrega las demás con un link.`);
+      return;
+    }
     if (!/^audio\//.test(file.type)) {
       setUploadError('Ese archivo no es de audio. Sube un MP3, M4A, WAV u OGG.');
       return;
@@ -537,7 +575,7 @@ function MusicStep({ songs, setSongs }) {
                 flex: 1, padding: '8px 10px', borderRadius: 10, cursor: 'pointer',
                 fontFamily: FONT.display, fontSize: 12.5, fontWeight: 700,
                 background: mode === key ? C.lavender : C.surfaceAlt,
-                color: mode === key ? '#fff' : C.ink,
+                color: mode === key ? C.onAccent : C.ink,
                 border: `1.5px solid ${mode === key ? C.lavender : C.line}`,
               }}
             >
@@ -548,7 +586,7 @@ function MusicStep({ songs, setSongs }) {
 
         {mode === 'upload' ? (
           <>
-            <TextField label="Título (opcional)" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ej: Nuestra canción" />
+            <TextField label="Título (opcional)" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ej: Nuestra canción" maxLength={100} />
             <p style={{ fontSize: 12, color: C.inkSoft, marginBottom: 10, lineHeight: 1.45 }}>
               Sube un archivo de audio que ya tengas (MP3, M4A, WAV u OGG, máx. {MAX_AUDIO_BYTES / (1024 * 1024)} MB).
               Esta es la única forma de que la música suene de verdad al abrir el regalo — los links de Spotify/YouTube
@@ -572,8 +610,8 @@ function MusicStep({ songs, setSongs }) {
           </>
         ) : (
         <>
-        <TextField label="Título (opcional)" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ej: Nuestra canción" />
-        <TextField label="Link de la canción" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Pega aquí el link de Spotify o YouTube" />
+        <TextField label="Título (opcional)" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ej: Nuestra canción" maxLength={100} />
+        <TextField label="Link de la canción" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Pega aquí el link de Spotify o YouTube" maxLength={300} />
 
         {recognized && (
           <div style={{ marginBottom: 12 }}>
@@ -612,7 +650,7 @@ function MusicStep({ songs, setSongs }) {
           <p style={{ fontSize: 12, color: C.inkSoft, marginBottom: 10 }}>Comprobando que se pueda reproducir…</p>
         )}
         {blocked && (
-          <div style={{ background: '#FDECEC', border: `1.5px solid ${C.rose}`, borderRadius: 12, padding: '10px 12px', marginBottom: 12 }}>
+          <div style={{ background: C.roseSoft, border: `1.5px solid ${C.rose}`, borderRadius: 12, padding: '10px 12px', marginBottom: 12 }}>
             <p style={{ fontSize: 12.5, color: C.rose, margin: 0, fontWeight: 700, lineHeight: 1.4 }}>
               {musicErrorText(check.code)}
             </p>
@@ -636,6 +674,7 @@ function MusicStep({ songs, setSongs }) {
       </div>
 
       {songs.length === 0 && <p style={{ fontSize: 12.5, textAlign: 'center', color: C.inkSoft }}>Todavía no agregas ninguna canción</p>}
+      {songs.length >= MAX_SONGS && <p style={{ fontSize: 12, textAlign: 'center', color: C.inkFaint }}>Caben hasta {MAX_SONGS} canciones.</p>}
       {songs.map((s) => (
         <ItemCard key={s.id} onDelete={() => setSongs((prev) => prev.filter((x) => x.id !== s.id))}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
@@ -664,6 +703,12 @@ function MusicStep({ songs, setSongs }) {
 // el creador dibuja encima de una copia de la receta para vestir a la
 // mascota (sombrero, bufanda, disfraz completo...), un dibujo por ánimo.
 function OutfitDesigner({ baseRecipe, onSave, onCancel }) {
+  // La prenda es la misma mochi con otros accesorios (y, si quiere, algo
+  // dibujado encima): así se ve bien en cualquier estilo.
+  const [wear, setWear] = useState(() => {
+    const { overlays, ...base } = baseRecipe;
+    return base;
+  });
   const [name, setName] = useState('');
   const [price, setPrice] = useState(100);
   const [activeMood, setActiveMood] = useState('normal');
@@ -788,15 +833,18 @@ function OutfitDesigner({ baseRecipe, onSave, onCancel }) {
   async function handleSave() {
     if (!name.trim()) return;
     setSaving(true);
+    const overlays = {};
+    ['normal', 'feliz', 'enojado'].forEach((m) => { const hh = histories[m]; if (hh && hh.index > 0) overlays[m] = hh.stack[hh.index]; });
+    const recipe = Object.keys(overlays).length ? { ...wear, overlays } : wear;
     const [drawing_normal, drawing_feliz, drawing_enojado] = await Promise.all(
-      ['normal', 'feliz', 'enojado'].map((m) => recipeToPngDataUrl(baseRecipe, m, histories[m].stack[histories[m].index], 320))
+      ['normal', 'feliz', 'enojado'].map((m) => recipeToPngDataUrl(wear, m, overlays[m], 320))
     );
-    onSave({ id: uid(), name: name.trim(), price: Math.max(0, Number(price) || 0), drawing_normal, drawing_feliz, drawing_enojado });
+    onSave({ id: uid(), name: name.trim(), price: Math.max(0, Number(price) || 0), drawing_normal, drawing_feliz, drawing_enojado, recipe: JSON.stringify(recipe) });
   }
 
   return (
     <div className="pg-card" style={{ padding: 16, marginBottom: 16 }}>
-      <TextField label="Nombre de la prenda" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Gorrito de invierno" />
+      <TextField label="Nombre de la prenda" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Gorrito de invierno" maxLength={60} />
       <TextField label="Precio en monedas" value={String(price)} onChange={(e) => setPrice(e.target.value.replace(/[^0-9]/g, ''))} placeholder="100" />
       <PriceHint price={price} />
 
@@ -804,7 +852,7 @@ function OutfitDesigner({ baseRecipe, onSave, onCancel }) {
         {MOODS.map((m) => (
           <button key={m.id} onClick={() => setActiveMood(m.id)} className="pg-focus" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
             <div style={{ width: 40, height: 40, borderRadius: 11, overflow: 'hidden', border: `2.5px solid ${activeMood === m.id ? C.rose : C.line}` }}>
-              <svg viewBox="0 0 200 200" width={36} height={36}><PetRecipeMarkup recipe={baseRecipe} mood={m.id} /></svg>
+              <PetArt recipe={wear} mood={m.id} size={36} />
             </div>
             <span style={{ fontFamily: FONT.display, fontSize: 10, fontWeight: 700, color: activeMood === m.id ? C.rose : C.ink }}>{m.label}</span>
           </button>
@@ -820,9 +868,9 @@ function OutfitDesigner({ baseRecipe, onSave, onCancel }) {
       )}
 
       <div style={{ position: 'relative', margin: '0 auto 12px', width: CANVAS_SIZE, height: CANVAS_SIZE, borderRadius: 20, overflow: 'hidden', boxShadow: `0 0 0 4px ${C.surface}, 0 0 0 6px ${C.line}, ${SHADOW.soft}`, background: C.paperDeep }}>
-        <svg viewBox="0 0 200 200" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
-          <PetRecipeMarkup recipe={baseRecipe} mood={activeMood} />
-        </svg>
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          <PetArt recipe={wear} mood={activeMood} size={CANVAS_SIZE} />
+        </div>
         {['normal', 'feliz', 'enojado'].map((m) => (
           <canvas
             key={m} ref={refs[m]}
@@ -832,18 +880,21 @@ function OutfitDesigner({ baseRecipe, onSave, onCancel }) {
         ))}
       </div>
 
-      <p style={{ fontSize: 11.5, color: C.inkSoft, textAlign: 'center', marginBottom: 12 }}>Dibuja la ropa o accesorio encima de la mascota — no hace falta redibujarla entera</p>
+      <p style={{ fontSize: 11.5, color: C.inkSoft, textAlign: 'center', marginBottom: 12 }}>Elige qué se pone y, si quieres, dibuja algo más encima</p>
+      <PartPicker label="En la cabeza" field="headAcc" options={HEAD_ACCESSORIES} recipe={wear} setRecipe={setWear} />
+      <PartPicker label="En el cuello" field="neckAcc" options={NECK_ACCESSORIES} recipe={wear} setRecipe={setWear} />
+      <PartPicker label="En la cara" field="extraAcc" options={EXTRA_ACCESSORIES} recipe={wear} setRecipe={setWear} />
 
       <div className="pg-card" style={{ padding: 14, marginBottom: 10, background: C.surfaceAlt }}>
         <div className="flex gap-2 justify-center mb-3">
-          {[{ id: 'pincel', label: '🖌 Pincel' }, { id: 'goma', label: '🧼 Goma' }, { id: 'cuentagotas', label: '💧 Color' }].map((t) => (
+          {[{ id: 'pincel', label: 'Pincel' }, { id: 'goma', label: 'Goma' }, { id: 'cuentagotas', label: 'Gotero' }].map((t) => (
             <Chip key={t.id} active={tool === t.id} onClick={() => setTool(t.id)}>{t.label}</Chip>
           ))}
         </div>
         <div className="flex items-center gap-3 mb-3">
           <span style={{ fontFamily: FONT.display, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', color: C.inkSoft }}>Grosor</span>
           <input type="range" min="2" max="30" value={size} onChange={(e) => setSize(Number(e.target.value))} className="flex-1" style={{ accentColor: C.rose }} />
-          <div style={{ width: Math.max(size, 6), height: Math.max(size, 6), borderRadius: '50%', background: tool === 'goma' ? '#fff' : color, border: `1.5px solid ${C.line}`, flexShrink: 0 }} />
+          <div style={{ width: Math.max(size, 6), height: Math.max(size, 6), borderRadius: '50%', background: tool === 'goma' ? C.surface : color, border: `1.5px solid ${C.line}`, flexShrink: 0 }} />
         </div>
         <div className="flex gap-2 justify-center mb-3">
           {['dura', 'suave'].map((hd) => (
@@ -861,9 +912,9 @@ function OutfitDesigner({ baseRecipe, onSave, onCancel }) {
       </div>
 
       <div className="flex gap-2 justify-center mb-4">
-        <button onClick={() => undo(activeMood)} disabled={!canUndo} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '8px 14px', fontSize: 12.5, opacity: canUndo ? 1 : 0.5 }}>↩ Deshacer</button>
-        <button onClick={() => redo(activeMood)} disabled={!canRedo} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '8px 14px', fontSize: 12.5, opacity: canRedo ? 1 : 0.5 }}>↪ Rehacer</button>
-        <button onClick={() => clearCanvas(activeMood)} className="pg-btn pg-focus" style={{ padding: '8px 14px', fontSize: 12.5, background: C.surface, color: C.rose, border: `1.5px solid ${C.rose}`, boxShadow: `0 2px 0 ${C.roseSoft}` }}>🗑 Limpiar</button>
+        <button onClick={() => undo(activeMood)} disabled={!canUndo} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '8px 14px', fontSize: 12.5, opacity: canUndo ? 1 : 0.5 }}>Deshacer</button>
+        <button onClick={() => redo(activeMood)} disabled={!canRedo} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '8px 14px', fontSize: 12.5, opacity: canRedo ? 1 : 0.5 }}>Rehacer</button>
+        <button onClick={() => clearCanvas(activeMood)} className="pg-btn pg-focus" style={{ padding: '8px 14px', fontSize: 12.5, background: C.surface, color: C.rose, border: `1.5px solid ${C.rose}`, boxShadow: `0 2px 0 ${C.roseSoft}` }}>Limpiar</button>
       </div>
 
       <div className="flex gap-3">
@@ -1113,7 +1164,11 @@ function OutfitsStep({ recipe, outfits, setOutfits }) {
       {outfits.map((o) => (
         <ItemCard key={o.id} onDelete={() => setOutfits((prev) => prev.filter((x) => x.id !== o.id))}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <img src={o.drawing_normal} alt={o.name} style={{ width: 42, height: 42, objectFit: 'contain', borderRadius: 10, border: `1.5px solid ${C.line}`, background: C.paperDeep }} />
+            <div style={{ width: 46, height: 46, borderRadius: 10, border: `1.5px solid ${C.line}`, background: C.paperDeep, display: 'grid', placeItems: 'center' }}>
+              {parseRecipe(o.recipe)
+                ? <PetArt recipe={parseRecipe(o.recipe)} size={42} />
+                : <img src={o.drawing_normal} alt={o.name} style={{ width: 42, height: 42, objectFit: 'contain' }} />}
+            </div>
             <div>
               <div style={{ fontFamily: FONT.display, fontSize: 14, fontWeight: 700 }}>{o.name}</div>
               <div style={{ fontSize: 12, color: C.inkSoft }}>{o.price} monedas</div>
@@ -1126,6 +1181,44 @@ function OutfitsStep({ recipe, outfits, setOutfits }) {
 }
 
 // ── Paso: Resumen ─────────────────────────────────────────────────
+const SUBMIT_ERROR_TEXT = {
+  'sin-conexion': 'No logramos conectar con el servidor. Revisa tu conexión y vuelve a tocar "Finalizar". Nada de lo que hiciste se perdió.',
+  'muy-pesado': 'El regalo pesa demasiado para enviarlo. Prueba quitando alguna canción subida o algunas fotos, y vuelve a tocar "Finalizar".',
+  'servidor': 'El servidor tuvo un problema. Espera un momento y vuelve a tocar "Finalizar". Nada de lo que hiciste se perdió.',
+  'datos': 'Algún dato no es válido (un texto demasiado largo o algo vacío). Revisa los pasos anteriores y vuelve a intentarlo.',
+};
+
+// Caja de regalo de la bienvenida (pasa por el motor de estilos).
+const GIFT_ART = (
+  <svg viewBox="0 0 64 64" width="64" height="64">
+    <path d="M10 26 h44 v8 h-44 Z" fill="#FF8FB8" stroke="#4A3439" strokeWidth="3" strokeLinejoin="round" />
+    <path d="M14 34 h36 v22 h-36 Z" fill="#FFB6CC" stroke="#4A3439" strokeWidth="3" strokeLinejoin="round" />
+    <path d="M28 26 h8 v30 h-8 Z" fill="#FFE27A" stroke="#4A3439" strokeWidth="2.2" strokeLinejoin="round" />
+    <path d="M32 26 c-10 -2 -16 -10 -10 -14 c6 -3 10 8 10 14 c0 -6 4 -17 10 -14 c6 4 0 12 -10 14 Z" fill="#FFE27A" stroke="#4A3439" strokeWidth="2.2" strokeLinejoin="round" />
+  </svg>
+);
+
+const UNREADABLE_IMAGE = 'No pudimos leer esa imagen. Usa una foto JPG o PNG (en iPhone: Compartir → Guardar imagen y vuelve a elegirla).';
+const MAX_PHOTOS = 14;
+const MAX_SONGS = 5;
+const MAX_UPLOADED_SONGS = 3;
+
+
+// ── Paso: Estilo ──────────────────────────────────────────────────
+// Se elige viendo SU mascota ya dibujada en cada estilo. Todo el
+// asistente se pinta en el estilo elegido mientras tanto.
+function StyleStep({ recipe, appStyle, onChange }) {
+  const key = `wiz-pet-${hashString(JSON.stringify(recipe))}`;
+  return (
+    <StepShell title="Elige el estilo del juego" subtitle="Así se va a ver todo: el cuarto, los juegos y la mascota. Quien lo reciba podrá cambiarlo después.">
+      <StylePicker value={appStyle} onChange={onChange} look={{ recipe }} petKey={key} />
+      <p style={{ fontSize: 12, color: C.inkSoft, textAlign: 'center', marginTop: 12 }}>
+        Elegiste <b style={{ color: C.rose }}>{getStyle(appStyle).name}</b>. También cambian los sonidos y cómo se mueve.
+      </p>
+    </StepShell>
+  );
+}
+
 function SummaryRow({ label, value }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${C.lineSoft}` }}>
@@ -1135,25 +1228,50 @@ function SummaryRow({ label, value }) {
   );
 }
 
-function SummaryStep({ petName, partnerName, histories, foods, phrases, photos, songs, submitState, resultSlug, resultMode, showDetails, lastPayload, onFinalize, onCopyLink, copied }) {
-  function currentDataUrl(mood) {
-    const hh = histories[mood];
-    if (!hh || hh.index < 0) return null;
-    return hh.stack[hh.index];
+// El link privado del buzón (para mandarle cartas después). Se copia
+// aparte: es solo para quien regala.
+function MailboxLinkBox({ slug, token, partnerName }) {
+  const [state, setState] = useState(null);
+  const link = `${window.location.origin}/buzon/${slug}?t=${token}`;
+  async function copy() {
+    try { await navigator.clipboard.writeText(link); setState('ok'); play('coin'); } catch (e) { setState('error'); }
+    setTimeout(() => setState((s) => (s === 'error' ? s : null)), 1800);
   }
+  return (
+    <div className="pg-card pg-anim-pop" style={{ padding: 16, marginTop: 12, textAlign: 'left', borderColor: C.lavender }}>
+      <p style={{ fontFamily: FONT.display, fontSize: 14.5, fontWeight: 800, margin: '0 0 4px', color: C.ink }}>Tu buzón (solo para ti)</p>
+      <p style={{ fontSize: 12.5, color: C.inkSoft, margin: '0 0 10px', lineHeight: 1.45 }}>
+        Con este link le puedes mandar cartas y fotos a {partnerName || 'tu pareja'} cuando quieras: le llegan en una cajita a la puerta del cuarto. Guárdalo y no lo compartas.
+      </p>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: C.surfaceAlt, border: `1.5px solid ${C.line}`, borderRadius: 12, padding: '8px 10px' }}>
+        <input readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Link del buzón" style={{ flex: 1, minWidth: 0, fontSize: 12, color: C.ink, background: 'transparent', border: 'none', outline: 'none', fontFamily: FONT.body }} />
+        <button onClick={copy} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '6px 12px', fontSize: 12, flexShrink: 0 }}>{state === 'ok' ? '¡Copiado!' : 'Copiar'}</button>
+      </div>
+      {state === 'error' && <p style={{ fontSize: 11.5, color: C.rose, margin: '6px 0 0' }}>No se pudo copiar solo: mantén presionado el link para copiarlo.</p>}
+    </div>
+  );
+}
+
+function SummaryStep({ petName, partnerName, previewRecipe, appStyle, foods, phrases, photos, songs, submitState, submitError, resultSlug, resultMode, resultToken, onFinalize, onCopyLink, copyState }) {
   const link = resultSlug ? `${window.location.origin}/p/${resultSlug}` : '';
   return (
     <StepShell title="Revisa y finaliza" subtitle="Así va a quedar el regalo">
+      {/* Antes estos recuadros mostraban solo la capa de retoques (casi
+          siempre vacía); ahora es la mascota de verdad, en su estilo. */}
       <div className="flex gap-3 justify-center mb-5">
         {MOODS.map((m) => (
-          <div key={m.id} className="pg-checker" style={{ width: 66, height: 66, borderRadius: 16, overflow: 'hidden', border: `2.5px solid ${C.line}`, boxShadow: SHADOW.soft }}>
-            {currentDataUrl(m.id) && <img src={currentDataUrl(m.id)} alt={m.label} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />}
+          <div key={m.id} style={{ textAlign: 'center' }}>
+            <div className="pg-card" style={{ width: 78, height: 78, borderRadius: 16, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+              {previewRecipe && <PetArt recipe={previewRecipe} mood={m.id} size={72} />}
+            </div>
+            <span style={{ fontFamily: FONT.display, fontSize: 10.5, fontWeight: 700, color: C.inkSoft }}>{m.label}</span>
           </div>
         ))}
       </div>
       <div className="pg-card" style={{ padding: 16, marginBottom: 16 }}>
         <SummaryRow label="Mascota" value={petName || '—'} />
         <SummaryRow label="Para" value={partnerName || '—'} />
+        <SummaryRow label="Estilo" value={getStyle(appStyle).name} />
         <SummaryRow label="Comidas" value={String(foods.length)} />
         <SummaryRow label="Frases" value={String(phrases.length)} />
         <SummaryRow label="Fotos" value={String(photos.length)} />
@@ -1162,34 +1280,37 @@ function SummaryStep({ petName, partnerName, histories, foods, phrases, photos, 
 
       {submitState !== 'success' && (
         <button onClick={onFinalize} disabled={submitState === 'sending'} className="pg-btn pg-btn-rose pg-focus" style={{ width: '100%', padding: 14, fontSize: 15, marginBottom: 12, opacity: submitState === 'sending' ? 0.6 : 1 }}>
-          {submitState === 'sending' ? 'Creando el regalo...' : '🎁 Finalizar y crear el link'}
+          {submitState === 'sending' ? 'Creando el regalo…' : 'Finalizar y crear el link'}
         </button>
       )}
 
       {submitState === 'success' && (
         <div className="pg-card pg-anim-pop" style={{ padding: 18, textAlign: 'center', borderColor: C.sage }}>
           <IconSparkle size={40} color={C.amber} fill={C.amber} />
-          <p style={{ fontFamily: FONT.display, fontSize: 16, fontWeight: 800, margin: '6px 0 4px' }}>¡Tu regalo está listo!</p>
+          <p style={{ fontFamily: FONT.display, fontSize: 16, fontWeight: 800, margin: '6px 0 4px', color: C.ink }}>¡Tu regalo está listo!</p>
           <p style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: 14 }}>Comparte este link con {partnerName || 'tu pareja'} para que lo agregue a su celular.</p>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: C.surfaceAlt, border: `1.5px solid ${C.line}`, borderRadius: 12, padding: '8px 10px', marginBottom: 12 }}>
-            <span style={{ flex: 1, fontSize: 12, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>{link}</span>
-            <button onClick={onCopyLink} className="pg-btn pg-btn-sage pg-focus" style={{ padding: '6px 12px', fontSize: 12 }}>{copied ? '¡Copiado!' : 'Copiar'}</button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: C.surfaceAlt, border: `1.5px solid ${C.line}`, borderRadius: 12, padding: '8px 10px', marginBottom: 8 }}>
+            <input readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Link del regalo" style={{ flex: 1, minWidth: 0, fontSize: 12, color: C.ink, background: 'transparent', border: 'none', outline: 'none', fontFamily: FONT.body }} />
+            <button onClick={onCopyLink} className="pg-btn pg-btn-sage pg-focus" style={{ padding: '6px 12px', fontSize: 12, flexShrink: 0 }}>
+              {copyState === 'ok' ? '¡Copiado!' : copyState === 'shared' ? '¡Listo!' : 'Copiar'}
+            </button>
           </div>
+          {copyState === 'error' && (
+            <p style={{ fontSize: 11.5, color: C.rose, margin: '0 0 6px' }}>No se pudo copiar solo: mantén presionado el link para copiarlo.</p>
+          )}
           {resultMode === 'local' && (
             <p style={{ fontSize: 11.5, color: C.inkSoft, lineHeight: 1.45, textAlign: 'left' }}>
-              <b style={{ color: C.amber }}>Nota:</b> se guardó en <b>este dispositivo</b> (no encontré el servidor). El link abre aquí perfecto, pero para que funcione en el celular de {partnerName || 'tu pareja'} hay que publicar el servidor. Te ayudo con eso cuando quieras.
+              <b style={{ color: C.amber }}>Modo de prueba:</b> se guardó solo en este dispositivo porque el servidor no respondió.
             </p>
           )}
         </div>
       )}
+      {submitState === 'success' && resultToken && <MailboxLinkBox slug={resultSlug} token={resultToken} partnerName={partnerName} />}
 
       {submitState === 'error' && (
         <div className="pg-card" style={{ padding: 14, borderColor: C.rose }}>
           <p style={{ fontFamily: FONT.display, fontSize: 13.5, fontWeight: 700, marginBottom: 4, color: C.ink }}>No pudimos crear el link ahora mismo</p>
-          <p style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: showDetails ? 10 : 0 }}>Revisa tu conexión e inténtalo de nuevo. Nada de lo que hiciste se perdió.</p>
-          {showDetails && (
-            <textarea readOnly value={lastPayload} rows={6} style={{ width: '100%', fontSize: 11, padding: 8, borderRadius: 10, border: `1px solid ${C.line}`, fontFamily: 'monospace', background: C.surfaceAlt }} />
-          )}
+          <p style={{ fontSize: 12.5, color: C.inkSoft, margin: 0 }}>{SUBMIT_ERROR_TEXT[submitError] || SUBMIT_ERROR_TEXT['sin-conexion']}</p>
         </div>
       )}
     </StepShell>
@@ -1206,7 +1327,8 @@ function ProgressDots({ step, setStep }) {
           onClick={() => { if (i <= step) setStep(i); }}
           disabled={i > step}
           aria-label={s.label}
-          style={{ width: i === step ? 24 : 8, height: 8, borderRadius: 4, background: i <= step ? C.rose : C.line, border: 'none', transition: 'all 0.25s', cursor: i <= step ? 'pointer' : 'default' }}
+          className="pg-keep-round"
+          style={{ width: i === step ? 24 : 8, height: 8, borderRadius: 4, background: i <= step ? C.rose : C.line, border: 'none', transition: 'all 0.25s', cursor: i <= step ? 'pointer' : 'default', padding: 0 }}
         />
       ))}
     </div>
@@ -1216,7 +1338,11 @@ function ProgressDots({ step, setStep }) {
 // ══════════════════════════════════════════════════════════════════
 export default function TamagiftWizard() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(0);
+  const { setStyleId } = useStyle();
+  // Solo en desarrollo: /crear?paso=fotos abre directo en ese paso (para
+  // revisar cada pantalla en cada estilo sin llenar todo a mano).
+  const devStep = import.meta.env.DEV ? STEP_META.findIndex((x) => x.id === new URLSearchParams(window.location.search).get('paso')) : -1;
+  const [step, setStep] = useState(devStep > 0 ? devStep : 0);
   const [petName, setPetName] = useState('');
   const [partnerName, setPartnerName] = useState('');
   const [creatorName, setCreatorName] = useState('');
@@ -1225,8 +1351,9 @@ export default function TamagiftWizard() {
   const [photos, setPhotos] = useState([]);
   const [songs, setSongs] = useState([]);
   const [outfits, setOutfits] = useState([]);
-  // Recipe (piezas modulares) + retoques a mano, encapsulados en el
-  // mismo hook que usa la re-personalización dentro del juego.
+  const [appStyle, setAppStyle] = useState(() => styleFromUrl() || DEFAULT_STYLE);
+  // Receta (piezas modulares) + retoques a mano, con el mismo hook que
+  // usa el rediseño dentro del juego.
   const designer = useDesignerState(DEFAULT_RECIPE);
   const [decorItems, setDecorItems] = useState([]);
   const [whackTargets, setWhackTargets] = useState([]);
@@ -1234,6 +1361,50 @@ export default function TamagiftWizard() {
   const [accessKey, setAccessKey] = useState('');
   const [keyRequired, setKeyRequired] = useState(false);
   const [keyState, setKeyState] = useState(null);
+  const sid = STEP_META[step].id;
+
+  // Todo el asistente se viste con el estilo elegido.
+  useEffect(() => { setStyleId(appStyle); }, [appStyle, setStyleId]);
+  function chooseStyle(id) {
+    setAppStyle(id);
+    setTimeout(() => play('style'), 30);
+  }
+
+  // ── Borrador ────────────────────────────────────────────────────
+  // Se guarda solo (ver draftStore.js). Al volver, se ofrece retomar.
+  const [draftOffer, setDraftOffer] = useState(null);
+  const [draftReady, setDraftReady] = useState(false);
+  useEffect(() => {
+    loadDraft().then((d) => {
+      if (devStep > 0) { setDraftReady(true); return; }
+      if (d && d.petName !== undefined && (d.petName || d.foods?.length || d.photos?.length || d.step > 1)) setDraftOffer(d);
+      else setDraftReady(true);
+    });
+  }, []);
+  function resumeDraft() {
+    const d = draftOffer;
+    setPetName(d.petName || ''); setPartnerName(d.partnerName || ''); setCreatorName(d.creatorName || '');
+    setFoods(d.foods || []); setPhrases(d.phrases || []); setPhotos(d.photos || []); setSongs(d.songs || []);
+    setOutfits(d.outfits || []); setDecorItems(d.decorItems || []); setWhackTargets(d.whackTargets || []);
+    if (d.recipe) designer.setRecipe(d.recipe);
+    if (isStyleId(d.appStyle)) setAppStyle(d.appStyle);
+    setStep(Math.min(Math.max(1, d.step || 1), STEP_META.length - 2));
+    setDraftOffer(null);
+    setDraftReady(true);
+  }
+  function discardDraft() {
+    clearDraft();
+    setDraftOffer(null);
+    setDraftReady(true);
+  }
+  const [submitState, setSubmitState] = useState('idle');
+  useEffect(() => {
+    if (!draftReady || submitState === 'success') return undefined;
+    const t = setTimeout(() => {
+      saveDraft({ step, petName, partnerName, creatorName, foods, phrases, photos, songs, outfits, decorItems, whackTargets, recipe: designer.recipe, appStyle });
+    }, 800);
+    return () => clearTimeout(t);
+  }, [draftReady, submitState, step, petName, partnerName, creatorName, foods, phrases, photos, songs, outfits, decorItems, whackTargets, designer.recipe, appStyle]);
 
   // ¿Este despliegue cobra? Lo decide el servidor, no el navegador.
   useEffect(() => { accessKeyRequired().then(setKeyRequired); }, []);
@@ -1241,9 +1412,9 @@ export default function TamagiftWizard() {
   // Comprobación temprana, solo para avisar: la de verdad se hace al
   // crear la mascota, en el servidor, y es la que gasta la llave.
   useEffect(() => {
-    if (!keyRequired) { setKeyState(null); return; }
+    if (!keyRequired) { setKeyState(null); return undefined; }
     const raw = accessKey.trim();
-    if (raw.length < 8) { setKeyState(null); return; }
+    if (raw.length < 8) { setKeyState(null); return undefined; }
     let alive = true;
     setKeyState('checking');
     const t = setTimeout(() => {
@@ -1252,87 +1423,87 @@ export default function TamagiftWizard() {
     return () => { alive = false; clearTimeout(t); };
   }, [accessKey, keyRequired]);
 
-  const [submitState, setSubmitState] = useState('idle');
+  const [submitError, setSubmitError] = useState('sin-conexion');
   const [resultSlug, setResultSlug] = useState(null);
   const [resultMode, setResultMode] = useState('backend');
-  const [lastPayload, setLastPayload] = useState('');
-  const [showDetails, setShowDetails] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [resultToken, setResultToken] = useState(null);
+  const [copyState, setCopyState] = useState(null);
+  // Vista previa del resumen: la misma receta (con retoques) que se envía.
+  const previewRecipe = sid === 'resumen' ? designer.fullRecipe() : null;
 
   const posterCount = photos.filter((p) => p.used_for === 'poster').length;
   const puzzleCount = photos.filter((p) => p.used_for === 'puzzle').length;
 
   function canProceed() {
-    // Paso 0: si este despliegue cobra, no se avanza sin una llave
-    // válida. Da igual lo bonito que sea el resto: sin llave no hay app.
-    if (step === 0 && keyRequired) return keyState === 'ok' || keyState === 'sin-conexion';
-    if (step === 1) return petName.trim().length > 0;
-    if (step === 5) return posterCount >= PHOTO_MIN && puzzleCount >= PHOTO_MIN;
+    // Si este despliegue cobra, no se avanza sin una llave válida.
+    if (sid === 'bienvenida' && keyRequired) return keyState === 'ok' || keyState === 'sin-conexion';
+    if (sid === 'nombres') return petName.trim().length > 0;
+    if (sid === 'fotos') return posterCount >= PHOTO_MIN && puzzleCount >= PHOTO_MIN;
     return true;
   }
 
   async function handleFinalize() {
     setSubmitState('sending');
-    // La mascota modular (receta de partes) + los retoques a mano opcionales
-    // (el canvas transparente encima) se rasterizan aquí a 3 PNG normales —
-    // el backend sigue guardando exactamente lo mismo que antes.
+    // La mascota modular + los retoques a mano se rasterizan aquí a 3 PNG.
     const { drawing_normal, drawing_feliz, drawing_enojado } = await designer.buildPngs(320);
     const payload = {
-      name: petName,
-      creator_name: creatorName || null,
-      recipient_name: partnerName || null,
+      name: petName.trim(),
+      creator_name: creatorName.trim() || null,
+      recipient_name: partnerName.trim() || null,
       drawing_normal, drawing_feliz, drawing_enojado,
-      // Se guarda también la receta modular (no sólo el PNG ya aplanado)
-      // para que quien reciba el regalo pueda rediseñarla más adelante
-      // usando el mismo creador, partiendo de esto en vez de cero.
-      recipe_original: JSON.stringify(designer.recipe),
+      // La receta también, para que quien lo reciba pueda rediseñarla
+      // con el mismo creador.
+      recipe_original: JSON.stringify(designer.fullRecipe()),
+      app_style: appStyle,
       food_preferences: foods.map((f) => ({ food_name: f.food_name, preference: f.preference, reaction_message: f.reaction_message, image: f.image || null })),
       phrases: phrases.map((p) => ({ category: p.category, text: p.text })),
-      photos: photos.map((p) => ({ url: p.url, caption: p.caption, used_for: p.used_for, price: p.used_for === 'poster' ? (p.price ?? DEFAULT_POSTER_PRICE) : 0 })),
+      photos: photos.map((p) => ({ url: p.url, caption: p.caption || null, used_for: p.used_for, price: p.used_for === 'poster' ? (p.price ?? DEFAULT_POSTER_PRICE) : 0 })),
       songs: songs.map((s) => ({
-        title: s.title,
+        title: s.title || null,
         source_type: s.source_type || 'embed',
         embed_url: s.source_type === 'upload' ? '' : s.embed_url,
         audio_data: s.source_type === 'upload' ? s.audio_data : null,
       })),
-      outfits: outfits.map((o) => ({ name: o.name, price: o.price, drawing_normal: o.drawing_normal, drawing_feliz: o.drawing_feliz, drawing_enojado: o.drawing_enojado })),
-      decor_items: decorItems.map((d) => ({ name: d.name, description: d.description, price: d.price, image: d.image, ratio: d.ratio })),
+      outfits: outfits.map((o) => ({ name: o.name, price: o.price, drawing_normal: o.drawing_normal, drawing_feliz: o.drawing_feliz, drawing_enojado: o.drawing_enojado, recipe: o.recipe || null })),
+      decor_items: decorItems.map((d) => ({ name: d.name, description: d.description || null, price: d.price, image: d.image, ratio: d.ratio })),
       whack_targets: whackTargets.map((t) => ({ name: t.name, image: t.image })),
       access_key: accessKey.trim() || null,
     };
     try {
-      // createPet intenta el backend y, si no está, cae a localStorage.
-      // Sólo lanza si ni siquiera localStorage pudo guardar (muy raro).
-      const { slug, mode } = await createPet(payload);
+      const { slug, mode, ownerToken } = await createPet(payload);
       setResultSlug(slug);
       setResultMode(mode);
+      setResultToken(ownerToken || null);
       setSubmitState('success');
+      play('win');
+      clearDraft();
     } catch (err) {
       // Una llave rechazada no es un fallo de red: hay que decirlo claro
-      // y mandar a la persona al paso 0, no ofrecerle "reintentar".
+      // y volver al primer paso, no ofrecer "reintentar".
       if (err instanceof AccessKeyError) {
+        setKeyRequired(true);
         setKeyState(err.reason === 'clave-usada' ? 'usada' : 'invalida');
         setSubmitState('idle');
         setStep(0);
         return;
       }
-      setLastPayload(JSON.stringify(payload, null, 2));
+      setSubmitError(err instanceof CreatePetError ? err.reason : 'sin-conexion');
       setSubmitState('error');
+      play('bad');
     }
   }
 
   // Atajo de pruebas: arma una mascota completa al azar, la crea y
-  // salta directo a la pantalla del link, sin pasar por los 10 pasos.
+  // salta directo a la pantalla del link.
   async function handleTestKey() {
     setTestState('working');
     try {
       const { payload } = await buildTestPet();
-      const { slug, mode } = await createPet({ ...payload, access_key: accessKey.trim() || null });
-      // Monedas y catalogo desbloqueado, para poder tocar tienda y
-      // cuarto de inmediato sin tener que farmear jugando.
+      const { slug, mode, ownerToken } = await createPet({ ...payload, app_style: appStyle, access_key: accessKey.trim() || null });
+      setResultToken(ownerToken || null);
       try {
         localStorage.setItem(`tamagift:gamestate:${slug}`, JSON.stringify(testGameState()));
-      } catch (e) { /* modo privado - no es critico */ }
+      } catch (e) { /* modo privado - no es crítico */ }
       setResultSlug(slug);
       setResultMode(mode);
       setSubmitState('success');
@@ -1348,46 +1519,77 @@ export default function TamagiftWizard() {
     }
   }
 
-  function copyLink() {
+  // Copiar el link de verdad: antes decía "¡Copiado!" aunque el
+  // navegador lo hubiera rechazado. En celulares se usa el menú de
+  // compartir si existe.
+  async function copyLink() {
     const link = `${window.location.origin}/p/${resultSlug}`;
-    try { navigator.clipboard.writeText(link); } catch (e) { /* noop */ }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopyState('ok');
+      play('coin');
+    } catch (e) {
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: petName || 'Tu regalo', text: `${creatorName ? `${creatorName} te` : 'Te'} preparó un regalo`, url: link });
+          setCopyState('shared');
+        } else {
+          setCopyState('error');
+        }
+      } catch (e2) {
+        setCopyState('error');
+      }
+    }
+    setTimeout(() => setCopyState((s) => (s === 'error' ? s : null)), 1800);
   }
 
+  const show = (id) => ({ width: '100%', display: sid === id ? 'block' : 'none' });
+
   return (
-    <div className="w-full min-h-full flex flex-col items-center py-8 px-4" style={{ color: C.ink }}>
+    <div className="w-full min-h-full flex flex-col items-center py-8 px-4 pg-screen" style={{ color: C.ink }}>
       <p className="eyebrow" style={{ marginBottom: 4 }}>Taller de mascotas</p>
       <h1 style={{ fontFamily: FONT.display, fontSize: 22, fontWeight: 800, marginBottom: 3, textAlign: 'center' }}>Crea su regalo</h1>
       <p style={{ fontSize: 12, marginBottom: 18, textAlign: 'center', color: C.inkSoft }}>Paso {step + 1} de {STEP_META.length} · {STEP_META[step].label}</p>
 
       <ProgressDots step={step} setStep={setStep} />
 
-      <div style={{ width: '100%', display: step === 0 ? 'block' : 'none' }}>
+      {draftOffer && (
+        <div className="pg-card pg-anim-pop" style={{ width: '100%', maxWidth: 430, padding: 14, marginBottom: 16, borderColor: C.amber, background: C.amberSoft }}>
+          <p style={{ fontFamily: FONT.display, fontSize: 14, fontWeight: 800, margin: '0 0 4px', color: C.ink }}>Tenías un regalo a medias</p>
+          <p style={{ fontSize: 12.5, color: C.inkSoft, margin: '0 0 10px' }}>
+            {draftOffer.petName ? `"${draftOffer.petName}"` : 'Sin nombre todavía'} · se guardó solo en este dispositivo.
+          </p>
+          <div className="flex gap-2">
+            <button onClick={discardDraft} className="pg-btn pg-btn-ghost pg-focus" style={{ flex: 1, padding: '9px', fontSize: 13 }}>Empezar de nuevo</button>
+            <button onClick={resumeDraft} className="pg-btn pg-btn-rose pg-focus" style={{ flex: 1, padding: '9px', fontSize: 13 }}>Continuar</button>
+          </div>
+        </div>
+      )}
+
+      <div style={show('bienvenida')}>
         <WelcomeStep
           onTestKey={handleTestKey} testState={testState}
           keyRequired={keyRequired} accessKey={accessKey} setAccessKey={setAccessKey} keyState={keyState}
         />
       </div>
-      <div style={{ width: '100%', display: step === 1 ? 'block' : 'none' }}>
+      <div style={show('nombres')}>
         <NamesStep petName={petName} setPetName={setPetName} partnerName={partnerName} setPartnerName={setPartnerName} creatorName={creatorName} setCreatorName={setCreatorName} />
       </div>
-      <div style={{ width: '100%', display: step === 2 ? 'block' : 'none' }}>
-        <ModularPetStep {...designer} />
-      </div>
-      <div style={{ width: '100%', display: step === 3 ? 'block' : 'none' }}><FoodsStep foods={foods} setFoods={setFoods} /></div>
-      <div style={{ width: '100%', display: step === 4 ? 'block' : 'none' }}><PhrasesStep phrases={phrases} setPhrases={setPhrases} /></div>
-      <div style={{ width: '100%', display: step === 5 ? 'block' : 'none' }}><PhotosStep photos={photos} setPhotos={setPhotos} /></div>
-      <div style={{ width: '100%', display: step === 6 ? 'block' : 'none' }}><MusicStep songs={songs} setSongs={setSongs} /></div>
-      <div style={{ width: '100%', display: step === 7 ? 'block' : 'none' }}><OutfitsStep recipe={designer.recipe} outfits={outfits} setOutfits={setOutfits} /></div>
-      <div style={{ width: '100%', display: step === 8 ? 'block' : 'none' }}><DecorStep decorItems={decorItems} setDecorItems={setDecorItems} /></div>
-      <div style={{ width: '100%', display: step === 9 ? 'block' : 'none' }}><GamesStep whackTargets={whackTargets} setWhackTargets={setWhackTargets} /></div>
-      <div style={{ width: '100%', display: step === 10 ? 'block' : 'none' }}>
+      <div style={show('dibujar')}><ModularPetStep {...designer} /></div>
+      <div style={show('estilo')}>{sid === 'estilo' && <StyleStep recipe={designer.recipe} appStyle={appStyle} onChange={chooseStyle} />}</div>
+      <div style={show('comidas')}><FoodsStep foods={foods} setFoods={setFoods} /></div>
+      <div style={show('frases')}><PhrasesStep phrases={phrases} setPhrases={setPhrases} /></div>
+      <div style={show('fotos')}><PhotosStep photos={photos} setPhotos={setPhotos} /></div>
+      <div style={show('musica')}><MusicStep songs={songs} setSongs={setSongs} /></div>
+      <div style={show('ropa')}><OutfitsStep recipe={designer.recipe} outfits={outfits} setOutfits={setOutfits} /></div>
+      <div style={show('deco')}><DecorStep decorItems={decorItems} setDecorItems={setDecorItems} /></div>
+      <div style={show('juegos')}><GamesStep whackTargets={whackTargets} setWhackTargets={setWhackTargets} /></div>
+      <div style={show('resumen')}>
         <SummaryStep
-          petName={petName} partnerName={partnerName} histories={designer.histories}
+          petName={petName} partnerName={partnerName} previewRecipe={previewRecipe} appStyle={appStyle}
           foods={foods} phrases={phrases} photos={photos} songs={songs}
-          submitState={submitState} resultSlug={resultSlug} resultMode={resultMode} showDetails={showDetails} lastPayload={lastPayload}
-          onFinalize={handleFinalize} onCopyLink={copyLink} copied={copied}
+          submitState={submitState} submitError={submitError} resultSlug={resultSlug} resultMode={resultMode} resultToken={resultToken}
+          onFinalize={handleFinalize} onCopyLink={copyLink} copyState={copyState}
         />
         {submitState === 'success' && (
           <div style={{ textAlign: 'center', marginTop: 14 }}>
@@ -1398,13 +1600,13 @@ export default function TamagiftWizard() {
 
       <div className="flex gap-3 mt-6 w-full justify-center" style={{ maxWidth: 430 }}>
         {step > 0 && (
-          <button onClick={() => setStep((s) => Math.max(0, s - 1))} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '11px 20px', fontSize: 14, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <IconBack size={15} /> Atrás
+          <button onClick={() => { play('pop'); setStep((s) => Math.max(0, s - 1)); }} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '11px 20px', fontSize: 14, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <IconBack size={15} color={C.ink} /> Atrás
           </button>
         )}
         {step < STEP_META.length - 1 && (
           <button
-            onClick={() => canProceed() && setStep((s) => Math.min(STEP_META.length - 1, s + 1))}
+            onClick={() => { if (canProceed()) { play('swoosh'); setStep((s) => Math.min(STEP_META.length - 1, s + 1)); window.scrollTo({ top: 0 }); } }}
             disabled={!canProceed()}
             className="pg-btn pg-btn-rose pg-focus"
             style={{ padding: '11px 24px', fontSize: 14, flex: 1 }}
@@ -1413,9 +1615,9 @@ export default function TamagiftWizard() {
           </button>
         )}
       </div>
-      {step === 0 && !canProceed() && <p style={{ fontSize: 12, marginTop: 8, textAlign: 'center', color: C.inkSoft }}>Escribe tu llave de acceso para empezar</p>}
-      {step === 1 && !canProceed() && <p style={{ fontSize: 12, marginTop: 8, textAlign: 'center', color: C.inkSoft }}>Escribe un nombre para continuar</p>}
-      {step === 5 && !canProceed() && <p style={{ fontSize: 12, marginTop: 8, textAlign: 'center', color: C.inkSoft }}>Necesitas al menos {PHOTO_MIN} pósters y {PHOTO_MIN} de rompecabezas (te faltan {Math.max(0, PHOTO_MIN - posterCount)} póster y {Math.max(0, PHOTO_MIN - puzzleCount)} rompecabezas)</p>}
+      {sid === 'bienvenida' && !canProceed() && <p style={{ fontSize: 12, marginTop: 8, textAlign: 'center', color: C.inkSoft }}>Escribe tu llave de acceso para empezar</p>}
+      {sid === 'nombres' && !canProceed() && <p style={{ fontSize: 12, marginTop: 8, textAlign: 'center', color: C.inkSoft }}>Escribe un nombre para continuar</p>}
+      {sid === 'fotos' && !canProceed() && <p style={{ fontSize: 12, marginTop: 8, textAlign: 'center', color: C.inkSoft }}>Necesitas al menos {PHOTO_MIN} pósters y {PHOTO_MIN} de rompecabezas (te faltan {Math.max(0, PHOTO_MIN - posterCount)} póster y {Math.max(0, PHOTO_MIN - puzzleCount)} rompecabezas)</p>}
     </div>
   );
 }

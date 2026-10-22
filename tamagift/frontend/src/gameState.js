@@ -6,6 +6,8 @@
 // es del dispositivo de la pareja, no algo que el backend necesite.
 // ─────────────────────────────────────────────────────────────────
 
+import { migrateOldAccessories } from './wardrobeState.js';
+
 const KEY = (slug) => `tamagift:gamestate:${slug}`;
 
 // Medidas del cuarto, en unidades del mundo. Es ancho a propósito: la
@@ -23,7 +25,7 @@ export const ROOM = {
 // migración nueva a MIGRATIONS (ver abajo) — así una partida guardada
 // con una versión vieja se pone al día sola, sin importar cuánto tiempo
 // haya pasado ni cuántas migraciones le falten por aplicar.
-export const CURRENT_GAME_VERSION = 1;
+export const CURRENT_GAME_VERSION = 3;
 
 export const DEFAULT_GAME_STATE = {
   version: CURRENT_GAME_VERSION,
@@ -33,11 +35,24 @@ export const DEFAULT_GAME_STATE = {
   ownedOutfits: [],     // ids ESTABLES (Outfit.id del backend) de las prendas que se poseen
   ownedFurniture: [],   // ids de muebles comprados
   furniturePaint: {},   // { [idMueble]: idColorFURNITURE_PAINTS }, elegido antes de comprar
-  ownedWalls: ['crema'],
-  ownedFloors: ['madera'],
+  posterPaint: {},      // { [idPóster]: idColorFURNITURE_PAINTS } del marco
+  decorPaint: {},       // { [idAdorno]: idColorFURNITURE_PAINTS } de los adornos que se pintan
+  deliveries: [],       // pedidos en camino o en la puerta (ver deliveries.js)
+  // ── Mundo vivo (ver world.js y worldEvents.js) ───────────────────
+  fridge: {},           // { [idComida]: n } lo que hay en la nevera
+  events: {},           // { active, nextAt, lastDay } sucesos
+  bugs: {},             // { [idBichito]: n } el álbum de bichitos
+  ownedWalls: ['liso'],    // diseños de pared comprados (el color se elige gratis)
+  ownedFloors: ['tablas'],
   equippedOutfit: null, // id ESTABLE de la prenda puesta, o null
-  wall: 'crema',
-  floor: 'madera',
+  // ── Vestidor (ver wardrobeState.js) ────────────────────────────
+  ownedWear: [],        // 'ranura:id' comprados en Moda
+  wear: {},             // { ranura: { id, c1, c2 } } puesto ahora
+  ownedHair: [],        // peinados comprados en la peluquería
+  ownedHairColors: [],  // tintes de fantasía comprados
+  look: {},             // { hair, hairColor, brows } elegidos por quien recibe
+  wall: 'liso.crema',      // "diseño.color" (los ids viejos se siguen entendiendo)
+  floor: 'tablas.miel',
   // Todo lo que está puesto en el cuarto, con su posición libre.
   // { key, kind: 'mueble'|'decor'|'poster', refId, x, y, scale, flip, paint }
   placed: [],
@@ -53,7 +68,31 @@ export const DEFAULT_GAME_STATE = {
   // Racha de días seguidos entrando a jugar.
   streak: 0,
   lastStreakDay: null,
+  // Partidas de hoy por juego ({ [gameId]: { day, n } }): repetir el
+  // mismo juego muchas veces el mismo día paga menos.
+  playsToday: {},
+  // ── Progreso de minijuegos (ver gameProgress.js) ───────────────
+  progress: {},          // { [juego]: { unlocked, stars } (niveles) | { rank, rankStars } (puntaje) }
+  challengesDone: {},    // { [juego]: 'AAAA-MM-DD' } día en que se cumplió su reto
+  seenGames: [],         // juegos ya abiertos alguna vez (los demás dicen "Nuevo")
+  cooked: {},            // { [idComida]: n } platos de la Cocina que aún no pasan a la nevera
+  // ── Estado de la mascota en este dispositivo ───────────────────
+  // Hambre y amor con la hora del último cálculo. Antes no se guardaban:
+  // al recargar volvían a los valores del servidor (el amor siempre en
+  // 60) y lo ganado bañándola o jugando se perdía.
+  vitals: null,          // { hunger, love, hungerAt, loveAt, mood }
+  lastBathCoinsAt: 0,    // el baño paga monedas como mucho cada 30 min
+  // Estilo visual elegido por quien recibe (si no, el de quien regaló).
+  style: null,
+  // Guía de bienvenida: el paso en que va (0…) o 'listo'.
+  tutorial: 0,
 };
+
+// Cuántas partidas de `gameId` van hoy (antes de esta).
+export function playsTodayFor(state, gameId) {
+  const e = (state.playsToday || {})[gameId];
+  return e && e.day === todayKey() ? e.n : 0;
+}
 
 // ── Minijuegos: récords, bonus diario y racha ───────────────────────
 
@@ -89,6 +128,7 @@ export function registerPlay(state, gameId, score) {
   if (isNewRecord(state, gameId, score)) records[gameId] = score;
 
   const lastPlayedDay = { ...(state.lastPlayedDay || {}), [gameId]: today };
+  const playsToday = { ...(state.playsToday || {}), [gameId]: { day: today, n: playsTodayFor(state, gameId) + 1 } };
 
   // Racha: sube si el último día jugado fue ayer, se reinicia si se
   // saltó uno o más días, y no hace nada si ya se jugó hoy.
@@ -99,7 +139,7 @@ export function registerPlay(state, gameId, score) {
     lastStreakDay = today;
   }
 
-  return { ...state, records, lastPlayedDay, streak, lastStreakDay };
+  return { ...state, records, lastPlayedDay, playsToday, streak, lastStreakDay };
 }
 
 // ── Migraciones ─────────────────────────────────────────────────────
@@ -128,6 +168,15 @@ const MIGRATIONS = {
     delete state.placedDecor;
     return state;
   },
+  // 1 → 2: los accesorios de la vieja pestaña "Accesorios" (headAcc,
+  // neckAcc, extraAcc y un solo color) pasan al vestidor por ranuras.
+  1: (state) => migrateOldAccessories(state),
+  // 2 → 3: llega la guía de bienvenida. Quien ya venía jugando no la
+  // necesita.
+  2: (state) => {
+    if (typeof state.tutorial !== 'string') state.tutorial = 'listo';
+    return state;
+  },
 };
 
 function migrate(state) {
@@ -140,14 +189,42 @@ function migrate(state) {
   return state;
 }
 
+// El cuarto el día que llega: una ventana, una camita, una alfombra y
+// una planta, alrededor de donde aparece la mascota. Antes llegaba a un
+// cuarto vacío y la primera impresión era la de un juego sin terminar.
+// Son suyas: se pueden mover, pintar o guardar.
+export function newGameState() {
+  return {
+    ...DEFAULT_GAME_STATE,
+    ownedFurniture: ['ventana', 'cama', 'alfombra', 'planta'],
+    placed: [
+      { key: 'inicio-alfombra', kind: 'mueble', refId: 'alfombra', x: 800, y: 420, scale: 1, flip: 1, paint: 'natural' },
+      { key: 'inicio-ventana', kind: 'mueble', refId: 'ventana', x: 800, y: 250, scale: 1, flip: 1, paint: 'natural' },
+      { key: 'inicio-cama', kind: 'mueble', refId: 'cama', x: 560, y: 404, scale: 1, flip: 1, paint: 'natural' },
+      { key: 'inicio-planta', kind: 'mueble', refId: 'planta', x: 1050, y: 400, scale: 1, flip: 1, paint: 'menta' },
+    ],
+  };
+}
+
+// Una partida guardada (de este dispositivo o del servidor), completada
+// con lo que le falte y puesta al día. Sin partida, una nueva.
+export function hydrateGameState(raw) {
+  if (!raw || typeof raw !== 'object') return newGameState();
+  return migrate({ ...DEFAULT_GAME_STATE, ...raw });
+}
+
 export function loadGameState(slug) {
   try {
     const raw = localStorage.getItem(KEY(slug));
-    if (!raw) return { ...DEFAULT_GAME_STATE, placed: [] };
-    return migrate({ ...DEFAULT_GAME_STATE, ...JSON.parse(raw) });
+    return hydrateGameState(raw ? JSON.parse(raw) : null);
   } catch (e) {
-    return { ...DEFAULT_GAME_STATE, placed: [] };
+    return newGameState();
   }
+}
+
+// ¿Este dispositivo ya tenía una partida guardada?
+export function hasStoredGameState(slug) {
+  try { return !!localStorage.getItem(KEY(slug)); } catch (e) { return false; }
 }
 
 export function saveGameState(slug, state) {

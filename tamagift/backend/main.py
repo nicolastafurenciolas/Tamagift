@@ -2,13 +2,15 @@ import json
 import os
 import secrets
 import string
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from typing import List
 
-from sqlalchemy import text
+from sqlalchemy import text, func
 
 import database
 import models
@@ -37,6 +39,9 @@ LATE_COLUMNS = [
     ("pets", "drawing_feliz_redesign", "TEXT"),
     ("pets", "drawing_enojado_redesign", "TEXT"),
     ("pets", "active_design", "VARCHAR(10) DEFAULT 'original'"),
+    ("pets", "app_style", "VARCHAR(16)"),
+    ("outfits", "recipe", "TEXT"),
+    ("pets", "owner_token", "VARCHAR(40)"),
 ]
 
 
@@ -59,6 +64,21 @@ def ensure_late_columns():
 ensure_late_columns()
 
 app = FastAPI(title="Tamagift API")
+
+# Tope del cuerpo de una petición (se registra ANTES que CORS para que
+# la respuesta 413 también lleve las cabeceras CORS y el navegador la lea). Los esquemas ya limitan cada campo,
+# pero así un cuerpo gigante se corta antes de leerlo entero en memoria.
+MAX_BODY_BYTES = int(os.getenv("MAX_BODY_MB", "50")) * 1024 * 1024
+
+
+@app.middleware("http")
+async def limit_body_size(request: Request, call_next):
+    length = request.headers.get("content-length")
+    if length and length.isdigit() and int(length) > MAX_BODY_BYTES:
+        return JSONResponse(status_code=413, content={"detail": "demasiado-grande"})
+    return await call_next(request)
+
+
 
 # CORS: el frontend (Vite en :5173 en local, o el dominio de Netlify en
 # producción) vive en otro origen que el backend, así que el navegador
@@ -143,7 +163,7 @@ def access_key_required():
     return {"requerida": REQUIRE_ACCESS_KEY}
 
 
-@app.post("/api/pets", response_model=schemas.PetOut)
+@app.post("/api/pets", response_model=schemas.PetCreated)
 def create_pet(payload: schemas.PetCreate, db: Session = Depends(database.get_db)):
     slug = generate_slug()
     while db.query(models.Pet).filter(models.Pet.slug == slug).first():
@@ -163,6 +183,8 @@ def create_pet(payload: schemas.PetCreate, db: Session = Depends(database.get_db
         drawing_feliz=payload.drawing_feliz,
         drawing_enojado=payload.drawing_enojado,
         recipe_original=payload.recipe_original,
+        app_style=payload.app_style,
+        owner_token=secrets.token_urlsafe(18),
     )
     db.add(pet)
     db.flush()
@@ -186,6 +208,7 @@ def create_pet(payload: schemas.PetCreate, db: Session = Depends(database.get_db
         db.add(models.Outfit(
             pet_id=pet.id, name=o.name, price=o.price,
             drawing_normal=o.drawing_normal, drawing_feliz=o.drawing_feliz, drawing_enojado=o.drawing_enojado,
+            recipe=o.recipe,
         ))
 
     for d in payload.decor_items:
@@ -234,9 +257,13 @@ def feed_pet(slug: str, payload: schemas.FeedRequest, db: Session = Depends(data
     if not pet:
         raise HTTPException(status_code=404, detail="Mascota no encontrada")
 
+    # Comparación exacta sin distinguir mayúsculas. Antes era un ILIKE:
+    # un nombre con "%" o "_" funcionaba como comodín y podía dar la
+    # reacción de otra comida.
     food = (
         db.query(models.FoodPreference)
-        .filter(models.FoodPreference.pet_id == pet.id, models.FoodPreference.food_name.ilike(payload.food_name))
+        .filter(models.FoodPreference.pet_id == pet.id,
+                func.lower(models.FoodPreference.food_name) == payload.food_name.strip().lower())
         .first()
     )
 
@@ -309,8 +336,6 @@ def set_active_design(slug: str, payload: schemas.ActiveDesignIn, db: Session = 
     pet = db.query(models.Pet).filter(models.Pet.slug == slug).first()
     if not pet:
         raise HTTPException(status_code=404, detail="Mascota no encontrada")
-    if payload.active_design not in ("original", "redesign"):
-        raise HTTPException(status_code=400, detail="active_design invalido")
     if payload.active_design == "redesign" and pet.recipe_redesign is None:
         raise HTTPException(status_code=400, detail="todavia no hay rediseno")
 
@@ -318,3 +343,149 @@ def set_active_design(slug: str, payload: schemas.ActiveDesignIn, db: Session = 
     db.commit()
     db.refresh(pet)
     return pet
+
+
+# ── Buzón: cartas de quien regaló ───────────────────────────────────
+
+LETTERS_PER_DAY = 10
+
+
+def _pet_or_404(db, slug):
+    pet = db.query(models.Pet).filter(models.Pet.slug == slug).first()
+    if not pet:
+        raise HTTPException(status_code=404, detail="Mascota no encontrada")
+    return pet
+
+
+def _can_write(db, pet, auth):
+    """¿Es quien regaló? Con la llave del buzón, o con la llave de acceso
+    que creó esta mascota (sirve también para los regalos de antes del
+    buzón, que no tienen llave de buzón)."""
+    if auth.token and pet.owner_token and secrets.compare_digest(auth.token, pet.owner_token):
+        return True
+    normalized = licensing.normalize_key(auth.access_key or "")
+    if normalized:
+        row = db.query(models.AccessKey).filter(models.AccessKey.key_hash == licensing.hash_key(normalized)).first()
+        if row and row.used_by_slug == pet.slug:
+            return True
+    return False
+
+
+def _letter_out(l, with_photo):
+    return schemas.LetterOut(
+        id=l.id, text=l.text, has_photo=bool(l.photo), photo=l.photo if with_photo else None,
+        created_at=l.created_at.isoformat() if l.created_at else None,
+    )
+
+
+@app.post("/api/pets/{slug}/mailbox/check")
+def check_mailbox(slug: str, payload: schemas.MailboxAuth, db: Session = Depends(database.get_db)):
+    pet = _pet_or_404(db, slug)
+    return {"ok": _can_write(db, pet, payload)}
+
+
+@app.post("/api/pets/{slug}/letters", response_model=schemas.LetterOut)
+def send_letter(slug: str, payload: schemas.LetterIn, db: Session = Depends(database.get_db)):
+    pet = _pet_or_404(db, slug)
+    if not _can_write(db, pet, payload):
+        raise HTTPException(status_code=403, detail="sin-permiso")
+    since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=1)
+    recent = db.query(models.Letter).filter(models.Letter.pet_id == pet.id, models.Letter.created_at >= since).count()
+    if recent >= LETTERS_PER_DAY:
+        raise HTTPException(status_code=429, detail="muchas-cartas")
+    letter = models.Letter(pet_id=pet.id, text=payload.text.strip(), photo=payload.photo or None)
+    db.add(letter)
+    db.commit()
+    db.refresh(letter)
+    return _letter_out(letter, False)
+
+
+# Las cartas, sin las fotos (pesan): `after` devuelve solo las más nuevas
+# que esa. La foto de cada una se pide aparte.
+@app.get("/api/pets/{slug}/letters", response_model=List[schemas.LetterOut])
+def list_letters(slug: str, after: int = 0, db: Session = Depends(database.get_db)):
+    pet = _pet_or_404(db, slug)
+    rows = (db.query(models.Letter).filter(models.Letter.pet_id == pet.id, models.Letter.id > after)
+            .order_by(models.Letter.id.asc()).limit(50).all())
+    return [_letter_out(l, False) for l in rows]
+
+
+@app.get("/api/pets/{slug}/letters/{letter_id}", response_model=schemas.LetterOut)
+def get_letter(slug: str, letter_id: int, db: Session = Depends(database.get_db)):
+    pet = _pet_or_404(db, slug)
+    letter = db.query(models.Letter).filter(models.Letter.pet_id == pet.id, models.Letter.id == letter_id).first()
+    if not letter:
+        raise HTTPException(status_code=404, detail="Carta no encontrada")
+    return _letter_out(letter, True)
+
+
+# ── Partida guardada ────────────────────────────────────────────────
+
+def _save_out(row):
+    if not row:
+        return schemas.GameSaveOut()
+    return schemas.GameSaveOut(data=json.loads(row.data), rev=row.rev, saved_at=row.saved_at or 0)
+
+
+@app.get("/api/pets/{slug}/save", response_model=schemas.GameSaveOut)
+def get_save(slug: str, db: Session = Depends(database.get_db)):
+    pet = db.query(models.Pet).filter(models.Pet.slug == slug).first()
+    if not pet:
+        raise HTTPException(status_code=404, detail="Mascota no encontrada")
+    return _save_out(db.query(models.GameSave).filter(models.GameSave.pet_id == pet.id).first())
+
+
+# POST y no PUT, y el cuerpo se lee a mano: así el navegador lo puede
+# mandar como texto plano, sin la consulta previa de CORS, y también con
+# `keepalive` al cerrar la pestaña (lo que no se guardó al irse, se
+# perdía).
+@app.post("/api/pets/{slug}/save", response_model=schemas.GameSaveOut)
+async def post_save(slug: str, request: Request, db: Session = Depends(database.get_db)):
+    try:
+        payload = schemas.GameSaveIn.model_validate_json(await request.body())
+    except ValueError:
+        raise HTTPException(status_code=422, detail="datos")
+    pet = db.query(models.Pet).filter(models.Pet.slug == slug).first()
+    if not pet:
+        raise HTTPException(status_code=404, detail="Mascota no encontrada")
+
+    data = json.dumps(payload.data)
+    now = datetime.now(timezone.utc)
+    row = db.query(models.GameSave).filter(models.GameSave.pet_id == pet.id).first()
+    if row is None:
+        db.add(models.GameSave(pet_id=pet.id, data=data, rev=1, saved_at=payload.saved_at, updated_at=now))
+        try:
+            db.commit()
+        except Exception:
+            # Dos dispositivos guardaron por primera vez a la vez: gana el
+            # primero y el otro recibe su versión, igual que abajo.
+            db.rollback()
+            row = db.query(models.GameSave).filter(models.GameSave.pet_id == pet.id).first()
+            return JSONResponse(status_code=409, content={"detail": "conflicto", **_save_out(row).model_dump()})
+        return schemas.GameSaveOut(rev=1, saved_at=payload.saved_at)
+
+    # Guardado condicional (como al gastar una llave): solo se escribe si
+    # nadie guardó desde la versión que tenía este dispositivo.
+    new_rev = payload.rev + 1
+    changed = (db.query(models.GameSave)
+               .filter(models.GameSave.pet_id == pet.id, models.GameSave.rev == payload.rev)
+               .update({"data": data, "rev": new_rev, "saved_at": payload.saved_at, "updated_at": now},
+                       synchronize_session=False))
+    db.commit()
+    if changed != 1:
+        db.refresh(row)
+        return JSONResponse(status_code=409, content={"detail": "conflicto", **_save_out(row).model_dump()})
+    # Sin devolver la partida: el dispositivo ya la tiene.
+    return schemas.GameSaveOut(rev=new_rev, saved_at=payload.saved_at)
+
+
+@app.post("/api/pets/{slug}/style", response_model=schemas.StyleIn)
+def set_style(slug: str, payload: schemas.StyleIn, db: Session = Depends(database.get_db)):
+    """Guarda el estilo visual que eligió quien recibe el regalo, para
+    que lo vea igual desde cualquier dispositivo."""
+    pet = db.query(models.Pet).filter(models.Pet.slug == slug).first()
+    if not pet:
+        raise HTTPException(status_code=404, detail="Mascota no encontrada")
+    pet.app_style = payload.app_style
+    db.commit()
+    return schemas.StyleIn(app_style=pet.app_style)

@@ -1,9 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { C, FONT, SHADOW, DRAW_COLORS, tint } from '../theme';
+import { C, FONT, SHADOW, DRAW_COLORS, soft } from '../theme';
 import { IconPencil } from './icons';
-import { BODIES, EARS, EYES, MOUTHS, CHEEK_STYLES, BODY_COLORS, ACCENT_COLORS, BELLY_COLORS, EYE_COLORS } from '../petParts';
-import { TAILS, PATTERNS, HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES } from '../petAccessories';
-import { DEFAULT_RECIPE, randomRecipe, PetRecipeMarkup, recipeToPngDataUrl } from '../PetRecipe';
+import { BODY_COLORS, ACCENT_COLORS, BELLY_COLORS, EYE_COLORS } from '../art/mochi/colors';
+import {
+  SHAPES as BODIES, EARS, EYES, MOUTHS, CHEEKS as CHEEK_STYLES, TAILS, PATTERNS,
+  HEAD_ACCESSORIES, NECK_ACCESSORIES, EXTRA_ACCESSORIES, geometry,
+  HAIRSTYLES, HAIR_COLORS, BROWS, MARKS,
+} from '../art/mochi';
+import { DEFAULT_RECIPE, randomRecipe, recipeToPngDataUrl } from '../PetRecipe';
+import PetArt from './PetArt';
 import { PET_STYLES, applyStyle, orderForStyle } from '../petStyles';
 
 // ─────────────────────────────────────────────────────────────────
@@ -23,9 +28,9 @@ import { PET_STYLES, applyStyle, orderForStyle } from '../petStyles';
 const CANVAS_SIZE = 320;
 
 const MOODS = [
-  { id: 'normal', label: 'Normal', emoji: '🙂' },
-  { id: 'feliz', label: 'Feliz', emoji: '😊' },
-  { id: 'enojado', label: 'Enojado', emoji: '😤' },
+  { id: 'normal', label: 'Normal' },
+  { id: 'feliz', label: 'Feliz' },
+  { id: 'enojado', label: 'Enojado' },
 ];
 
 function getPos(e, canvas) {
@@ -53,7 +58,7 @@ function Chip({ active, onClick, children, color }) {
       className="pg-focus"
       style={{
         fontFamily: FONT.display, padding: '7px 15px', borderRadius: 999, fontSize: 13.5, fontWeight: 700, cursor: 'pointer',
-        background: active ? c : C.surface, color: active ? '#fff' : C.ink,
+        background: active ? c : C.surface, color: active ? C.onAccent : C.ink,
         border: `1.5px solid ${active ? c : C.line}`,
         boxShadow: active ? `0 3px 0 ${c}` : `0 2px 0 ${C.line}`,
         transition: 'transform 0.1s',
@@ -68,6 +73,7 @@ function Chip({ active, onClick, children, color }) {
 const PART_GROUPS = [
   { id: 'cuerpo', label: 'Cuerpo' },
   { id: 'cara', label: 'Cara' },
+  { id: 'pelo', label: 'Pelo' },
   { id: 'detalles', label: 'Detalles' },
 ];
 
@@ -83,23 +89,31 @@ function MiniThumb({ selected, onClick, children, label }) {
 }
 
 // Cada tipo de parte se mira mejor desde cierta distancia: para elegir
-// unos ojos no sirve ver la mascota entera en 50px. Estos encuadres
-// acercan la miniatura a la zona que de verdad estás cambiando.
-const THUMB_VIEW = {
-  body: '0 0 200 200',
-  pattern: '0 0 200 200',
-  tail: '0 0 200 200',
-  ears: '18 0 164 130',
-  eyes: '52 62 96 76',
-  mouth: '56 92 88 72',
-  cheeks: '44 82 112 72',
-  headAcc: '26 0 148 116',
-  neckAcc: '34 104 132 96',
-  extraAcc: '46 62 108 82',
-};
+// unos ojos no sirve ver la mascota entera en 50px. El encuadre acerca la
+// miniatura a la zona que de verdad estás cambiando, calculado sobre el
+// ancho de mochi elegido (la cara no está a la misma altura en todos).
+function thumbView(field, recipe) {
+  const g = geometry(recipe.body);
+  const fy = g.face.y;
+  const box = (cx, cy, w) => `${(cx - w / 2).toFixed(1)} ${(cy - w / 2).toFixed(1)} ${w} ${w}`;
+  switch (field) {
+    case 'ears': return box(100, g.top + 8, 150);
+    case 'eyes': return box(100, fy, 78);
+    case 'mouth': return box(100, g.face.mouthY + 2, 62);
+    case 'cheeks': return box(100, g.face.cheekY - 4, 96);
+    case 'headAcc': return box(100, g.top + 4, 150);
+    case 'neckAcc': return box(100, g.neckY + 8, 120);
+    case 'extraAcc': return box(100, fy + 2, 110);
+    case 'tail': return undefined;   // la cola entera (recortada se veía cortada)
+    case 'hair': return box(100, g.top + 26, 156);
+    case 'brows': return box(100, fy - 8, 84);
+    case 'marks': return box(100, fy + 2, 100);
+    default: return '0 0 200 200';
+  }
+}
 
-function PartPicker({ label, field, options, recipe, setRecipe, styleId }) {
-  const view = THUMB_VIEW[field] || '0 0 200 200';
+export function PartPicker({ label, field, options, recipe, setRecipe, styleId }) {
+  const view = thumbView(field, recipe);
   // Con un estilo activo, las piezas que pegan con él salen primero.
   // No se esconde ninguna: el resto sigue ahí, más atrás en la fila.
   const list = styleId ? orderForStyle(options, field, styleId) : options;
@@ -109,9 +123,7 @@ function PartPicker({ label, field, options, recipe, setRecipe, styleId }) {
       <div className="flex gap-2.5" style={{ overflowX: 'auto', paddingBottom: 4 }}>
         {list.map((opt) => (
           <MiniThumb key={opt.id} selected={recipe[field] === opt.id} onClick={() => setRecipe((r) => ({ ...r, [field]: opt.id }))} label={opt.label}>
-            <svg viewBox={view} width={52} height={52}>
-              <PetRecipeMarkup recipe={{ ...recipe, [field]: opt.id }} mood="normal" />
-            </svg>
+            <PetArt recipe={{ ...recipe, overlays: undefined, [field]: opt.id, ...(view ? { tail: 'ninguna' } : {}) }} mood="normal" size={54} view={field === 'body' || field === 'pattern' ? undefined : view} />
           </MiniThumb>
         ))}
       </div>
@@ -165,8 +177,8 @@ function RetouchSection({
             {MOODS.map((m) => (
               <button key={m.id} onClick={() => setActiveMood(m.id)} className="pg-focus" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                 <div style={{ width: 44, height: 44, borderRadius: 12, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2.5px solid ${activeMood === m.id ? C.rose : C.line}`, position: 'relative' }}>
-                  <svg viewBox="0 0 200 200" width={40} height={40}><PetRecipeMarkup recipe={recipe} mood={m.id} /></svg>
-                  {hasOverlay(m.id) && <span style={{ position: 'absolute', top: -2, right: -2, width: 10, height: 10, borderRadius: '50%', background: C.sage, border: '1.5px solid #fff' }} />}
+                  <PetArt recipe={recipe} mood={m.id} size={40} />
+                  {hasOverlay(m.id) && <span style={{ position: 'absolute', top: -2, right: -2, width: 10, height: 10, borderRadius: '50%', background: C.sage, border: `1.5px solid ${C.surface}` }} />}
                 </div>
                 <span style={{ fontFamily: FONT.display, fontSize: 10.5, fontWeight: 700, color: activeMood === m.id ? C.rose : C.ink }}>{m.label}</span>
               </button>
@@ -182,9 +194,9 @@ function RetouchSection({
           )}
 
           <div style={{ position: 'relative', margin: '0 auto 12px', width: CANVAS_SIZE, height: CANVAS_SIZE, borderRadius: 20, overflow: 'hidden', boxShadow: `0 0 0 4px ${C.surface}, 0 0 0 6px ${C.line}, ${SHADOW.soft}`, background: C.paperDeep }}>
-            <svg viewBox="0 0 200 200" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
-              <PetRecipeMarkup recipe={recipe} mood={activeMood} />
-            </svg>
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+              <PetArt recipe={{ ...recipe, overlays: undefined }} mood={activeMood} size={CANVAS_SIZE} />
+            </div>
             {['normal', 'feliz', 'enojado'].map((m) => (
               <canvas
                 key={m}
@@ -200,14 +212,14 @@ function RetouchSection({
 
           <div className="pg-card" style={{ padding: 14, marginBottom: 10, background: C.surfaceAlt }}>
             <div className="flex gap-2 justify-center mb-3">
-              {[{ id: 'pincel', label: '🖌 Pincel' }, { id: 'goma', label: '🧼 Goma' }, { id: 'cuentagotas', label: '💧 Color' }].map((t) => (
+              {[{ id: 'pincel', label: 'Pincel' }, { id: 'goma', label: 'Goma' }, { id: 'cuentagotas', label: 'Gotero' }].map((t) => (
                 <Chip key={t.id} active={tool === t.id} onClick={() => setTool(t.id)}>{t.label}</Chip>
               ))}
             </div>
             <div className="flex items-center gap-3 mb-3">
               <span style={{ fontFamily: FONT.display, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', color: C.inkSoft }}>Grosor</span>
               <input type="range" min="2" max="30" value={size} onChange={(e) => setSize(Number(e.target.value))} className="flex-1" style={{ accentColor: C.rose }} />
-              <div style={{ width: Math.max(size, 6), height: Math.max(size, 6), borderRadius: '50%', background: tool === 'goma' ? '#fff' : color, border: `1.5px solid ${C.line}`, flexShrink: 0 }} />
+              <div style={{ width: Math.max(size, 6), height: Math.max(size, 6), borderRadius: '50%', background: tool === 'goma' ? C.surface : color, border: `1.5px solid ${C.line}`, flexShrink: 0 }} />
             </div>
             <div className="flex gap-2 justify-center mb-3">
               {['dura', 'suave'].map((hd) => (
@@ -225,9 +237,9 @@ function RetouchSection({
           </div>
 
           <div className="flex gap-2 justify-center">
-            <button onClick={() => undo(activeMood)} disabled={!canUndo} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '8px 14px', fontSize: 12.5, opacity: canUndo ? 1 : 0.5 }}>↩ Deshacer</button>
-            <button onClick={() => redo(activeMood)} disabled={!canRedo} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '8px 14px', fontSize: 12.5, opacity: canRedo ? 1 : 0.5 }}>↪ Rehacer</button>
-            <button onClick={() => clearCanvas(activeMood)} className="pg-btn pg-focus" style={{ padding: '8px 14px', fontSize: 12.5, background: C.surface, color: C.rose, border: `1.5px solid ${C.rose}`, boxShadow: `0 2px 0 ${C.roseSoft}` }}>🗑 Limpiar</button>
+            <button onClick={() => undo(activeMood)} disabled={!canUndo} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '8px 14px', fontSize: 12.5, opacity: canUndo ? 1 : 0.5 }}>Deshacer</button>
+            <button onClick={() => redo(activeMood)} disabled={!canRedo} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '8px 14px', fontSize: 12.5, opacity: canRedo ? 1 : 0.5 }}>Rehacer</button>
+            <button onClick={() => clearCanvas(activeMood)} className="pg-btn pg-focus" style={{ padding: '8px 14px', fontSize: 12.5, background: C.surface, color: C.rose, border: `1.5px solid ${C.rose}`, boxShadow: `0 2px 0 ${C.roseSoft}` }}>Limpiar</button>
           </div>
       </div>
     </div>
@@ -256,7 +268,7 @@ function StylePicker({ styleId, onPick }) {
               title={s.hint}
               className="pg-focus"
               style={{
-                background: on ? tint(C.rose, 0.12) : C.surface,
+                background: on ? soft(C.rose, 0.85) : C.surface,
                 border: `2.5px solid ${on ? C.rose : C.line}`,
                 boxShadow: on ? SHADOW.glowRose : 'none',
                 borderRadius: 18, padding: '8px 8px 7px', cursor: 'pointer',
@@ -269,9 +281,7 @@ function StylePicker({ styleId, onPick }) {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: `linear-gradient(150deg, ${s.swatch[0]}, ${s.swatch[1]})`,
               }}>
-                <svg viewBox="0 0 200 200" width={56} height={56}>
-                  <PetRecipeMarkup recipe={{ ...DEFAULT_RECIPE, ...s.recipe }} mood="normal" />
-                </svg>
+                <PetArt recipe={{ ...DEFAULT_RECIPE, ...s.recipe }} mood="normal" size={58} />
               </div>
               <span style={{ fontFamily: FONT.display, fontSize: 10.5, fontWeight: 700, color: on ? C.rose : C.ink, lineHeight: 1.1, textAlign: 'center' }}>
                 {s.label}
@@ -301,14 +311,14 @@ export function ModularPetStep({
     <StepShell title={title} subtitle={subtitle}>
       {/* Vista principal grande + los otros dos ánimos al lado */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 12 }}>
-        <div className="pg-sticker" style={{ width: 172, height: 172, borderRadius: 26, overflow: 'hidden', background: 'linear-gradient(180deg, #FFF6E8, #FDE9D6)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <svg viewBox="0 0 200 200" width={162} height={162}><PetRecipeMarkup recipe={recipe} mood="normal" /></svg>
+        <div className="pg-sticker" style={{ width: 172, height: 172, borderRadius: 26, overflow: 'hidden', background: soft(C.sky, 0.82), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <PetArt recipe={recipe} mood="normal" size={162} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {MOODS.filter((m) => m.id !== 'normal').map((m) => (
             <div key={m.id} style={{ textAlign: 'center' }}>
               <div className="pg-checker" style={{ width: 68, height: 68, borderRadius: 16, overflow: 'hidden', border: `2px solid ${C.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg viewBox="0 0 200 200" width={62} height={62}><PetRecipeMarkup recipe={recipe} mood={m.id} /></svg>
+                <PetArt recipe={recipe} mood={m.id} size={62} />
               </div>
               <span style={{ fontFamily: FONT.display, fontSize: 10, fontWeight: 700, color: C.inkSoft }}>{m.label}</span>
             </div>
@@ -317,7 +327,7 @@ export function ModularPetStep({
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 18 }}>
         <button onClick={() => { setPetStyle(null); setRecipe(randomRecipe()); }} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '8px 18px', fontSize: 12.5 }}>
-          🎲 Sorpréndeme
+          Sorpréndeme
         </button>
         <button onClick={() => { setPetStyle(null); setRecipe(DEFAULT_RECIPE); }} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '8px 18px', fontSize: 12.5 }}>
           ↺ Empezar de cero
@@ -339,17 +349,25 @@ export function ModularPetStep({
         <>
           <ColorPickerRow label="Color del cuerpo" value={recipe.bodyColor} options={BODY_COLORS} onPick={(c) => setRecipe((r) => ({ ...r, bodyColor: c }))} />
           <ColorPickerRow label="Color de la pancita" value={recipe.innerColor} options={BELLY_COLORS} onPick={(c) => setRecipe((r) => ({ ...r, innerColor: c }))} />
-          <PartPicker label="Forma del cuerpo" field="body" options={BODIES} recipe={recipe} setRecipe={setRecipe} styleId={petStyle} />
+          <PartPicker label="Ancho de la mochi" field="body" options={BODIES} recipe={recipe} setRecipe={setRecipe} styleId={petStyle} />
           <PartPicker label="Patrón" field="pattern" options={PATTERNS} recipe={recipe} setRecipe={setRecipe} styleId={petStyle} />
         </>
       )}
       {partGroup === 'cara' && (
         <>
-          <PartPicker label="Orejas" field="ears" options={EARS} recipe={recipe} setRecipe={setRecipe} styleId={petStyle} />
+          <PartPicker label="Animalito (orejas)" field="ears" options={EARS} recipe={recipe} setRecipe={setRecipe} styleId={petStyle} />
           <PartPicker label="Ojos" field="eyes" options={EYES} recipe={recipe} setRecipe={setRecipe} styleId={petStyle} />
           <ColorPickerRow label="Color de los ojos" value={recipe.eyeColor} options={EYE_COLORS} onPick={(c) => setRecipe((r) => ({ ...r, eyeColor: c }))} />
           <PartPicker label="Boca" field="mouth" options={MOUTHS} recipe={recipe} setRecipe={setRecipe} styleId={petStyle} />
           <PartPicker label="Cachetes" field="cheeks" options={CHEEK_STYLES} recipe={recipe} setRecipe={setRecipe} styleId={petStyle} />
+          <PartPicker label="Marquitas" field="marks" options={MARKS} recipe={recipe} setRecipe={setRecipe} styleId={petStyle} />
+        </>
+      )}
+      {partGroup === 'pelo' && (
+        <>
+          <PartPicker label="Peinado" field="hair" options={HAIRSTYLES} recipe={recipe} setRecipe={setRecipe} styleId={petStyle} />
+          <ColorPickerRow label="Color del pelo" value={recipe.hairColor || HAIR_COLORS[2]} options={HAIR_COLORS} onPick={(c) => setRecipe((r) => ({ ...r, hairColor: c }))} />
+          <PartPicker label="Cejas" field="brows" options={BROWS} recipe={recipe} setRecipe={setRecipe} styleId={petStyle} />
         </>
       )}
       {partGroup === 'detalles' && (
@@ -387,7 +405,11 @@ export function useDesignerState(initialRecipe) {
   const lastPointRef = useRef(null);
   const refs = { normal: normalRef, feliz: felizRef, enojado: enojadoRef };
 
-  const [recipe, setRecipe] = useState(initialRecipe || DEFAULT_RECIPE);
+  const [recipe, setRecipe] = useState(() => {
+    if (!initialRecipe) return DEFAULT_RECIPE;
+    const { overlays, ...base } = initialRecipe;
+    return { ...DEFAULT_RECIPE, ...base };
+  });
   const [partGroup, setPartGroup] = useState('cuerpo');
   const [petStyle, setPetStyle] = useState(null);
   const [retouchOpen, setRetouchOpen] = useState(false);
@@ -403,15 +425,24 @@ export function useDesignerState(initialRecipe) {
     enojado: { stack: [], index: -1 },
   });
 
+  // Retoques que ya traía la receta (al rediseñar o al volver a un
+  // borrador): se cargan como punto de partida de cada lienzo.
+  const loadedOverlays = useRef({});
   useEffect(() => {
     const moods = ['normal', 'feliz', 'enojado'];
+    const pre = (initialRecipe && initialRecipe.overlays) || {};
     const next = {};
     moods.forEach((m) => {
       const canvas = refs[m].current;
       canvas.width = CANVAS_SIZE;
       canvas.height = CANVAS_SIZE;
-      const snap = canvas.toDataURL('image/png');
-      next[m] = { stack: [snap], index: 0 };
+      if (pre[m]) {
+        loadedOverlays.current[m] = true;
+        next[m] = { stack: [pre[m]], index: 0 };
+        restoreCanvas(m, pre[m]);
+      } else {
+        next[m] = { stack: [canvas.toDataURL('image/png')], index: 0 };
+      }
     });
     setHistories(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -458,6 +489,7 @@ export function useDesignerState(initialRecipe) {
   }
 
   function clearCanvas(mood) {
+    loadedOverlays.current[mood] = false;
     const canvas = refs[mood].current;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -532,8 +564,27 @@ export function useDesignerState(initialRecipe) {
     pushHistory(mood, canvas.toDataURL('image/png'));
   }
 
-  // Rasteriza la receta + los retoques a mano a 3 PNG normales, listos
-  // para mandar al backend — igual que hacía `handleFinalize` en el wizard.
+  // Los retoques que de verdad tienen algo dibujado (un lienzo vacío no
+  // se guarda).
+  function currentOverlays() {
+    const out = {};
+    ['normal', 'feliz', 'enojado'].forEach((m) => {
+      const h = histories[m];
+      if (!h || h.index < 0) return;
+      if (h.index > 0 || loadedOverlays.current[m]) out[m] = h.stack[h.index];
+    });
+    return Object.keys(out).length ? out : undefined;
+  }
+
+  // La receta completa, con los retoques adentro: es lo que se guarda y
+  // lo que el juego dibuja en cada estilo.
+  function fullRecipe() {
+    const { overlays, ...base } = recipe;
+    const ov = currentOverlays();
+    return ov ? { ...base, overlays: ov } : base;
+  }
+
+  // Tres PNG de respaldo (receta + retoques), para el backend.
   async function buildPngs(px = 320) {
     const [drawing_normal, drawing_feliz, drawing_enojado] = await Promise.all(
       ['normal', 'feliz', 'enojado'].map((m) => recipeToPngDataUrl(recipe, m, histories[m].stack[histories[m].index], px))
@@ -546,6 +597,6 @@ export function useDesignerState(initialRecipe) {
     retouchOpen, setRetouchOpen, activeMood, setActiveMood, refs, histories,
     tool, setTool, color, setColor, size, setSize, hardness, setHardness,
     startStroke, moveStroke, endStroke, undo, redo, clearCanvas, copyFromNormal,
-    buildPngs,
+    buildPngs, fullRecipe,
   };
 }

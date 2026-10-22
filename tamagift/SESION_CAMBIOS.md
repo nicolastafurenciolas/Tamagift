@@ -1,4 +1,56 @@
-# Registro de cambios — sesión de continuación (tareas #38-#44)
+# Registro de cambios
+
+## Sesión de estilos visuales (Opus 5.5)
+
+**Pedido:** que la persona pueda elegir el estilo de la app (quien regala y
+quien recibe), con los seis estilos votados: Pixel art (por defecto), Lo-fi
+noche acogedora, Retro setentero, Papel recortado, Neón nocturno y Sticker
+kawaii; rehacer todos los sprites en esos estilos, mejorar interfaces,
+animaciones y sonidos, y arreglar todo lo que fallara.
+
+**Qué se hizo** (detalle técnico en `ESTILOS.md`):
+- Sistema de estilos: tokens de interfaz como variables CSS, letras, bordes,
+  sombras y fondos propios por estilo; selector con vista previa real de la
+  mascota en el asistente (paso "Estilo") y en el juego (botón de paleta).
+- Motor de sprites (`styles/spriteEngine.js`): todo el arte (mascota,
+  muebles, decoración, comida, juegos, paredes, pisos, pósters, íconos) se
+  redibuja en el estilo activo. En pixel: rejilla real de 3 px con paleta de
+  rampas y contorno de color.
+- Sprites propios en vez de emojis (`sprites.jsx`).
+- Movimiento por estilo (`styles/motion.js`) y sonido por estilo
+  (seis paquetes de timbre en `sound.js`).
+- El juego se dividió en `components/game/` (un archivo por minijuego,
+  tienda, baño, decoración, escenas).
+- Backend: `app_style`, `POST /api/pets/{slug}/style`, validación completa
+  de entradas (422 en vez de 500), tope de tamaño, `pool_pre_ping`.
+
+**Fallas corregidas (auditoría completa del código):** música de Spotify sin
+reproductor; lista que no avanzaba ni repetía; sin pausa/siguiente; carga
+fallida mostraba una mascota de demostración; textos largos rompían la
+creación; "Salta y vuela" perdía resultados; hambre y amor no se guardaban;
+el rediseño cobraba antes de guardar; cruces dobles en "Cruzar la calle";
+trivia repetible para farmear monedas y con respuestas correctas como
+"incorrectas"; Simón se rompía con un toque de más; la serpiente podía
+girar sobre sí misma y arrancaba sola; topos escondidos antes de tiempo y
+sin castigo por fallar; baño con monedas infinitas; resultados fantasma al
+salir de un juego; pestañas de la tienda y modo decorar desbordaban; baño,
+menú y juegos que obligaban a hacer scroll; zoom por doble toque; sonido
+que no se desbloqueaba en celulares; mascota no acariciable con mouse;
+rompecabezas que estiraba fotos; imágenes ilegibles guardadas rotas;
+pósters locales sin id; búsqueda de comida con comodines; resumen del
+asistente sin la mascota; copiar link que mentía; asistente sin borrador.
+
+**Verificación:** capturas con Chrome emulando un celular (390×760 y
+360×640) de todas las pantallas en los seis estilos; prueba de los 84
+sonidos (14 efectos × 6 paquetes) sin errores; pruebas del backend y de la
+lógica de los juegos; `vite build`.
+
+**Pendiente de probar en un celular físico:** que el audio y el reproductor
+de YouTube/Spotify se comporten igual que en la emulación.
+
+---
+
+# Sesión anterior — continuación (tareas #38-#44)
 
 Este documento describe, tarea por tarea, todos los cambios hechos en esta sesión sobre el proyecto Tamagift, con el objetivo de que puedan ser revisados por otro modelo (Opus 5) sin necesidad de rehacer la exploración del código. Incluye: qué se pidió, qué decisiones de producto se tomaron (y quién las tomó), qué archivos cambiaron, qué se implementó exactamente, y cómo se verificó.
 
@@ -335,6 +387,260 @@ Cruzar (3 vidas reales + carros que aceleran; antes era imposible perder).
 - Falta probar en celular físico (los controles por deslizamiento sobre todo).
 
 ---
+
+## Mochis y dibujo nativo por estilo
+
+Pedido: los estilos se veían "pasados por un filtro" (el pixel art era
+una imagen achicada), los accesorios no calzaban (gorros muy arriba o
+muy abajo, collares que no abrazaban) y la guitarra tenía mal las
+medidas. Además las mascotas pasan a ser **mochis** con varios anchos.
+
+- **Motor de kits** (`frontend/src/art/kit.js`): el arte se escribe como
+  SVG con partes (`data-r`: body, part, flat, line, shine, tone) y cada
+  estilo dibuja cada parte a su manera. Pixel arma la rejilla pieza por
+  pieza (rampas de color, contorno de 1 px, sombra en media luna) y usa
+  caras hechas a mano (`art/pixelStamps.js`); papel recorta cartulina;
+  neón enciende tubos; retro corre la tinta y trama las sombras; lo-fi
+  pone luz de lámpara y grano; sticker contorno suave y borde blanco.
+  Las fotos y dibujos subidos siguen por el motor de imágenes.
+- **Mochi** (`frontend/src/art/mochi/`): 4 anchos, 19 animalitos, 10 ojos,
+  9 bocas, 6 ánimos, 7 mejillas, 8 colas, 13 estampados y 46 accesorios,
+  todos anclados a la geometría del cuerpo. Las recetas viejas y los 14
+  estilos de partida siguen sirviendo.
+- **El juego dibuja desde la receta** (`petLook.js`, `components/PetArt.jsx`):
+  cuarto, baño, apertura, minijuegos, tienda y selector de estilo. Los
+  retoques a mano viajan dentro de la receta (`overlays`); los PNG quedan
+  de respaldo.
+- **Trajes**: el diseñador de prendas ahora elige accesorios (cabeza,
+  cuello, cara) y además se puede dibujar encima. Se guarda la receta del
+  traje (`outfits.recipe`, columna nueva).
+- **Backend**: `recipe_original` admite hasta 3 MB (por los retoques),
+  `RedesignIn` valida el tamaño, `outfits.recipe` nueva.
+- **Cuarto**: guitarra redibujada con proporciones reales; trazos tenues
+  de pisos y paredes ya no se vuelven líneas sólidas; neón no "enciende"
+  paredes oscuras.
+- **Pruebas**: `node src/mochi.test.mjs` (más de 2000 combinaciones sin
+  coordenadas rotas, recetas viejas, estilos de partida).
+- **Revisión**: `/arte` (laboratorio de kits), `/hoja`, `/aleatorio`,
+  `/dev/<pantalla>?estilo=<id>`.
+
+## Cuarto, muebles, decoración y tienda rehechos desde cero
+
+Pedido: rehacer todos los muebles y cuartos (las pesas, el baúl, la
+guitarra, el escritorio y el espejo estaban mal dibujados), con una
+perspectiva que tenga sentido, más variedad y más opciones de
+personalización en la tienda (pintura de muebles, colores de pared y
+piso), en todos los estilos; rehacer la decoración; que se vea de
+estudio profesional.
+
+- **Una sola perspectiva para todo** (`frontend/src/art/room/draw.js`):
+  vista 3/4 sin punto de fuga. Cada mueble muestra su frente y su tapa
+  (la mitad de su fondo), sin costados ni trapecios; lo redondo es una
+  elipse el doble de ancha que alta; la luz viene de arriba a la
+  izquierda. Herramientas comunes: `box`, `cylinder`, `pot`, `legs`,
+  `tube` (tubos que siguen una curva), `hollow` (interiores), `mat`
+  (frente, tapa y brillo de un color).
+- **Paredes** (`art/room/walls.js`): 17 diseños (liso, rayas, lunares,
+  flores, vichy, corazones, estrellas, zócalo, ladrillo, tablas,
+  azulejos, piedra, ondas, nubes, hojas, damasco, rejilla), cada uno con
+  varios colores. **Pisos** (`art/room/floors.js`): 9 diseños (tablas,
+  espiga, ajedrez, baldosa, hidráulico, alfombrado, losas, mármol,
+  rejilla). Las tablas y baldosas van en la misma vista que los muebles
+  (las líneas hacia el fondo son verticales). Se guarda
+  `"diseño.color"`; los ids viejos se traducen solos.
+- **46 muebles** en 8 categorías (`art/room/furniture/`): camas,
+  asientos, mesas y guardado, música y juegos, plantas, luces,
+  alfombras y cosas para la pared. **14 pinturas** para cada uno
+  (madera, tela y detalle). Se ven 1.25× para que la mochi quepa en la
+  cama y el sofá. Las alfombras van en el suelo, debajo de todo.
+- **19 piezas de decoración** (`art/room/decor.js`); las que van
+  "encima" (lámpara de mesa, velas, taza…) se pueden poner sobre
+  cualquier mueble.
+- **Pósters** con marco dibujado y pintable; la foto va adentro.
+- **Margen bajo los dibujos** (`FOOT`): sombras y bases redondas ya no se
+  cortan en el borde; el cuarto lo descuenta para que todo siga apoyado.
+- **Tienda**: categorías de muebles, pintura antes y después de comprar,
+  colores de pared y piso, y una pestaña nueva de **accesorios** para la
+  mochi (cabeza, cuello y cara, con 12 colores) que se ven en el cuarto,
+  en el baño y en los juegos.
+- **Baño** redibujado en la misma vista, en tres capas (la mascota queda
+  dentro de la tina).
+- **Lo-fi**: las fotos (pósters, cartas) ya no se oscurecen de más.
+- **Pruebas**: `node src/room.test.mjs` (cada pared, piso, mueble y
+  pintura da un SVG sano; ids viejos; tamaños que calzan con el dibujo).
+- **Revisión**: `/arte` (cuartos armados, paredes, colores, pisos,
+  muebles por categoría, decoración), `/arte?set=muebles3&cat=<categoría>`
+  (cada mueble en un rincón con una mochi al lado para la escala),
+  `set=paredes2`, `set=pisos2`, `set=deco`.
+
+## Mundo vivo, vestidor y minijuegos con progreso
+
+Pedido: más rasgos para las mochis; accesorios básicos y montones más
+en la tienda (ropa, estilos, accesorios, colores), pensados sobre todo
+para chicas; decoración que refleje la personalidad (aesthetic, otaku,
+kawaii…); que al comprar suene el timbre y se recoja la caja en la
+puerta; pintar la pared y poner baldosas con el dedo; un mundo vivo
+(día y noche, sucesos, consecuencias como engordar con chatarra);
+minijuegos que den ganas de volver; rehacer la comida y los íconos
+(sobre todo en pixel art). El plan completo está en
+`DISENO_MUNDO_VIVO.md`.
+
+- **Rasgos de la mochi** (`art/mochi/hair.js`, `marks.js`, `face.js`,
+  `ears.js`, `tails.js`): 14 peinados con 16 colores, cejas, marcas de
+  nacimiento, 8 animalitos nuevos (ajolote, capibara, ardilla, hámster,
+  león, vaca, cervatillo, abeja), 6 ojos, 5 bocas, 3 mejillas, 4 colas y
+  5 estampados, cada uno con sus píxeles hechos a mano.
+- **Vestidor** (`art/mochi/wardrobe/`, `wardrobeState.js`,
+  `components/game/Fashion.jsx`): 132 cosas en 6 ranuras (cabeza, cara,
+  cuello, ropa, espalda, en la mano), cada una con 1-2 colores teñibles.
+  Tienda con Moda (por ranura) y
+  Peluquería; pantalla Vestir en el dock; kit inicial gratis.
+- **Decoración con personalidad** (`art/room/decorVibes.js`,
+  `furniture/vibes.js`): 42 adornos y 18 muebles nuevos para muchos
+  gustos, casi todos pintables, sin etiquetas de "tipo de persona".
+- **Pedidos** (`deliveries.js`, `components/game/Delivery.jsx`,
+  `art/room/door.js`): lo comprado queda en camino; al volver al cuarto
+  suena el timbre, la mochi corre a la puerta y aparece la caja; al
+  abrirla sale cada cosa con su botón.
+- **Obra con el dedo** (`components/PaintJob.jsx`): rodillo que pinta la
+  pared por franjas y baldosas que caen en su cuadrícula.
+- **Mundo vivo** (`world.js`, `worldEvents.js`,
+  `components/WorldLayer.jsx`, `components/game/WorldEvents.jsx`):
+  hora y clima reales, interruptor de la luz y sueño, energía, limpieza
+  y peso con consecuencias visibles, nevera y Súper, y sucesos (regalo
+  del día, carta de quien regaló, antojos, bichitos, monedas, hipo,
+  migas, visitas).
+- **Comida e íconos** (`art/food.js`, `art/ui.js`, `art/pixel/`): 36
+  comidas dibujadas de nuevo con pixel art hecho a mano en 16×16 y
+  24×24; íconos de interfaz en 16×16 píxel a píxel; topo, guitarra,
+  moneda y estrella arreglados.
+- **Minijuegos** (`gameProgress.js`, `match3.js`, `cooking.js`,
+  `components/game/CookingGame.jsx`): niveles con estrellas y rangos,
+  reto del día por juego, Conecta 3 con 30 niveles y golosinas
+  especiales, Memoria y Rompecabezas por niveles, Cocina con 12 recetas
+  por gestos, y los arcade con poderes, monedas y dificultad creciente.
+- **Pruebas**: `world.test.mjs`, `gameProgress.test.mjs`,
+  `cooking.test.mjs` nuevas; `match3`, `flyPhysics`, `mochi`, `room` y
+  `towerLogic` siguen pasando.
+- **Desarrollo**: `/dev/main?hora=22&clima=lluvia&suceso=visita`,
+  `?obra=piso.ajedrez.clasico`, `/arte?set=pelo|vestidor&slot=ropa|…`,
+  `/iconos?estilo=pixel`.
+
+## Pixel art con más detalle y arreglos de la tienda
+
+- **Resolución**: el píxel de arte pasa de 3 a 2 px de pantalla (la
+  mochi del cuarto tiene ~100 px de ancho en vez de ~70) y en miniaturas
+  la mochi siempre tiene al menos ~72 px. Ojos, bocas y mejillas grandes
+  hechos píxel a píxel (`art/mochi/bigFace.js`): ojos con contorno,
+  color, brillo y ánimos legibles; bocas con trazo conectado (la "w" ya
+  no se ve como puntitos).
+- **Tienda y vestidor**: las vistas previas muestran la mochi entera (la
+  cola ya no se corta); sin etiquetas de estilo (coquette, otaku…): la
+  ropa se ordena por dónde va y la deco por si va en mesas o en el piso.
+- **Obra**: al pintar la pared, los muebles quedan delante de la pintura
+  (antes se veían transparentes y parecía pintura encima).
+
+## Partida en el servidor, guía de bienvenida y legibilidad
+
+- **La partida ya no vive solo en el celular.** Monedas, compras, cuarto,
+  vestidor y récords se copian al servidor (tabla `game_saves`, una fila
+  por mascota; `GET/POST /api/pets/{slug}/save`). Si quien recibe cambia
+  de teléfono o borra los datos del navegador, al abrir el link recupera
+  todo.
+  - `frontend/src/cloudSave.js` decide cuándo mandar (como mucho cada
+    30 s mientras se juega y siempre al esconder o cerrar la pestaña) y
+    cuál gana si hay dos dispositivos: el servidor numera cada guardado
+    (`rev`) y no pisa una versión que el dispositivo no conocía; entre
+    dos partidas con cambios gana el último cambio hecho a mano. Lo que
+    cambia con la pestaña escondida (solo bajan las barras) no cuenta:
+    un celular olvidado con el juego abierto no pisa lo jugado en otro.
+  - Se manda como texto plano (sin consulta previa de CORS) para que
+    salga también con `keepalive` al cerrar la pestaña.
+  - Pruebas: `backend/test_save.py` (contra una base temporal) y
+    `frontend/src/cloudSave.test.mjs` (9 casos: celular nuevo, partida
+    vieja que se sube sola, dos celulares, choques, sin conexión…).
+- **Guía de bienvenida** (`components/game/Tutorial.jsx`): al abrir el
+  regalo la mascota se presenta y enseña las barras, a darle de comer
+  (espera a que lo haga), los juegos, la tienda y la noche, iluminando
+  cada cosa. Se puede saltar; al terminar regala 50 monedas. Quien ya
+  venía jugando no la ve (migración 2 → 3 de la partida).
+- **Cuarto inicial**: un regalo nuevo ya no llega a un cuarto vacío;
+  trae ventana, camita, alfombra y planta (se pueden mover o guardar).
+- **La mochi más grande en los minijuegos** donde era una manchita:
+  Salta y vuela (y su tablero ocupa el ancho del celular), Cruzar la
+  calle y la cabeza de la Serpiente.
+- **Textos**: los que medían 8,5–10 px suben a 10,5–11,5; los nombres de
+  comida usan dos líneas en vez de cortarse ("Pastel de chocolate"); en
+  neón el dock ya no corta "Alimentar"; la mascota "se siente tranquila"
+  (el resto de los textos ya la trataban en femenino).
+
+## Halloween
+
+Del 1 al 31 de octubre (fecha del teléfono; `seasons.js`). Lo de
+temporada solo se compra esos días; lo comprado queda para siempre en el
+vestidor y en la decoración.
+
+- **Tienda**: mientras dura, la primera pestaña es "Halloween", con la
+  cuenta regresiva ("Quedan 10 días", "¡Último día!"), los disfraces y la
+  decoración. Fuera de temporada esa pestaña no aparece y esas cosas no
+  salen en Moda ni en Deco. Un puntito naranja en el botón de la tienda
+  avisa que hay temporada, y la mascota lo cuenta una vez al llegar.
+- **Disfraces y accesorios** (14): calabacita en la cabeza, diadema de
+  murciélago, sombrero de bruja con estrellas, antifaz de murciélago,
+  colmillitos de vampiro, collar de calabacitas, disfraz de calabaza,
+  disfraz de fantasmita (la sábana también tapa la cabeza), vestido de
+  brujita, pijama de esqueleto, capa de vampiro, cubeta de dulces,
+  escobita y piruleta embrujada. Se tiñen con una paleta de Halloween
+  (naranja, morado, negro…) seguida de los tonos de siempre.
+- **Decoración** (10): calabaza sonriente que brilla, montón de
+  calabazas, guirnalda de murciélagos, telaraña con arañita, fantasmita
+  de peluche, caldero de dulces, farolito embrujado, gatito negro de
+  peluche, banderín y escoba de bruja. Tiernas antes que tenebrosas.
+- **Sucesos**: una vez al día suena el timbre y llega una amiga
+  disfrazada con su cubeta: "¡Dulce o truco!". Darle un dulce saca uno de
+  la nevera (o cuesta 10 monedas) y deja caramelos o, a veces, una deco de
+  Halloween que llega en caja a la puerta; elegir truco apaga y prende la
+  luz y la mascota se asusta (y se ríe). Además salen fantasmitas
+  flotando por el cuarto (más de noche): atraparlos a todos da monedas.
+- El vestidor ahora recibe la altura real de la boca (`mouthY`; con
+  algunas orejas la boca no se corre junto con los ojos), así los
+  colmillos quedan justo debajo con cualquier oreja.
+
+## Premio de cada día, recordatorio y buzón de cartas
+
+- **Premio del día** (`daily.js`, `components/game/DailyGift.jsx`): un
+  calendario de 7 premios (monedas, comida y, el séptimo, una deco
+  sorpresa que llega a la puerta). Avanza un casillero por cada día que
+  se entra, aunque no sean seguidos: faltar no borra lo avanzado. La
+  racha de días seguidos se cuenta aparte, con su llamita. Se abre una
+  vez por visita después de la guía, y desde Minijuegos.
+- **Recordatorio** (`reminder.js`): "Agregar a mi calendario" baja un
+  evento diario (.ics) con el link del regalo a la hora elegida. Sirve en
+  iPhone y Android sin notificaciones push ni permisos.
+- **Buzón**: quien regaló le escribe cartas (texto y foto) cuando quiera.
+  - Al crear el regalo recibe, aparte del link del regalo, el link
+    privado de su buzón (`/buzon/<slug>?t=<llave>`); también puede entrar
+    con la llave de acceso con que compró el regalo (sirve para los
+    regalos de antes).
+  - Backend: columna `pets.owner_token` (se agrega sola), tabla
+    `letters`, `POST …/letters` (con llave; como mucho 10 por día),
+    `GET …/letters?after=` (sin fotos) y `GET …/letters/{id}` (con foto),
+    `POST …/mailbox/check`. Pruebas: `backend/test_mailbox.py`.
+  - A quien recibe le llega como paquete: suena el timbre, en la caja
+    está "Carta de Nico" y al leerla se ve con su foto. Las cartas viejas
+    se releen desde el sobre de la barra de arriba. Se revisa al abrir,
+    cada 3 minutos y al volver a la pestaña. Las fotos no se guardan en
+    la partida (se piden al servidor al abrir la carta).
+
+## Gestos de la mascota
+
+- La mochi mastica cuando come algo que le gusta, niega con la cabeza
+  cuando no, salta de alegría cuando estrena ropa (al volver del
+  vestidor o de la tienda con otra pinta, o al ponérsela desde la caja,
+  con brillitos y "¿Cómo me veo?") y se asusta con el truco de Halloween.
+- Cada estilo los hace a su manera (`ACTS` en `styles/motion.js`): en
+  pixel solo se desplaza y a saltos (escalar un sprite rompe los
+  píxeles), en papel a cuadros de stop motion y en el resto suave.
 
 ## Resumen de archivos tocados en toda la sesión
 
