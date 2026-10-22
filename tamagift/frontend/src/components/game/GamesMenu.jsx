@@ -1,7 +1,7 @@
 import React from 'react';
 import { C, FONT, soft } from '../../theme';
 import { Screen, ScreenHeader, Modal } from '../ui';
-import { IconFlame, IconTrophy, IconSparkle, IconCoin } from '../icons';
+import { IconFlame, IconTrophy, IconSparkle, IconCoin, IconGift } from '../icons';
 import { isDailyBonusReady } from '../../gameState';
 import { LEVEL_GAMES, isLevelGame, progressOf, totalStars, dailyChallenge, isChallengeDone, goalsFor } from '../../gameProgress';
 import { GAME_META, GAME_LIST, NEW_GAMES } from './meta';
@@ -68,12 +68,25 @@ function GameCard({ id, title, desc, icon: Icon, color, onClick, game }) {
   );
 }
 
-export function GamesMenu({ game, onBack, onPlay }) {
+// `daily`: dailyStatus() del premio de cada día; `onOpenDaily` lo abre.
+export function GamesMenu({ game, onBack, onPlay, daily, onOpenDaily }) {
   const streak = game.streak || 0;
   const doneToday = GAME_LIST.filter((g) => isChallengeDone(game, g.id)).length;
   return (
     <Screen>
       <ScreenHeader title="Minijuegos" subtitle="Gana monedas para su cuarto" onBack={onBack} />
+      {daily && onOpenDaily && (
+        <button
+          onClick={onOpenDaily} className={`pg-card pg-focus${daily.ready ? ' pg-glint' : ''}`}
+          style={{ width: '100%', maxWidth: 340, padding: '8px 12px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', textAlign: 'left' }}
+        >
+          <IconGift size={20} color={C.rose} />
+          <span style={{ flex: 1, fontFamily: FONT.display, fontSize: 12.5, fontWeight: 700, color: C.ink }}>
+            {daily.ready ? '¡Tu premio del día te espera!' : `Premio del día: día ${daily.step + 1} de 7`}
+          </span>
+          <span style={{ fontFamily: FONT.display, fontSize: 12, fontWeight: 800, color: daily.ready ? C.rose : C.inkSoft }}>{daily.ready ? 'Recoger' : 'Ver'}</span>
+        </button>
+      )}
       <div className="pg-card" style={{ width: '100%', maxWidth: 340, padding: '8px 12px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
         <IconTarget size={20} color={C.amber} />
         <div style={{ flex: 1, minWidth: 0 }}>

@@ -4,7 +4,7 @@ import { C, FONT, SHADOW } from '../theme';
 import { loadPet, feedPetRemote, redesignPetRemote, setActiveDesignRemote, setPetStyleRemote, fetchGameSave, pushGameSave } from '../api';
 import {
   loadGameState, saveGameState, ROOM, registerPlay, isDailyBonusReady, isNewRecord,
-  DAILY_BONUS_MULTIPLIER, playsTodayFor, hydrateGameState, hasStoredGameState,
+  DAILY_BONUS_MULTIPLIER, playsTodayFor, hydrateGameState, hasStoredGameState, todayKey,
 } from '../gameState';
 import { CloudSync } from '../cloudSave';
 import Room, { defaultPlacement, DOOR_SPOT } from './Room';
@@ -52,6 +52,8 @@ import { buildPosterList } from './game/posters';
 import { OpeningScreen, CinematicScreen, LoadErrorScreen } from './game/Scenes';
 import Tutorial, { TUTORIAL_STEPS, TUTORIAL_REWARD } from './game/Tutorial';
 import { seasonNow } from '../seasons';
+import DailyGift from './game/DailyGift';
+import { dailyStatus, claimDaily, applyDailyReward } from '../daily';
 import { DECOR_CATALOG } from '../shopCatalog';
 import { pendingDelivery } from '../deliveries';
 
@@ -362,6 +364,34 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
     setGame((g) => ({ ...g, seasonSeen: [...(g.seasonSeen || []), seasonKey] }));
     later(() => setBubble({ text: `¡Llegó ${season.name}! Hasta ${season.until} hay disfraces y decoración en la tienda`, tone: 'gusta' }), 600);
   }, [seasonKey, opened, screen, tutorialActive, guideReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Premio de cada día (daily.js) ────────────────────────────────
+  const [dailyOpen, setDailyOpen] = useState(false);
+  const [dailyClaimed, setDailyClaimed] = useState(null);
+  const dailyShown = useRef(false);
+  const daily = dailyStatus(game);
+  useEffect(() => {
+    // una vez por visita, después de la guía, en el cuarto
+    if (dailyShown.current || !daily.ready || !opened || !guideReady || screen !== 'main' || tutorialActive || game.tutorial !== 'listo') return undefined;
+    // en las páginas de prueba no estorba (salvo con ?premio=1)
+    if (devOpened && !(devQ && devQ.get('premio'))) return undefined;
+    const t = setTimeout(() => { dailyShown.current = true; setDailyClaimed(null); setDailyOpen(true); }, 1400);
+    return () => clearTimeout(t);
+  }, [daily.ready, opened, guideReady, screen, tutorialActive, game.tutorial]); // eslint-disable-line react-hooks/exhaustive-deps
+  function claimDailyGift() {
+    // la sorpresa del día 7: una deco que todavía no tiene (de las de siempre)
+    const pick = (g) => {
+      const opts = DECOR_CATALOG.filter((d) => !d.season && d.price <= 90 && !(g.ownedDecor || []).includes(d.id) && !pendingDelivery(g, 'decor', d.id));
+      return opts.length ? opts[Math.floor(Math.random() * opts.length)] : null;
+    };
+    const res = claimDaily(gameRef.current, todayKey(), pick);
+    if (!res) return;
+    setGame((st) => applyDailyReward({ ...st, daily: res.game.daily }, res.reward));
+    play(res.reward.kind === 'monedas' ? 'coin' : 'buy');
+    if (res.reward.kind === 'monedas') { setCoinToast({ key: Date.now(), amount: res.reward.value, reason: 'premio del día' }); later(() => setCoinToast(null), 2200); }
+    fireReaction('love');
+    setDailyClaimed(res.reward);
+  }
 
   // Dulce o truco: la respuesta a la visita disfrazada.
   const [flicker, setFlicker] = useState(0);
@@ -788,7 +818,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
         />
       )}
 
-      {screen === 'games' && <GamesMenu game={game} onBack={() => { play('swoosh'); setScreen('main'); }} onPlay={(id) => { play('swoosh'); setStartLevel(null); setReplayKey((k) => k + 1); setScreen(id); }} />}
+      {screen === 'games' && <GamesMenu game={game} daily={daily} onOpenDaily={() => { play('pop'); setDailyClaimed(null); setDailyOpen(true); }} onBack={() => { play('swoosh'); setScreen('main'); }} onPlay={(id) => { play('swoosh'); setStartLevel(null); setReplayKey((k) => k + 1); setScreen(id); }} />}
 
       {screen === 'memoria' && <MemoryGame key={replayKey} pet={pet} cardPool={buildCardPool(pet)} progress={progressOf(game, 'memoria')} startLevel={startLevel} onBack={back} onComplete={(s, x) => finishGame('memoria', s, x)} />}
       {screen === 'atrapar' && <CatchGame key={replayKey} look={look} foods={pet.food_preferences || []} rank={progressOf(game, 'atrapar').rank} onBack={back} onComplete={(s, x) => finishGame('atrapar', s, x)} />}
@@ -1036,6 +1066,14 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
           step={tutorialStep} petName={pet.name} creatorName={pet.creator_name} look={look} foodOpen={foodOpen}
           canFeed={(pet.food_preferences || []).length > 0 || Object.values(game.fridge || {}).some((n) => n > 0)}
           onNext={() => tutorialNext(tutorialStep)} onSkip={tutorialSkip}
+        />
+      )}
+
+      {dailyOpen && (
+        <DailyGift
+          status={daily} claimed={dailyClaimed} streakAfter={daily.ready ? (daily.streak || 0) + 1 : daily.streak}
+          petName={pet.name} slug={slug} giftUrl={slug && slug !== 'demo' ? `${window.location.origin}/p/${slug}` : null}
+          onClaim={claimDailyGift} onClose={() => { play('pop'); setDailyOpen(false); }}
         />
       )}
 
