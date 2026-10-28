@@ -568,6 +568,10 @@ input::placeholder, textarea::placeholder { color: var(--pg-c-inkFaint); }
 .pg-flutter { animation: pg-flutter 0.6s ease-in-out infinite; }
 @keyframes pg-glint { 0%, 100% { filter: brightness(1); transform: scale(1); } 50% { filter: brightness(1.4); transform: scale(1.12); } }
 .pg-glint { animation: pg-glint 1.1s ease-in-out infinite; }
+/* La mascota esperando en el mapa de niveles. */
+@keyframes pg-map-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+.pg-map-bob { animation: pg-map-bob 1.2s ease-in-out infinite; }
+[data-style="pixel"] .pg-map-bob { animation-timing-function: steps(2); }
 /* El flash de la cámara. */
 @keyframes pg-camflash { 0% { opacity: 0.95; } 100% { opacity: 0; } }
 .pg-camflash { animation: pg-camflash 0.5s ease-out forwards; }

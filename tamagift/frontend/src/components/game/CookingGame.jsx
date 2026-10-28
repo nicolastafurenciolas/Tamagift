@@ -34,7 +34,7 @@ export default function CookingGame({ look, progress, startLevel, onBack, onComp
       <Screen>
         <ScreenHeader title="Cocina" subtitle="Cocina y llena su nevera" onBack={onBack} />
         <LevelMap
-          count={RECIPES.length} unlocked={unlocked} stars={(progress && progress.stars) || {}}
+          count={RECIPES.length} unlocked={unlocked} stars={(progress && progress.stars) || {}} theme="cocina" look={look}
           colors={[C.peach, C.rose, C.amber, C.sage]}
           labels={RECIPES.map((r) => r.name)}
           onPick={(n) => { play('pop'); setLevel(n); }}

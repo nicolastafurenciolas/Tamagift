@@ -63,7 +63,7 @@ function useSquareCrop(url) {
   return out;
 }
 
-export default function SlidingPuzzle({ photos = [], photoUrl, onBack, onComplete, progress, startLevel }) {
+export default function SlidingPuzzle({ photos = [], photoUrl, look, onBack, onComplete, progress, startLevel }) {
   const unlocked = (progress && progress.unlocked) || 1;
   const [level, setLevel] = useState(startLevel && startLevel <= unlocked ? startLevel : null);
   const list = photos.length ? photos : [photoUrl || PLACEHOLDER];
@@ -72,7 +72,7 @@ export default function SlidingPuzzle({ photos = [], photoUrl, onBack, onComplet
       <Screen>
         <ScreenHeader title="Rompecabezas" subtitle="Elige un nivel" onBack={onBack} />
         <LevelMap
-          count={PUZZLE_LEVELS.length} unlocked={unlocked} stars={(progress && progress.stars) || {}}
+          count={PUZZLE_LEVELS.length} unlocked={unlocked} stars={(progress && progress.stars) || {}} theme="rompecabezas" look={look}
           colors={[C.sage, C.sky, C.amber]}
           labels={PUZZLE_LEVELS.map((L0) => `${L0.n}×${L0.n}`)}
           onPick={(n) => { play('pop'); setLevel(n); }}

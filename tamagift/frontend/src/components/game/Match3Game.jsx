@@ -69,7 +69,7 @@ function goalText(L0, tiles) {
   }).join(' · ');
 }
 
-export default function Match3Game({ pet, onBack, onComplete, progress, startLevel }) {
+export default function Match3Game({ pet, look, onBack, onComplete, progress, startLevel }) {
   const tiles = useTiles(pet);
   const unlocked = (progress && progress.unlocked) || 1;
   const starsByLevel = (progress && progress.stars) || {};
@@ -81,7 +81,7 @@ export default function Match3Game({ pet, onBack, onComplete, progress, startLev
       <Screen>
         <ScreenHeader title="Conecta 3 golosinas" subtitle="Elige un nivel" onBack={onBack} />
         <LevelMap
-          count={LEVELS.length} unlocked={unlocked} stars={starsByLevel}
+          count={LEVELS.length} unlocked={unlocked} stars={starsByLevel} theme="golosinas" look={look}
           colors={[C.rose, C.amber, C.sky, C.sage, C.lavender, C.peach]}
           onPick={(n) => { play('pop'); setLevel(n); setIntro(true); }}
         />

@@ -931,11 +931,11 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
 
       {screen === 'games' && <GamesMenu game={game} daily={daily} onOpenAlbum={loadState === 'live' ? () => { play('pop'); setAlbumOpen(true); } : null} onOpenDaily={() => { play('pop'); setDailyClaimed(null); setDailyOpen(true); }} onBack={() => { play('swoosh'); setScreen('main'); }} onPlay={(id) => { play('swoosh'); setStartLevel(null); setReplayKey((k) => k + 1); setScreen(id); }} />}
 
-      {screen === 'memoria' && <MemoryGame key={replayKey} pet={pet} cardPool={buildCardPool(pet)} progress={progressOf(game, 'memoria')} startLevel={startLevel} onBack={back} onComplete={(s, x) => finishGame('memoria', s, x)} />}
+      {screen === 'memoria' && <MemoryGame key={replayKey} pet={pet} look={look} cardPool={buildCardPool(pet)} progress={progressOf(game, 'memoria')} startLevel={startLevel} onBack={back} onComplete={(s, x) => finishGame('memoria', s, x)} />}
       {screen === 'atrapar' && <CatchGame key={replayKey} look={look} foods={pet.food_preferences || []} rank={progressOf(game, 'atrapar').rank} onBack={back} onComplete={(s, x) => finishGame('atrapar', s, x)} />}
       {screen === 'rompecabezas' && (
         <SlidingPuzzle
-          key={replayKey}
+          key={replayKey} look={look}
           photos={(pet.photos || []).filter((p) => p.url).sort((a, b) => (a.used_for === 'puzzle' ? -1 : 0) - (b.used_for === 'puzzle' ? -1 : 0)).map((p) => p.url)}
           progress={progressOf(game, 'rompecabezas')} startLevel={startLevel}
           onBack={back} onComplete={(s, x) => finishGame('rompecabezas', s, x)}
@@ -953,7 +953,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
       {screen === 'trivia' && <TriviaGame key={replayKey} pet={pet} onBack={back} onComplete={(s, x) => finishGame('trivia', s, x)} />}
       {screen === 'simon' && <SimonGame key={replayKey} rank={progressOf(game, 'simon').rank} onBack={back} onComplete={(s, x) => finishGame('simon', s, x)} />}
       {screen === 'volar' && <FlyGame key={replayKey} look={look} rank={progressOf(game, 'volar').rank} onBack={back} onComplete={(s, x) => finishGame('volar', s, x)} />}
-      {screen === 'golosinas' && <Match3Game key={replayKey} pet={pet} progress={progressOf(game, 'golosinas')} startLevel={startLevel} onBack={back} onComplete={(s, x) => finishGame('golosinas', s, x)} />}
+      {screen === 'golosinas' && <Match3Game key={replayKey} pet={pet} look={look} progress={progressOf(game, 'golosinas')} startLevel={startLevel} onBack={back} onComplete={(s, x) => finishGame('golosinas', s, x)} />}
       {screen === 'cocina' && <CookingGame key={replayKey} look={look} progress={progressOf(game, 'cocina')} startLevel={startLevel} onBack={back} onComplete={(s, x) => finishGame('cocina', s, x)} />}
 
       <GameResult result={gameResult} onReplay={replayGame} onExit={exitGame} />

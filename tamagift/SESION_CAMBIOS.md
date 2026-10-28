@@ -687,6 +687,26 @@ por temporada aunque cambie el año).
 - Las lámparas de temporada también alumbran de noche (calabaza
   sonriente, farolito, caldero, arbolito, luces de Navidad).
 
+## Mapas de niveles con su mundo
+
+- Los cuatro juegos de niveles tienen su paisaje, con zonas y un cartel
+  al empezar cada una (`art/levelMaps.js`):
+  - **Golosinas**: Prado de gomitas, Río de chocolate y Nubes de algodón.
+  - **Cocina**: La huerta, El mercado y La pastelería.
+  - **Encuentra las parejas**: Mañana de recuerdos, Tarde de fotos (fotos
+    colgadas de una cuerda) y Noche de estrellas.
+  - **Rompecabezas**: El jardín y El bosque.
+- En cada hueco entre parada y parada hay paisaje: algo grande asomando
+  por el borde, algo mediano más adentro y a veces algo chico cerca del
+  centro, siempre del lado contrario al camino. El fondo cambia de color
+  con cada zona y el camino tiene los colores de su mundo.
+- La mascota espera parada en el nivel que toca.
+- Los nombres de los niveles van en una etiqueta para leerse sobre
+  cualquier fondo. En neón y lo-fi el paisaje se oscurece hacia el papel
+  del estilo.
+- Se dibuja por trozos (los adornos que caen entre dos se dibujan en los
+  dos), así no se pinta una imagen enorme de una vez.
+
 ## Resumen de archivos tocados en toda la sesión
 
 **Backend:**

@@ -94,7 +94,7 @@ function MemoryCard({ card, isFlipped, onClick, size, disabled }) {
   );
 }
 
-export default function MemoryGame({ pet, onBack, onComplete, progress, startLevel }) {
+export default function MemoryGame({ pet, look, onBack, onComplete, progress, startLevel }) {
   const unlocked = (progress && progress.unlocked) || 1;
   const [level, setLevel] = useState(startLevel && startLevel <= unlocked ? startLevel : null);
   if (level == null) {
@@ -102,7 +102,7 @@ export default function MemoryGame({ pet, onBack, onComplete, progress, startLev
       <Screen>
         <ScreenHeader title="Encuentra las parejas" subtitle="Elige un nivel" onBack={onBack} />
         <LevelMap
-          count={MEMORY_LEVELS.length} unlocked={unlocked} stars={(progress && progress.stars) || {}}
+          count={MEMORY_LEVELS.length} unlocked={unlocked} stars={(progress && progress.stars) || {}} theme="memoria" look={look}
           colors={[C.lavender, C.rose, C.sky]}
           labels={MEMORY_LEVELS.map((L0) => `${L0.pairs} parejas${L0.time ? ' · reloj' : ''}`)}
           onPick={(n) => { play('pop'); setLevel(n); }}
