@@ -568,6 +568,10 @@ input::placeholder, textarea::placeholder { color: var(--pg-c-inkFaint); }
 .pg-flutter { animation: pg-flutter 0.6s ease-in-out infinite; }
 @keyframes pg-glint { 0%, 100% { filter: brightness(1); transform: scale(1); } 50% { filter: brightness(1.4); transform: scale(1.12); } }
 .pg-glint { animation: pg-glint 1.1s ease-in-out infinite; }
+/* El flash de la cámara. */
+@keyframes pg-camflash { 0% { opacity: 0.95; } 100% { opacity: 0; } }
+.pg-camflash { animation: pg-camflash 0.5s ease-out forwards; }
+[data-style="pixel"] .pg-camflash { animation-timing-function: steps(4); }
 /* Gestos de la mascota (styles/motion.js: ACTS). */
 @keyframes pg-chew { 0%, 100% { transform: scale(1, 1); } 18% { transform: scale(1.07, 0.92); } 36% { transform: scale(0.97, 1.04); } 54% { transform: scale(1.07, 0.92); } 72% { transform: scale(0.98, 1.03); } }
 @keyframes pg-hop { 0%, 100% { transform: translateY(0) scale(1, 1); } 15% { transform: translateY(0) scale(1.08, 0.9); } 45% { transform: translateY(-22px) scale(0.95, 1.06); } 75% { transform: translateY(0) scale(1.06, 0.94); } }

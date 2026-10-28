@@ -1,7 +1,7 @@
 import React from 'react';
 import { C, FONT, soft } from '../../theme';
 import { Screen, ScreenHeader, Modal } from '../ui';
-import { IconFlame, IconTrophy, IconSparkle, IconCoin, IconGift } from '../icons';
+import { IconFlame, IconTrophy, IconSparkle, IconCoin, IconGift, IconCamera } from '../icons';
 import { isDailyBonusReady } from '../../gameState';
 import { LEVEL_GAMES, isLevelGame, progressOf, totalStars, dailyChallenge, isChallengeDone, goalsFor } from '../../gameProgress';
 import { GAME_META, GAME_LIST, NEW_GAMES } from './meta';
@@ -69,7 +69,7 @@ function GameCard({ id, title, desc, icon: Icon, color, onClick, game }) {
 }
 
 // `daily`: dailyStatus() del premio de cada día; `onOpenDaily` lo abre.
-export function GamesMenu({ game, onBack, onPlay, daily, onOpenDaily }) {
+export function GamesMenu({ game, onBack, onPlay, daily, onOpenDaily, onOpenAlbum }) {
   const streak = game.streak || 0;
   const doneToday = GAME_LIST.filter((g) => isChallengeDone(game, g.id)).length;
   return (
@@ -107,6 +107,13 @@ export function GamesMenu({ game, onBack, onPlay, daily, onOpenDaily }) {
         ))}
       </div>
       <BugAlbum bugs={game.bugs || {}} />
+      {onOpenAlbum && (
+        <button onClick={onOpenAlbum} className="pg-card pg-focus" style={{ width: '100%', maxWidth: 340, padding: '10px 12px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', textAlign: 'left' }}>
+          <IconCamera size={20} color={C.lavender} />
+          <span style={{ flex: 1, fontFamily: FONT.display, fontSize: 13, fontWeight: 800, color: C.ink }}>Álbum de fotos</span>
+          <span style={{ fontFamily: FONT.display, fontSize: 12, fontWeight: 800, color: C.inkSoft }}>Ver</span>
+        </button>
+      )}
     </Screen>
   );
 }

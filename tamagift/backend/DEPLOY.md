@@ -37,8 +37,8 @@ existe solo para eso.
 
 No hay que crear ninguna tabla a mano: el backend las crea solo al arrancar.
 (Eso incluye `game_saves`, donde se guarda la partida de quien recibe el
-regalo, y `letters`, las cartas del buzón: al desplegar esta versión
-aparecen solas, sin tocar nada.)
+regalo, `letters`, las cartas del buzón, y `snapshots`, el álbum de
+fotos: al desplegar esta versión aparecen solas, sin tocar nada.)
 
 ---
 

@@ -419,6 +419,66 @@ def get_letter(slug: str, letter_id: int, db: Session = Depends(database.get_db)
     return _letter_out(letter, True)
 
 
+# ── Álbum de fotos ──────────────────────────────────────────────────
+
+SNAPSHOTS_PER_DAY = 30
+SNAPSHOTS_MAX = 120   # al pasarse, se borran las más viejas
+
+
+def _snap_out(s, full=False):
+    return schemas.SnapshotOut(
+        id=s.id, thumb=s.thumb, image=s.image if full else None, caption=s.caption,
+        created_at=s.created_at.isoformat() if s.created_at else None,
+    )
+
+
+@app.post("/api/pets/{slug}/snapshots", response_model=schemas.SnapshotOut)
+def add_snapshot(slug: str, payload: schemas.SnapshotIn, db: Session = Depends(database.get_db)):
+    pet = _pet_or_404(db, slug)
+    since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=1)
+    q = db.query(models.Snapshot).filter(models.Snapshot.pet_id == pet.id)
+    if q.filter(models.Snapshot.created_at >= since).count() >= SNAPSHOTS_PER_DAY:
+        raise HTTPException(status_code=429, detail="muchas-fotos")
+    snap = models.Snapshot(pet_id=pet.id, image=payload.image, thumb=payload.thumb, caption=(payload.caption or "").strip() or None)
+    db.add(snap)
+    db.flush()
+    extra = q.count() - SNAPSHOTS_MAX
+    if extra > 0:
+        for old in q.order_by(models.Snapshot.id.asc()).limit(extra).all():
+            db.delete(old)
+    db.commit()
+    db.refresh(snap)
+    return _snap_out(snap)
+
+
+# El álbum: miniaturas, de la más nueva a la más vieja.
+@app.get("/api/pets/{slug}/snapshots", response_model=List[schemas.SnapshotOut])
+def list_snapshots(slug: str, db: Session = Depends(database.get_db)):
+    pet = _pet_or_404(db, slug)
+    rows = db.query(models.Snapshot).filter(models.Snapshot.pet_id == pet.id).order_by(models.Snapshot.id.desc()).limit(SNAPSHOTS_MAX).all()
+    return [_snap_out(s) for s in rows]
+
+
+@app.get("/api/pets/{slug}/snapshots/{snap_id}", response_model=schemas.SnapshotOut)
+def get_snapshot(slug: str, snap_id: int, db: Session = Depends(database.get_db)):
+    pet = _pet_or_404(db, slug)
+    snap = db.query(models.Snapshot).filter(models.Snapshot.pet_id == pet.id, models.Snapshot.id == snap_id).first()
+    if not snap:
+        raise HTTPException(status_code=404, detail="Foto no encontrada")
+    return _snap_out(snap, full=True)
+
+
+@app.delete("/api/pets/{slug}/snapshots/{snap_id}")
+def delete_snapshot(slug: str, snap_id: int, db: Session = Depends(database.get_db)):
+    pet = _pet_or_404(db, slug)
+    snap = db.query(models.Snapshot).filter(models.Snapshot.pet_id == pet.id, models.Snapshot.id == snap_id).first()
+    if not snap:
+        raise HTTPException(status_code=404, detail="Foto no encontrada")
+    db.delete(snap)
+    db.commit()
+    return {"ok": True}
+
+
 # ── Partida guardada ────────────────────────────────────────────────
 
 def _save_out(row):

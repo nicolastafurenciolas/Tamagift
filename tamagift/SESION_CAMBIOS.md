@@ -665,6 +665,28 @@ por temporada aunque cambie el año).
   atrapar. El 24 y el 25 el regalo del día es la **esfera de nieve**, que
   no se vende (si ya la tiene, 150 monedas).
 
+## Cámara y álbum de fotos
+
+- **Cámara**: un botón con una cámara en la esquina del cuarto. Suena el
+  clic, hay flash y sale una **polaroid** de lo que se ve, centrada en la
+  mascota, con su nombre y la fecha escritos a mano abajo.
+  - La foto se arma en `snapshot.js` copiando en un canvas lo que ya está
+    pintado en el estilo activo (cada sprite es una imagen), en el orden
+    en que se ve, con las capas de luz (noche, brillo de las lámparas,
+    lluvia o nieve en las ventanas). No hace falta ninguna librería y la
+    foto queda en pixel art, neón, papel… según el estilo.
+  - Lo que lleva `data-photo-skip` (los botones de las visitas) no sale.
+  - Una imagen de otro sitio que "ensucie" el canvas se deja afuera en
+    vez de romper la foto.
+- **Álbum**: la foto se guarda en el servidor (tabla `snapshots`, con una
+  miniatura para la cuadrícula; 30 por día, se guardan las últimas 120),
+  se comparte con el menú del teléfono o se baja. Se abre desde la foto
+  recién tomada y desde Minijuegos ("Álbum de fotos"); cada foto se ve en
+  grande, se comparte o se borra. Pruebas: `backend/test_album.py`.
+- **Quien regala ve las fotos** en su buzón ("Fotos de Luna").
+- Las lámparas de temporada también alumbran de noche (calabaza
+  sonriente, farolito, caldero, arbolito, luces de Navidad).
+
 ## Resumen de archivos tocados en toda la sesión
 
 **Backend:**

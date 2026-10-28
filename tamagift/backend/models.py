@@ -211,6 +211,24 @@ class Letter(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class Snapshot(Base):
+    """Una foto del álbum: quien recibe le toma fotos a su mascota en el
+    cuarto (con marco de polaroid). Viven en el servidor para no perderlas
+    al cambiar de celular, y quien regaló las ve desde su buzón.
+
+    `thumb` es una miniatura chica (para la cuadrícula del álbum, que se
+    pide entera); la foto grande se pide aparte.
+    """
+    __tablename__ = "snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    pet_id = Column(Integer, ForeignKey("pets.id"), index=True, nullable=False)
+    image = Column(Text, nullable=False)
+    thumb = Column(Text, nullable=False)
+    caption = Column(String(80), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class GameSave(Base):
     """La partida de quien recibe el regalo: monedas, lo comprado, el
     cuarto, el vestidor, los récords… Antes vivía solo en el navegador

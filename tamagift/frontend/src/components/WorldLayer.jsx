@@ -15,7 +15,11 @@ import { switchSvg } from '../art/room/world';
 // Lo que da luz (id → cuánto alumbra, en múltiplos de su ancho).
 const LIGHTS = {
   mueble: { lampara: 2.4, lamparaArco: 2.2, guirnalda: 1.2, letrero: 1.4, tiraLed: 0.8, tocadorLuces: 1.3, arcade: 1.3, setupGamer: 1.1, lavalamp: 1.6 },
-  decor: { lampara: 2.6, velas: 2.4, lavalamp: 2.4, velaMono: 2.4, candelabro: 2.2, lamparaHongo: 2.6, lamparaConejo: 2.6, proyector: 2.8, lunaLampara: 2.6, lamparaBanquero: 2.4, polaroids: 1.4, bolaCristal: 1.8 },
+  decor: {
+    lampara: 2.6, velas: 2.4, lavalamp: 2.4, velaMono: 2.4, candelabro: 2.2, lamparaHongo: 2.6, lamparaConejo: 2.6, proyector: 2.8, lunaLampara: 2.6, lamparaBanquero: 2.4, polaroids: 1.4, bolaCristal: 1.8,
+    // de temporada
+    calabazaTallada: 2.2, farolito: 2.6, caldero: 1.6, arbolNavidad: 1.4, lucesNavidad: 1.1,
+  },
 };
 
 // Rectángulo del vidrio de cada ventana, en su dibujo (para la lluvia).

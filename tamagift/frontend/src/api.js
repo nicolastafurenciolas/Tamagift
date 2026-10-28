@@ -389,3 +389,53 @@ export async function fetchLetter(slug, id) {
     return null;
   }
 }
+
+// ── Álbum de fotos ───────────────────────────────────────────────────
+// Las fotos que quien recibe le toma a su mascota (ver snapshot.js).
+// Viven en el servidor: así no se pierden y quien regaló las ve en su
+// buzón.
+
+// Guarda una foto. Devuelve { ok, snap } o { error: 'muchas-fotos' |
+// 'muy-pesada' | 'sin-conexion' }.
+export async function saveSnapshot(slug, { image, thumb, caption }) {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE}/api/pets/${slug}/snapshots`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image, thumb, caption: caption || null }),
+    }, 30000);
+    if (res.ok) return { ok: true, snap: await res.json() };
+    if (res.status === 429) return { error: 'muchas-fotos' };
+    if (res.status === 413 || res.status === 422) return { error: 'muy-pesada' };
+    return { error: 'sin-conexion' };
+  } catch (e) {
+    return { error: 'sin-conexion' };
+  }
+}
+
+// Las miniaturas del álbum (la más nueva primero), o null sin conexión.
+export async function listSnapshots(slug) {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE}/api/pets/${slug}/snapshots`, {}, 15000);
+    return res.ok ? await res.json() : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+export async function getSnapshot(slug, id) {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE}/api/pets/${slug}/snapshots/${Number(id)}`, {}, 20000);
+    return res.ok ? await res.json() : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+export async function deleteSnapshot(slug, id) {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE}/api/pets/${slug}/snapshots/${Number(id)}`, { method: 'DELETE' }, 15000);
+    return res.ok;
+  } catch (e) {
+    return false;
+  }
+}

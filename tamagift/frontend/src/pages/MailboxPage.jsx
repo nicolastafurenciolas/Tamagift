@@ -8,6 +8,7 @@ import { lookOf } from '../petLook';
 import { compressImageFile } from '../imageCompress';
 import PetArt from '../components/PetArt';
 import { IconEnvelope, IconHeart } from '../components/icons';
+import { AlbumGrid } from '../components/game/Album';
 import { play } from '../sound';
 
 // ─────────────────────────────────────────────────────────────────
@@ -176,6 +177,15 @@ export default function MailboxPage() {
                 </button>
               </Card>
             ))}
+
+            {state === 'listo' && (
+              <div style={{ width: '100%' }}>
+                <p style={{ fontFamily: FONT.display, fontSize: 13, fontWeight: 700, color: C.inkSoft, margin: '6px 0 8px' }}>Fotos de {pet.name}</p>
+                <div className="pg-card" style={{ padding: 12 }}>
+                  <AlbumGrid slug={slug} petName={pet.name} readOnly empty={`Cuando ${to} le tome fotos a ${pet.name} con la cámara del cuarto, aparecen aquí.`} />
+                </div>
+              </div>
+            )}
 
             {letters.length > 0 && state === 'listo' && (
               <div style={{ width: '100%' }}>

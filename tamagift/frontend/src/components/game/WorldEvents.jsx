@@ -99,7 +99,7 @@ export default function WorldEvents({ event, onResolve, onLetter, onHip, onDoorC
       const fd = g.kind === 'comida' ? findFood(g.refId) : null;
       return (
         <>
-          <div className="pg-anim-pop" style={{ position: 'absolute', left: 150, top: ROOM.H - 290, width: 210, zIndex: 4, pointerEvents: 'none' }}>
+          <div data-photo-skip className="pg-anim-pop" style={{ position: 'absolute', left: 150, top: ROOM.H - 290, width: 210, zIndex: 4, pointerEvents: 'none' }}>
             <div style={{ background: C.glass, border: `1.5px solid ${C.line}`, borderRadius: 14, padding: '7px 11px', boxShadow: SHADOW.soft, fontFamily: FONT.body, fontSize: 13, fontWeight: 600, color: C.ink, lineHeight: 1.3 }}>
               {d.line}
             </div>
@@ -130,7 +130,7 @@ export default function WorldEvents({ event, onResolve, onLetter, onHip, onDoorC
           {/* en un celular se ven ~320 de ancho alrededor de la mascota
               (que espera en DOOR_SPOT + 60): la visita va delante de ella,
               un poco a la izquierda, y todo entra en la pantalla */}
-          <div className="pg-anim-pop" style={{ position: 'absolute', left: 160, top: ROOM.H - 300, width: 222, zIndex: 5 }}>
+          <div data-photo-skip className="pg-anim-pop" style={{ position: 'absolute', left: 160, top: ROOM.H - 300, width: 222, zIndex: 5 }}>
             <div style={{ background: C.glass, border: `1.5px solid ${C[v.border]}`, borderRadius: 14, padding: '7px 11px', boxShadow: SHADOW.soft, fontFamily: FONT.body, fontSize: 14, fontWeight: 700, color: C.ink, lineHeight: 1.3, textAlign: 'center' }}>
               {d.line}
             </div>

@@ -3,6 +3,8 @@ import { lookOf, parseRecipe } from '../petLook';
 import { C, FONT, SHADOW } from '../theme';
 import { loadPet, feedPetRemote, redesignPetRemote, setActiveDesignRemote, setPetStyleRemote, fetchGameSave, pushGameSave, fetchLetters, fetchLetter } from '../api';
 import MailArchive from './game/MailArchive';
+import { PhotoModal, AlbumModal } from './game/Album';
+import { photoDate } from '../snapshot';
 import {
   loadGameState, saveGameState, ROOM, registerPlay, isDailyBonusReady, isNewRecord,
   DAILY_BONUS_MULTIPLIER, playsTodayFor, hydrateGameState, hasStoredGameState, todayKey,
@@ -18,7 +20,7 @@ import { play, installUnlock, isMuted, toggleMuted } from '../sound';
 import { foodSpriteFor } from '../sprites';
 import {
   IconBowl, IconTub, IconBall, IconFrame, IconMusic, IconHeart, IconEnvelope, IconCoin, IconBag,
-  IconPalette, IconPlay, IconPause, IconNext, IconSpeaker, IconMute, IconSwap, IconShirt,
+  IconPalette, IconPlay, IconPause, IconNext, IconSpeaker, IconMute, IconSwap, IconShirt, IconCamera,
 } from './icons';
 import { MiniMeter, RoundBtn, ActionButton, Modal } from './ui';
 import { GAME_META, replayFactor } from './game/meta';
@@ -394,6 +396,27 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
     play('unbox');
     const l = await fetchLetter(slug, id);
     setLetter(l ? { text: l.text, photo: l.photo, mail: true } : { text: 'No se pudo abrir la carta. Revisa tu conexión e intenta de nuevo desde el buzón.', mail: true });
+  }
+
+  // ── Cámara y álbum (snapshot.js, game/Album.jsx) ──────────────────
+  const cameraApi = useRef(null);
+  const [photo, setPhoto] = useState(null);
+  const [albumOpen, setAlbumOpen] = useState(false);
+  const [flash, setFlash] = useState(0);
+  function takeSnapshot() {
+    if (!cameraApi.current) return;
+    play('shutter');
+    setFlash(Date.now());
+    later(() => {
+      try {
+        const caption = `${pet.name} · ${photoDate()}`;
+        const shot = cameraApi.current({ caption, font: getStyle(styleId).fonts.hand });
+        setPhoto({ ...shot, caption });
+        fireReaction('happy');
+      } catch (e) {
+        setBubble({ text: 'Uy, la cámara no funcionó. Intenta otra vez.', tone: 'casual' });
+      }
+    }, 90);
   }
 
   // ── Premio de cada día (daily.js) ────────────────────────────────
@@ -906,7 +929,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
         />
       )}
 
-      {screen === 'games' && <GamesMenu game={game} daily={daily} onOpenDaily={() => { play('pop'); setDailyClaimed(null); setDailyOpen(true); }} onBack={() => { play('swoosh'); setScreen('main'); }} onPlay={(id) => { play('swoosh'); setStartLevel(null); setReplayKey((k) => k + 1); setScreen(id); }} />}
+      {screen === 'games' && <GamesMenu game={game} daily={daily} onOpenAlbum={loadState === 'live' ? () => { play('pop'); setAlbumOpen(true); } : null} onOpenDaily={() => { play('pop'); setDailyClaimed(null); setDailyOpen(true); }} onBack={() => { play('swoosh'); setScreen('main'); }} onPlay={(id) => { play('swoosh'); setStartLevel(null); setReplayKey((k) => k + 1); setScreen(id); }} />}
 
       {screen === 'memoria' && <MemoryGame key={replayKey} pet={pet} cardPool={buildCardPool(pet)} progress={progressOf(game, 'memoria')} startLevel={startLevel} onBack={back} onComplete={(s, x) => finishGame('memoria', s, x)} />}
       {screen === 'atrapar' && <CatchGame key={replayKey} look={look} foods={pet.food_preferences || []} rank={progressOf(game, 'atrapar').rank} onBack={back} onComplete={(s, x) => finishGame('atrapar', s, x)} />}
@@ -1057,11 +1080,21 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
               onPokePet={pokePet} reaction={reaction} cameraRef={cameraRef}
               parcel={parcelAtDoor(game)} onOpenParcel={() => { play('pop'); setUnboxOpen(true); }} summon={summon}
               world={{ phase, weather, lightsOff: asleep }} onToggleLights={toggleLights} asleep={asleep} cleanLevel={clean}
+              cameraApi={cameraApi}
               eventLayer={<WorldEvents event={(game.events || {}).active} onResolve={resolveEvent} onDoorChoice={handleDoorChoice} onLetter={(l) => { setLetter(l); play('unbox'); }} onHip={() => { hipRef.current.at = Date.now(); play('pop'); fireReaction('happy'); setBubble({ text: '¡Hip!', tone: 'casual' }); }} />}
               paintJob={paintJob} onPaintDone={(job) => { if (job) { setGame((g) => ({ ...g, [job.kind === 'pared' ? 'wall' : 'floor']: job.value })); fireReaction('happy'); setBubble({ text: job.kind === 'pared' ? '¡Quedó precioso!' : '¡Qué piso tan lindo!', tone: 'gusta' }); } setPaintJob(null); }}
               fullBleed extraReserved={(foodOpen && !decorating ? 104 : 0) + (musicOpen ? 66 : 0)}
             />
             {flicker > 0 && <div key={flicker} className="pg-flicker" style={{ position: 'absolute', inset: 0, background: '#120C1E', pointerEvents: 'none', zIndex: 3 }} />}
+            {flash > 0 && <div key={flash} className="pg-camflash" style={{ position: 'absolute', inset: 0, background: '#FFFFFF', pointerEvents: 'none', zIndex: 7 }} />}
+            {!paintJob && !decorating && (
+              <button
+                onClick={takeSnapshot} aria-label="Tomar una foto" className="pg-focus pg-keep-round"
+                style={{ position: 'absolute', left: 10, bottom: 10, zIndex: 5, width: 40, height: 40, borderRadius: '50%', border: `2px solid ${C.line}`, background: C.glass, boxShadow: SHADOW.soft, display: 'grid', placeItems: 'center', cursor: 'pointer', padding: 0 }}
+              >
+                <IconCamera size={20} color={C.ink} />
+              </button>
+            )}
             <div data-tut="meters" style={{ position: 'absolute', left: 12, top: 10, display: 'flex', flexDirection: 'column', gap: 5, pointerEvents: 'none', zIndex: 4 }}>
               <MiniMeter kind="hunger" value={hunger} icon={IconBowl} />
               <MiniMeter kind="love" value={love} icon={IconHeart} />
@@ -1161,6 +1194,14 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
           onNext={() => tutorialNext(tutorialStep)} onSkip={tutorialSkip}
         />
       )}
+
+      {photo && (
+        <PhotoModal
+          photo={photo} slug={slug} petName={pet.name} giverName={pet.creator_name} canSave={loadState === 'live'}
+          onClose={() => { play('pop'); setPhoto(null); }} onOpenAlbum={() => { setPhoto(null); setAlbumOpen(true); }}
+        />
+      )}
+      {albumOpen && <AlbumModal slug={slug} petName={pet.name} giverName={pet.creator_name} onClose={() => { play('pop'); setAlbumOpen(false); }} />}
 
       {mailOpen && (
         <MailArchive slug={slug} from={pet.creator_name} onClose={() => { play('pop'); setMailOpen(false); }} onOpen={(id) => openMailLetter(id)} />

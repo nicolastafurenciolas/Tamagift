@@ -11,6 +11,7 @@ import { findDecor } from '../shopCatalog';
 import { doorSvg, doormatSvg, parcelSvg, DOOR } from '../art/room/door';
 import { usePaintJob, PaintLayer, PaintTool, PaintHud } from './PaintJob';
 import { NightLayer, WeatherOnWindows, LightSwitch, Zzz, Dirt } from './WorldLayer';
+import { takePhoto } from '../snapshot';
 
 // La puerta de entrada vive a la izquierda del cuarto: nada se puede poner
 // encima (los pedidos y las visitas llegan por ahí).
@@ -267,6 +268,7 @@ export default function Room({
   asleep = false,      // dormida: no camina
   cleanLevel = 100,    // sucia: manchitas y moscas
   eventLayer = null,   // sucesos dibujados en coordenadas del mundo
+  cameraApi = null,    // ref: aquí queda la función que toma la foto (snapshot.js)
 }) {
   const viewportRef = useRef(null);
   const worldRef = useRef(null);
@@ -455,6 +457,14 @@ export default function Room({
     drag.current = null;
     if (d && d.mode === 'cam' && d.moved < 5) setSelected(null);
   }, []);
+
+  // La cámara: la foto se centra en la mascota.
+  if (cameraApi) {
+    cameraApi.current = (opts) => {
+      const pr = petRef.current && petRef.current.getBoundingClientRect();
+      return takePhoto({ viewport: viewportRef.current, world: worldRef.current, focusX: pr ? pr.left + pr.width / 2 : undefined, ...opts });
+    };
+  }
 
   const placed = game.placed || [];
   // Se dibujan de atrás hacia adelante: primero las alfombras (siempre

@@ -240,6 +240,32 @@ class LetterOut(BaseModel):
     created_at: Optional[str] = None
 
 
+# Fotos del álbum (JPEG en data URL; ya vienen comprimidas del celular).
+SNAPSHOT_MAX = 900_000
+THUMB_MAX = 60_000
+
+
+class SnapshotIn(BaseModel):
+    image: str = Field(min_length=20, max_length=SNAPSHOT_MAX)
+    thumb: str = Field(min_length=20, max_length=THUMB_MAX)
+    caption: Optional[str] = Field(default=None, max_length=80)
+
+    @field_validator("image", "thumb")
+    @classmethod
+    def is_image(cls, v):
+        if not v.startswith("data:image/"):
+            raise ValueError("Tiene que ser una imagen")
+        return v
+
+
+class SnapshotOut(BaseModel):
+    id: int
+    thumb: Optional[str] = None
+    image: Optional[str] = None
+    caption: Optional[str] = None
+    created_at: Optional[str] = None
+
+
 class RedesignIn(BaseModel):
     recipe: dict
     drawing_normal: str = Field(max_length=IMG_MAX)
