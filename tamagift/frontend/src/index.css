@@ -580,6 +580,10 @@ input::placeholder, textarea::placeholder { color: var(--pg-c-inkFaint); }
 /* Halloween: los fantasmitas flotan; el truco hace parpadear la luz. */
 @keyframes pg-ghost { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(6px, -9px); } 50% { transform: translate(0, -14px); } 75% { transform: translate(-6px, -7px); } }
 .pg-ghost { animation: pg-ghost 2.6s ease-in-out infinite; opacity: 0.93; }
+/* Navidad: los copitos bajan y suben despacio, girando. */
+@keyframes pg-snowflake { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(8px, 22px) rotate(60deg); } }
+.pg-snowflake { animation: pg-snowflake 3.4s ease-in-out infinite; }
+[data-style="pixel"] .pg-snowflake { animation-timing-function: steps(5); }
 @keyframes pg-flicker { 0%, 30%, 52%, 100% { opacity: 0; } 12%, 40%, 64%, 86% { opacity: 0.72; } }
 .pg-flicker { animation: pg-flicker 1.3s steps(1) both; }
 [data-style="pixel"] .pg-ghost { animation-timing-function: steps(4); }

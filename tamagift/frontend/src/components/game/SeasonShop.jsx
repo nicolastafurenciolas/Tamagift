@@ -17,7 +17,7 @@ import { pendingDelivery } from '../../deliveries';
 const decor = (id) => DECOR_CATALOG.find((d) => d.id === id);
 
 function Banner({ season }) {
-  const a = decor('calabazaTallada'), b = decor('fantasmaPeluche');
+  const [a, b] = (season.banner || []).map(decor);
   return (
     <div className="pg-card" style={{ padding: '12px 12px 12px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, background: soft(season.color, 0.82), borderColor: season.color }}>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -30,8 +30,8 @@ function Banner({ season }) {
         </span>
       </div>
       <div style={{ position: 'relative', width: 104, height: 86, flexShrink: 0 }}>
-        {b && <div style={{ position: 'absolute', right: 0, top: 0 }}><Sprite markup={b.svg()} cacheKey="season-banner-b" w={62} h={70} /></div>}
-        {a && <div style={{ position: 'absolute', left: 0, bottom: 0 }}><Sprite markup={a.svg()} cacheKey="season-banner-a" w={64} h={60} /></div>}
+        {b && <div style={{ position: 'absolute', right: 0, top: 0 }}><Sprite markup={b.svg()} cacheKey={`season-${season.id}-b`} w={62} h={70} /></div>}
+        {a && <div style={{ position: 'absolute', left: 0, bottom: 0 }}><Sprite markup={a.svg()} cacheKey={`season-${season.id}-a`} w={64} h={60} /></div>}
       </div>
     </div>
   );
@@ -40,7 +40,7 @@ function Banner({ season }) {
 export default function SeasonShop({ season, game, setGame, coins, buy, baseLook, onBuyDecor, onRepaintDecor }) {
   const baseRecipe = baseLook && baseLook.recipe;
   const wear = WARDROBE.filter((w) => w.season === season.id);
-  const deco = DECOR_CATALOG.filter((d) => d.season === season.id);
+  const deco = DECOR_CATALOG.filter((d) => d.season === season.id && !d.giftOnly);
   const title = (t) => <p style={{ fontFamily: FONT.display, fontSize: 12.5, fontWeight: 700, color: C.inkSoft, margin: '4px 0 8px' }}>{t}</p>;
   return (
     <>

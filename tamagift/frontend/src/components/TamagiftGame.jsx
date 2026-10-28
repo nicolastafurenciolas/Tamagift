@@ -52,7 +52,7 @@ import { IconBolt, IconDrop, IconFridge } from './icons';
 import { buildPosterList } from './game/posters';
 import { OpeningScreen, CinematicScreen, LoadErrorScreen } from './game/Scenes';
 import Tutorial, { TUTORIAL_STEPS, TUTORIAL_REWARD } from './game/Tutorial';
-import { seasonNow } from '../seasons';
+import { seasonNow, seasonYear } from '../seasons';
 import DailyGift from './game/DailyGift';
 import { dailyStatus, claimDaily, applyDailyReward } from '../daily';
 import { DECOR_CATALOG } from '../shopCatalog';
@@ -324,7 +324,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
     const ev = makeEvent(t, gameRef.current, pet);
     if (ev) {
       setGame((g) => startEvent({ ...g, events: { ...(g.events || {}), lastDay: { regalo: 'x', carta: 'x' } } }, ev));
-      if (t === 'visita' || t === 'carta' || t === 'dulceotruco') setTimeout(() => setSummon({ key: Date.now(), x: DOOR_SPOT + 60 }), 400);
+      if (['visita', 'carta', 'dulceotruco', 'intercambio'].includes(t)) setTimeout(() => setSummon({ key: Date.now(), x: DOOR_SPOT + 60 }), 400);
     }
   }, [!!pet]); // eslint-disable-line react-hooks/exhaustive-deps
   function toggleLights() {
@@ -358,7 +358,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
 
   // ── Temporada (Halloween…) ────────────────────────────────────────
   const season = seasonNow(clock);
-  const seasonKey = season ? `${season.id}-${clock.getFullYear()}` : null;
+  const seasonKey = season ? `${season.id}-${seasonYear(season, clock)}` : null;
   useEffect(() => {
     if (!season || !opened || screen !== 'main' || tutorialActive || !guideReady) return;
     if ((gameRef.current.seasonSeen || []).includes(seasonKey)) return;
@@ -424,8 +424,43 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
     setDailyClaimed(res.reward);
   }
 
-  // Dulce o truco: la respuesta a la visita disfrazada.
+  // Las visitas de temporada a la puerta: dulce o truco (Halloween) e
+  // intercambio de regalos (Navidad).
   const [flicker, setFlicker] = useState(0);
+  function handleDoorChoice(choice) {
+    const ev = (gameRef.current.events || {}).active;
+    if (!ev) return;
+    if (ev.type === 'dulceotruco') handleTrickOrTreat(choice === 'si' ? 'dulce' : 'truco');
+    if (ev.type === 'intercambio') handleGiftExchange(choice === 'si');
+  }
+  function handleGiftExchange(give) {
+    const g = gameRef.current;
+    if (!give) {
+      play('pop');
+      setGame((st) => endEvent(st));
+      addVitals({ love: 12 });
+      fireReaction('love');
+      setBubble({ text: '¡Qué abrazo tan calientito! Feliz Navidad', tone: 'gusta' });
+      return;
+    }
+    // el regalo sale de la nevera si hay algo; si no, se compra (15 monedas)
+    const food = Object.entries(g.fridge || {}).find(([, n]) => n > 0);
+    const paid = !food && g.coins >= 15 ? 15 : 0;
+    const options = DECOR_CATALOG.filter((d) => d.season === 'navidad' && !d.giftOnly && d.price <= 95 && !(g.ownedDecor || []).includes(d.id) && !pendingDelivery(g, 'decor', d.id));
+    const gift = options.length && Math.random() < 0.5 ? options[Math.floor(Math.random() * options.length)] : null;
+    play('buy');
+    setGame((st) => {
+      let next = endEvent(st);
+      if (food) next = { ...next, fridge: { ...(next.fridge || {}), [food[0]]: Math.max(0, ((next.fridge || {})[food[0]] || 0) - 1) } };
+      if (paid) next = { ...next, coins: Math.max(0, next.coins - paid) };
+      if (gift) next = addDelivery(next, { kind: 'decor', refId: gift.id, label: gift.name });
+      return next;
+    });
+    addVitals({ love: 8 });
+    fireReaction('love');
+    if (gift) setBubble({ text: `¡Intercambiamos regalos! Me dio: ${gift.name.toLowerCase()}`, tone: 'gusta' });
+    else { awardCoins(25 + Math.floor(Math.random() * 5) * 5, 'regalo de Navidad'); setBubble({ text: '¡Feliz Navidad! Me regaló monedas', tone: 'gusta' }); }
+  }
   function handleTrickOrTreat(choice) {
     const g = gameRef.current;
     const ev = (g.events || {}).active;
@@ -518,6 +553,8 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
       if (next.type === 'hipo') setBubble({ text: '¡Hip! … ¡hip! Tócame cuando salte', tone: 'casual' });
       if (next.type === 'dulceotruco') { play('timbre'); setBubble({ text: '¡Din-don! Alguien disfrazado tocó la puerta…', tone: 'gusta' }); setSummon({ key: Date.now(), x: DOOR_SPOT + 60 }); }
       if (next.type === 'fantasmas') setBubble({ text: '¡Hay fantasmitas sueltos por el cuarto! Atrápalos a todos', tone: 'gusta' });
+      if (next.type === 'intercambio') { play('timbre'); setBubble({ text: '¡Din-don! Llegó alguien con un regalo…', tone: 'gusta' }); setSummon({ key: Date.now(), x: DOOR_SPOT + 60 }); }
+      if (next.type === 'copos') setBubble({ text: '¡Está nevando adentro! Atrapa los copitos', tone: 'gusta' });
       if (next.type === 'carta') { setBubble({ text: 'Mira, ¡llegó una carta por debajo de la puerta!', tone: 'gusta' }); setSummon({ key: Date.now(), x: DOOR_SPOT + 40 }); }
     };
     tick();
@@ -1020,7 +1057,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
               onPokePet={pokePet} reaction={reaction} cameraRef={cameraRef}
               parcel={parcelAtDoor(game)} onOpenParcel={() => { play('pop'); setUnboxOpen(true); }} summon={summon}
               world={{ phase, weather, lightsOff: asleep }} onToggleLights={toggleLights} asleep={asleep} cleanLevel={clean}
-              eventLayer={<WorldEvents event={(game.events || {}).active} onResolve={resolveEvent} onTrickOrTreat={handleTrickOrTreat} onLetter={(l) => { setLetter(l); play('unbox'); }} onHip={() => { hipRef.current.at = Date.now(); play('pop'); fireReaction('happy'); setBubble({ text: '¡Hip!', tone: 'casual' }); }} />}
+              eventLayer={<WorldEvents event={(game.events || {}).active} onResolve={resolveEvent} onDoorChoice={handleDoorChoice} onLetter={(l) => { setLetter(l); play('unbox'); }} onHip={() => { hipRef.current.at = Date.now(); play('pop'); fireReaction('happy'); setBubble({ text: '¡Hip!', tone: 'casual' }); }} />}
               paintJob={paintJob} onPaintDone={(job) => { if (job) { setGame((g) => ({ ...g, [job.kind === 'pared' ? 'wall' : 'floor']: job.value })); fireReaction('happy'); setBubble({ text: job.kind === 'pared' ? '¡Quedó precioso!' : '¡Qué piso tan lindo!', tone: 'gusta' }); } setPaintJob(null); }}
               fullBleed extraReserved={(foodOpen && !decorating ? 104 : 0) + (musicOpen ? 66 : 0)}
             />

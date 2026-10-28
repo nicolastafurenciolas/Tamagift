@@ -5,6 +5,7 @@
 import { face, part, flat, line, shade, shine, rr, rrTop, ellD, tone, mix, mat, box, floorShadow, cylinder, pot, Cir, Ell, INK, piece, FOOT } from './draw.js';
 import { DECOR_VIBES } from './decorVibes.js';
 import { DECOR_HALLOWEEN } from './decorHalloween.js';
+import { DECOR_NAVIDAD } from './decorNavidad.js';
 import { findPaint } from './furniture/paints.js';
 
 const surfaceShadow = (cx, y, rx) => Ell(cx, y, rx, rx * 0.22, { fill: '#2A1C24', opacity: 0.22, 'data-r': 'tone' });
@@ -258,7 +259,7 @@ const DEFS = [
 // Las de siempre + las de personalidad (decorVibes.js) + las de
 // temporada (`season`, ver seasons.js). Las que reciben pintura
 // (`draw(p)`) se pueden teñir con las pinturas de los muebles.
-export const DECOR_DEFS = [...DEFS, ...DECOR_VIBES, ...DECOR_HALLOWEEN].map((d) => ({
+export const DECOR_DEFS = [...DEFS, ...DECOR_VIBES, ...DECOR_HALLOWEEN, ...DECOR_NAVIDAD].map((d) => ({
   ...d,
   vibes: d.vibes || [],
   paintable: d.draw.length > 0,

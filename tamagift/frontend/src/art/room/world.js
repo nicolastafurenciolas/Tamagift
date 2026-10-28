@@ -68,6 +68,23 @@ export function switchSvg(on) {
   return piece(30, 42, s);
 }
 
+// Copito de nieve de Navidad (cae por el cuarto; tres formas).
+export function flakeSvg(i = 0) {
+  const v = i % 3, c = 32;
+  let arms = '';
+  for (let k = 0; k < 6; k++) {
+    const a = (k * Math.PI) / 3, x = c + Math.cos(a) * 24, y = c + Math.sin(a) * 24;
+    const bx = c + Math.cos(a) * 14, by = c + Math.sin(a) * 14;
+    arms += `M${c} ${c} L${x.toFixed(1)} ${y.toFixed(1)} `;
+    if (v !== 1) arms += `M${bx.toFixed(1)} ${by.toFixed(1)} L${(bx + Math.cos(a + 0.8) * 7).toFixed(1)} ${(by + Math.sin(a + 0.8) * 7).toFixed(1)} M${bx.toFixed(1)} ${by.toFixed(1)} L${(bx + Math.cos(a - 0.8) * 7).toFixed(1)} ${(by + Math.sin(a - 0.8) * 7).toFixed(1)} `;
+  }
+  let s = Ell(c, c, 26, 26, { fill: '#DFF2FF', opacity: 0.35, 'data-r': 'tone' });
+  s += line(arms, '#7FA9DE', 6.5) + line(arms, '#FFFFFF', 3.4);
+  s += part(ellD(c, c, v === 2 ? 7 : 5.5, v === 2 ? 7 : 5.5), '#FFFFFF', { w: 1.4 });
+  if (v === 2) s += Cir(c - 2.4, c - 0.6, 1, { fill: INK, 'data-r': 'flat' }) + Cir(c + 2.4, c - 0.6, 1, { fill: INK, 'data-r': 'flat' }) + line(`M${c - 1.6} ${c + 2.4} q1.6 1.4 3.2 0`, INK, 1);
+  return piece(64, 64, s);
+}
+
 // Fantasmita de Halloween que flota por el cuarto (tres caritas).
 export function ghostSvg(i = 0) {
   const v = i % 3;

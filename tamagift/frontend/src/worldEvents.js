@@ -6,7 +6,9 @@
 //   game.events = { active, nextAt, lastDay: { regalo, carta, visita, dulceotruco }, bugs: { id: n } }
 //
 // En Halloween (seasons.js) hay dos más: "dulce o truco" (una visita
-// disfrazada, una vez al día) y fantasmitas sueltos por el cuarto.
+// disfrazada, una vez al día) y fantasmitas sueltos por el cuarto. En
+// Navidad: el intercambio de regalos (una visita al día), copitos de
+// nieve que caen en el cuarto y, el 24 y el 25, el regalo de Navidad.
 //   active = { id, type, until, data }
 // ─────────────────────────────────────────────────────────────────
 
@@ -39,7 +41,7 @@ export function rollEvent(game, pet, { now = Date.now(), rnd = Math.random, date
   const mk = (type, data = {}, ms = 5 * 60 * 1000) => ({ id: `${type}-${now.toString(36)}`, type, until: now + ms, data });
 
   // Lo diario primero: el regalo y la carta de quien regaló.
-  if (last.regalo !== today) return mk('regalo', { gift: dailyGift(rnd) }, 24 * 3600 * 1000);
+  if (last.regalo !== today) return mk('regalo', { gift: dailyGift(rnd, date, game) }, 24 * 3600 * 1000);
   const phrases = (pet.phrases || []).filter((p) => p.category === 'positiva' || p.category === 'casual');
   const photos = (pet.photos || []).filter((p) => p.url);
   if (last.carta !== today && (phrases.length || photos.length)) {
@@ -49,13 +51,16 @@ export function rollEvent(game, pet, { now = Date.now(), rnd = Math.random, date
 
   // Halloween: la visita disfrazada viene una vez al día, apenas pasa
   // lo diario; los fantasmitas salen más de noche.
-  const halloween = (activeSeason(date) || {}).id === 'halloween';
+  const season = (activeSeason(date) || {}).id;
+  const halloween = season === 'halloween', navidad = season === 'navidad';
   if (halloween && last.dulceotruco !== today) return makeEvent('dulceotruco', game, pet, { now, rnd, date });
+  if (navidad && last.intercambio !== today) return makeEvent('intercambio', game, pet, { now, rnd, date });
 
   const pool = [
     ['antojo', 3], ['bichito', 3], ['moneda', 2], ['hipo', 2],
     ...(last.visita !== today ? [['visita', 1.4]] : []),
     ...(halloween ? [['fantasmas', phaseOf(date) === 'noche' ? 4 : 2]] : []),
+    ...(navidad ? [['copos', phaseOf(date) === 'noche' ? 3.5 : 2]] : []),
   ];
   const total = pool.reduce((s, [, w]) => s + w, 0);
   let r = rnd() * total, type = pool[0][0];
@@ -68,7 +73,7 @@ export function makeEvent(type, game, pet, { now = Date.now(), rnd = Math.random
   const mk = (t, data = {}, ms = 5 * 60 * 1000) => ({ id: `${t}-${now.toString(36)}`, type: t, until: now + ms, data });
   const phase = phaseOf(date);
   switch (type) {
-    case 'regalo': return mk('regalo', { gift: dailyGift(rnd) }, 24 * 3600 * 1000);
+    case 'regalo': return mk('regalo', { gift: dailyGift(rnd, date, game) }, 24 * 3600 * 1000);
     case 'carta': {
       const phrases = (pet.phrases || []).filter((p) => p.category === 'positiva' || p.category === 'casual');
       const photos = (pet.photos || []).filter((p) => p.url);
@@ -96,6 +101,12 @@ export function makeEvent(type, game, pet, { now = Date.now(), rnd = Math.random
       return mk('visita', { friend: friendRecipe(rnd), gift: visitGift(rnd), line: pick(VISIT_LINES, rnd) }, 6 * 60 * 1000);
     case 'dulceotruco':
       return mk('dulceotruco', { friend: costumeRecipe(rnd), line: pick(TRICK_LINES, rnd) }, 8 * 60 * 1000);
+    case 'intercambio':
+      return mk('intercambio', { friend: christmasRecipe(rnd), line: pick(XMAS_LINES, rnd) }, 8 * 60 * 1000);
+    case 'copos':
+      return mk('copos', {
+        flakes: Array.from({ length: 6 }, (_, i) => ({ i, x: 180 + ((i + rnd()) / 6) * 1240, y: 40 + rnd() * 180, delay: rnd() * 2 })),
+      }, 3 * 60 * 1000);
     case 'fantasmas':
       return mk('fantasmas', {
         ghosts: Array.from({ length: 5 }, (_, i) => ({ i, x: 200 + ((i + rnd()) / 5) * 1200, y: 50 + rnd() * 160, delay: rnd() * 1.6 })),
@@ -118,7 +129,14 @@ function spotX(game, rnd) {
   return 260 + rnd() * 1250;
 }
 
-function dailyGift(rnd) {
+function dailyGift(rnd, date = new Date(), game = {}) {
+  // el 24 y el 25 de diciembre, el regalo de Navidad: la esfera de nieve
+  // (que no se vende) o, si ya la tiene, una bolsa grande de monedas
+  if (date.getMonth() === 11 && (date.getDate() === 24 || date.getDate() === 25)) {
+    return (game.ownedDecor || []).includes('esferaNieve')
+      ? { kind: 'monedas', value: 150, label: '¡Regalo de Navidad! Monedas' }
+      : { kind: 'decor', refId: 'esferaNieve', label: '¡Regalo de Navidad! Esfera de nieve' };
+  }
   const r = rnd();
   if (r < 0.45) return { kind: 'monedas', value: 30 + Math.floor(rnd() * 5) * 10, label: 'Monedas del día' };
   if (r < 0.8) { const f = pick(FOODS, rnd); return { kind: 'comida', refId: f.id, n: 2, label: `${f.name} ×2` }; }
@@ -165,12 +183,19 @@ function costumeRecipe(rnd) {
   return { ...r, hair: ropa === 'disfrazFantasma' ? 'ninguno' : r.hair, wear: { ropa: { id: ropa }, mano: { id: 'cubetaDulces' }, ...(cabeza ? { cabeza: { id: cabeza } } : {}) } };
 }
 
+// La visita de Navidad: viene con ropa navideña y un regalito en la mano.
+const XMAS_LINES = ['¡Feliz Navidad! ¿Intercambiamos regalos?', '¡Jo, jo, jo! Te traje algo', '¡Feliz Navidad, vecina!'];
+function christmasRecipe(rnd) {
+  const r = friendRecipe(rnd);
+  return { ...r, wear: { ropa: { id: pick(['sueterNavideno', 'vestidoNoel', 'pijamaCopos'], rnd) }, cabeza: { id: pick(['gorroNoel', 'cintilloReno', 'orejeras'], rnd) }, mano: { id: 'regaloMano' } } };
+}
+
 // Cerrar un suceso: queda registrado y el próximo se agenda.
 export function endEvent(game, { now = Date.now(), date = new Date(now) } = {}) {
   const ev = game.events || {};
   const a = ev.active;
   const lastDay = { ...(ev.lastDay || {}) };
-  if (a && ['regalo', 'carta', 'visita', 'dulceotruco'].includes(a.type)) lastDay[a.type] = todayKey(date);
+  if (a && ['regalo', 'carta', 'visita', 'dulceotruco', 'intercambio'].includes(a.type)) lastDay[a.type] = todayKey(date);
   return { ...game, events: { ...ev, active: null, lastDay, nextAt: now + EVENT_GAP * (0.7 + Math.random() * 0.6) } };
 }
 

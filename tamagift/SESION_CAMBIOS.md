@@ -642,6 +642,29 @@ vestidor y en la decoración.
   pixel solo se desplaza y a saltos (escalar un sprite rompe los
   píxeles), en papel a cuadros de stop motion y en el resto suave.
 
+## Navidad
+
+Del 1 de diciembre al 6 de enero (cruza el año: `seasons.js` ahora
+entiende temporadas que pasan de diciembre a enero, y avisa una sola vez
+por temporada aunque cambie el año).
+
+- **Tienda**: pestaña "Navidad" con su cuenta regresiva, como la de
+  Halloween (la portada muestra el muñeco de nieve y el arbolito).
+- **Ropa y accesorios** (15): gorro de Papá Noel, cintillo de reno,
+  orejeras de peluche, nariz de reno, copitos en las mejillas, bufanda
+  navideña, collar de cascabeles, suéter navideño, vestido de Mamá Noel,
+  pijama de copitos, saco de regalos, bastón de caramelo, chocolate
+  caliente y regalito. Paleta navideña (rojo, verde, blanco, dorado…).
+- **Decoración** (9 a la venta): arbolito con luces y estrella, corona,
+  botas colgadas, luces de colores, muñeco de nieve de peluche, regalos
+  apilados, casita de jengibre, nochebuena y renito de peluche.
+- **Sucesos**: una vez al día llega una visita con ropa navideña y un
+  regalito: darle un regalo (algo de la nevera, o 15 monedas) trae a
+  veces una deco navideña en caja o monedas; darle un abrazo da más
+  cariño. Además caen copitos de nieve en el cuarto (más de noche) para
+  atrapar. El 24 y el 25 el regalo del día es la **esfera de nieve**, que
+  no se vende (si ya la tiene, 150 monedas).
+
 ## Resumen de archivos tocados en toda la sesión
 
 **Backend:**

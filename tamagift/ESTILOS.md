@@ -117,14 +117,18 @@ estampados y 46 accesorios de cabeza, cuello y cara.
   `data-px-sprite="food.x"` se pinta en pixel con su dibujo hecho a
   mano.
 - **Temporadas** (`seasons.js`): fechas del año con cosas que solo se
-  venden esos días. Halloween va del 1 al 31 de octubre: disfraces y
-  accesorios en `art/mochi/wardrobe/halloween.js`, decoración en
-  `art/room/decorHalloween.js` (todo con `season: 'halloween'`), su
-  pestaña en la tienda (`components/game/SeasonShop.jsx`) y dos sucesos
-  (dulce o truco, fantasmitas). Lo comprado queda para siempre. En
-  desarrollo, `?temporada=halloween` o `?temporada=ninguna` fuerza una u
-  otra cara; en el laboratorio, `/arte?set=deco&temporada=halloween` y
-  `/arte?set=vestidor&temporada=halloween`.
+  venden esos días; una temporada puede cruzar el año.
+  - Halloween (1–31 de octubre): `art/mochi/wardrobe/halloween.js`,
+    `art/room/decorHalloween.js`; sucesos dulce o truco y fantasmitas.
+  - Navidad (1 de diciembre – 6 de enero): `art/mochi/wardrobe/navidad.js`,
+    `art/room/decorNavidad.js`; sucesos intercambio de regalos y copitos,
+    y el regalo del 24 y 25 (la esfera de nieve, `giftOnly`: no se vende).
+  - Todo lleva `season`; su pestaña en la tienda es
+    `components/game/SeasonShop.jsx` (`banner`: las dos decos de la
+    portada). Lo comprado queda para siempre. En desarrollo,
+    `?temporada=navidad` o `?temporada=ninguna` fuerza una u otra cara; en
+    el laboratorio, `/arte?set=deco&temporada=navidad` y
+    `/arte?set=vestidor&temporada=navidad`.
 - **El mundo** (`world.js`): `phaseOf` (hora), `weatherOf` (clima del
   día), `tickVitals` (necesidades), `foodEffect` (comer). El cuarto
   recibe `world` y dibuja la noche, las luces y el clima en las

@@ -28,6 +28,7 @@ import { OUTFIT_ITEMS } from './outfit.js';
 import { BACK_ITEMS } from './back.js';
 import { HAND_ITEMS } from './hand.js';
 import { HALLOWEEN_WEAR } from './halloween.js';
+import { NAVIDAD_WEAR } from './navidad.js';
 import { nid, T } from './kit.js';
 
 export const SLOTS = [
@@ -83,6 +84,7 @@ export const WARDROBE = [
   ...tag('mano', HAND_ITEMS),
   // de temporada (`season`): solo se venden esos días, ver seasons.js
   ...HALLOWEEN_WEAR,
+  ...NAVIDAD_WEAR,
 ];
 
 export const findWearable = (slot, id) => WARDROBE.find((w) => w.slot === slot && w.id === id) || null;
@@ -92,6 +94,7 @@ const OUT_MAP = {
   alasHada: 42, alasAngel: 40, alasMurcielago: 38, alasMariposa: 42, mochila: 24, mochilaOso: 25, capaEstrellas: 14, caparazon: 12,
   velo: 22, flotador: 15, vestido: 11, maid: 9, lolita: 11, princesa: 17, tutu: 19, seifuku: 7,
   capaVampiro: 18, disfrazFantasma: 13, vestidoBruja: 11,
+  vestidoNoel: 11, sacoRegalos: 34, gorroNoel: 14,
 };
 const HAND_OUT = 32;
 
@@ -118,7 +121,7 @@ export function wearOverflow(r) {
   for (const [slot, v] of Object.entries(w)) {
     const o = OUT_MAP[v.id] || 0;
     if (slot === 'mano') right = Math.max(right, HAND_OUT);
-    else if (v.id === 'mochila' || v.id === 'mochilaOso') right = Math.max(right, o);
+    else if (['mochila', 'mochilaOso', 'sacoRegalos', 'gorroNoel'].includes(v.id)) right = Math.max(right, o);
     else { left = Math.max(left, o); right = Math.max(right, o); }
   }
   return { left, right };
