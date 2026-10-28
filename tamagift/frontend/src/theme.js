@@ -1,58 +1,40 @@
 // ─────────────────────────────────────────────────────────────────────────
-// Tamagift — sistema de diseño "hecho a mano / storybook"
-// Un solo lugar para todos los colores, sombras y tipografías, para que
-// TODA la app se sienta de la misma mano. Estos valores están espejados en
-// index.css como variables CSS (--pg-*) para lo que se estilice por clases.
+// Tamagift — tokens de diseño.
+//
+// La app tiene varios estilos visuales (styles/registry.js). Para que
+// cambiar de estilo no obligue a reescribir cada componente, C, SHADOW y
+// FONT ya no guardan colores fijos sino variables CSS: `C.rose` vale
+// 'var(--pg-c-rose)', y applyStyle() llena esas variables con los
+// valores del estilo activo. Cualquier `style={{ color: C.rose }}` sigue
+// funcionando igual y cambia solo.
+//
+// Consecuencia: estos valores NO son hex. Para mezclar colores se usa
+// tint(), que produce un color-mix() de CSS; y si algo necesita el color
+// real (dibujar en un canvas, serializar un SVG) usa resolveColor().
 // ─────────────────────────────────────────────────────────────────────────
 
-export const C = {
-  // Papel / superficies
-  paper: '#FBF3E9',      // fondo base, crema cálido tipo papel
-  paperDeep: '#F0DFCC',  // zonas más hondas (piso de la escena)
-  surface: '#FFFDF8',    // tarjetas
-  surfaceAlt: '#FFF7EC', // tarjetas alternas / hover
+import { COLOR_KEYS, getStyle } from './styles/registry';
 
-  // Tinta (contornos y texto) — marrón cálido, nunca negro puro
-  ink: '#4A3439',
-  inkSoft: '#8A7167',    // texto secundario
-  inkFaint: '#B7A79C',   // texto muy tenue / deshabilitado
+const cssVar = (name) => `var(--pg-${name})`;
 
-  // Acentos
-  rose: '#D8697F',
-  roseDeep: '#BE4E67',
-  roseSoft: '#FBDBE1',
-  sage: '#7FA894',
-  sageDeep: '#5E8873',
-  sageSoft: '#DCEDE3',
-  amber: '#E2A845',
-  amberSoft: '#FBEAC6',
-  sky: '#8FC7EE',
-  skySoft: '#DDF0FB',
-  lavender: '#C3A7EA',
-  lavenderSoft: '#EEE4FB',
-  peach: '#FFC29B',
+export const C = Object.fromEntries(COLOR_KEYS.map((k) => [k, cssVar(`c-${k}`)]));
 
-  // Líneas / bordes cálidos
-  line: '#EAD9C7',
-  lineSoft: '#F2E6D8',
-};
-
-// Sombras cálidas (tinte marrón, nunca gris frío) — dan el aire "impreso".
 export const SHADOW = {
-  soft: '0 4px 14px rgba(120,80,55,0.10)',
-  lifted: '0 10px 26px rgba(120,80,55,0.16)',
-  pressed: 'inset 0 2px 5px rgba(120,80,55,0.14)',
-  glowRose: '0 6px 20px rgba(216,105,127,0.28)',
-  glowSage: '0 6px 20px rgba(127,168,148,0.28)',
+  soft: cssVar('shadow-soft'),
+  lifted: cssVar('shadow-lifted'),
+  pressed: cssVar('shadow-pressed'),
+  glowRose: cssVar('shadow-glow-rose'),
+  glowSage: cssVar('shadow-glow-sage'),
 };
 
 export const FONT = {
-  display: "'Baloo 2', system-ui, sans-serif", // títulos redonditos
-  body: "'Nunito Sans', system-ui, sans-serif",  // cuerpo
-  hand: "'Caveat', 'Baloo 2', cursive",          // acento a mano (notas)
+  display: cssVar('font-display'),
+  body: cssVar('font-body'),
+  hand: cssVar('font-hand'),
 };
 
-// Paleta lista para los swatches del creador de mascotas.
+// Paleta de los swatches del creador de mascotas. Son colores del DIBUJO,
+// no de la interfaz: no cambian con el estilo.
 export const DRAW_COLORS = [
   '#2E2422', '#FFFFFF', '#FFB98A', '#FFD9BE',
   '#FF9EB5', '#FFD3E0', '#8FDCB3', '#C9F0DC',
@@ -60,10 +42,55 @@ export const DRAW_COLORS = [
   '#FFE270', '#D8697F', '#7FA894', '#8B5E3C',
 ];
 
-// Helper: mezcla un hex con blanco (para tintes suaves puntuales).
-export function tint(hex, amount = 0.5) {
-  const n = parseInt(hex.slice(1), 16);
-  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-  const mix = (c) => Math.round(c + (255 - c) * amount);
-  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
+// Aclara un color mezclándolo con blanco (`amount` 0..1). Con un valor
+// negativo lo oscurece. Acepta variables CSS, por eso devuelve un
+// color-mix() y no un hex.
+export function tint(color, amount = 0.5) {
+  if (!amount) return color;
+  const target = amount > 0 ? 'white' : 'black';
+  const pct = Math.round(Math.min(1, Math.abs(amount)) * 100);
+  return `color-mix(in srgb, ${color}, ${target} ${pct}%)`;
+}
+
+// Versión suave de un color para FONDOS (mosaicos de íconos, chips…):
+// se mezcla con la superficie del estilo y no con blanco, así en los
+// estilos oscuros queda un fondo oscuro teñido y no un parche claro.
+export function soft(color, amount = 0.75) {
+  const pct = Math.round(Math.min(1, Math.max(0, amount)) * 100);
+  return `color-mix(in srgb, ${color}, var(--pg-c-surface) ${pct}%)`;
+}
+
+// Mismo color con transparencia (0..1).
+export function alpha(color, a) {
+  return `color-mix(in srgb, ${color} ${Math.round(a * 100)}%, transparent)`;
+}
+
+// Valor real de un token (o de cualquier color) en el estilo activo.
+export function resolveColor(value) {
+  if (typeof value !== 'string' || !value.includes('var(')) return value;
+  if (typeof document === 'undefined') return value;
+  const root = getComputedStyle(document.documentElement);
+  return value.replace(/var\((--[a-z0-9-]+)\)/gi, (_, name) => root.getPropertyValue(name).trim() || '#888888');
+}
+
+// Escribe en :root las variables del estilo y marca `data-style`, que
+// es lo que usa index.css para los detalles propios de cada estilo
+// (esquinas en píxel, brillo de neón, etc.).
+export function applyStyle(styleId) {
+  if (typeof document === 'undefined') return;
+  const s = getStyle(styleId);
+  const root = document.documentElement;
+  for (const k of COLOR_KEYS) root.style.setProperty(`--pg-c-${k}`, s.ui[k]);
+  root.style.setProperty('--pg-shadow-soft', s.shadow.soft);
+  root.style.setProperty('--pg-shadow-lifted', s.shadow.lifted);
+  root.style.setProperty('--pg-shadow-pressed', s.shadow.pressed);
+  root.style.setProperty('--pg-shadow-glow-rose', s.shadow.glowRose);
+  root.style.setProperty('--pg-shadow-glow-sage', s.shadow.glowSage);
+  root.style.setProperty('--pg-font-display', s.fonts.display);
+  root.style.setProperty('--pg-font-body', s.fonts.body);
+  root.style.setProperty('--pg-font-hand', s.fonts.hand);
+  root.dataset.style = s.id;
+  root.style.colorScheme = s.dark ? 'dark' : 'light';
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', s.ui.paper);
 }

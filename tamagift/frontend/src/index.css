@@ -1,94 +1,90 @@
-@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito+Sans:ital,wght@0,400;0,600;0,700;0,800;1,600&family=Caveat:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Caveat:wght@500;600;700&family=Nunito+Sans:ital,wght@0,400;0,600;0,700;0,800;1,600&family=Orbitron:wght@500;700;800&family=Patrick+Hand&family=Pixelify+Sans:wght@400;500;600;700&family=Quicksand:wght@500;600;700&family=Righteous&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ───────────────────────────────────────────────────────────────
-   PetGift — base "hecho a mano / storybook"
-   Espeja los tokens de theme.js. Todo lo global vive aquí una sola
-   vez (nada de inyectar <style> con @import en cada componente).
+   Tamagift — base visual.
+
+   Los colores, sombras y letras salen de variables (--pg-c-*,
+   --pg-shadow-*, --pg-font-*) que escribe applyStyle() en theme.js
+   según el estilo elegido. Aquí van:
+     1. valores de arranque (pixel), para que no haya un parpadeo sin
+        estilo antes de que corra el JS;
+     2. las piezas comunes (tarjetas, botones…);
+     3. lo propio de cada estilo, colgado de [data-style="…"].
    ─────────────────────────────────────────────────────────────── */
 :root {
-  --pg-paper: #FBF3E9;
-  --pg-paper-deep: #F0DFCC;
-  --pg-surface: #FFFDF8;
-  --pg-surface-alt: #FFF7EC;
-  --pg-ink: #4A3439;
-  --pg-ink-soft: #8A7167;
-  --pg-ink-faint: #B7A79C;
-  --pg-rose: #D8697F;
-  --pg-rose-deep: #BE4E67;
-  --pg-rose-soft: #FBDBE1;
-  --pg-sage: #7FA894;
-  --pg-sage-soft: #DCEDE3;
-  --pg-amber: #E2A845;
-  --pg-amber-soft: #FBEAC6;
-  --pg-line: #EAD9C7;
-  --pg-shadow-soft: 0 4px 14px rgba(120,80,55,0.10);
-  --pg-shadow-lifted: 0 10px 26px rgba(120,80,55,0.16);
+  --pg-c-paper: #F4E9D4; --pg-c-paperDeep: #E6D2AE; --pg-c-surface: #FFF8EA; --pg-c-surfaceAlt: #FBEBCF;
+  --pg-c-ink: #2B1D2E; --pg-c-inkSoft: #665062; --pg-c-inkFaint: #A6909C;
+  --pg-c-rose: #EF5A80; --pg-c-roseDeep: #A8345A; --pg-c-roseSoft: #FFD3DE;
+  --pg-c-sage: #38B184; --pg-c-sageDeep: #21765A; --pg-c-sageSoft: #C8F1DD;
+  --pg-c-amber: #F3A428; --pg-c-amberSoft: #FFE6AE;
+  --pg-c-sky: #4A9FEA; --pg-c-skySoft: #CFE7FF;
+  --pg-c-lavender: #8E6FE0; --pg-c-lavenderSoft: #E4D9FF;
+  --pg-c-peach: #FF925E; --pg-c-line: #CDB38C; --pg-c-lineSoft: #E3CFAD;
+  --pg-c-onAccent: #FFFFFF; --pg-c-overlay: rgba(43,29,46,0.62); --pg-c-glass: rgba(255,248,234,0.9); --pg-c-track: #E2CBA3;
+  --pg-shadow-soft: 3px 3px 0 rgba(43,29,46,0.22);
+  --pg-shadow-lifted: 5px 5px 0 rgba(43,29,46,0.28);
+  --pg-shadow-pressed: inset 2px 2px 0 rgba(43,29,46,0.18);
+  --pg-font-display: 'Pixelify Sans', monospace;
+  --pg-font-body: 'Pixelify Sans', monospace;
+  --pg-font-hand: 'Pixelify Sans', monospace;
 }
 
 * { -webkit-tap-highlight-color: transparent; }
 
-html, body, #root {
-  min-height: 100%;
-}
+html, body, #root { min-height: 100%; }
+/* Nada debe empujar la página hacia los lados en un celular; y los
+   toques rápidos (juegos) no deben activar el zoom de doble toque. */
+html, body { overflow-x: hidden; touch-action: manipulation; }
 
 body {
   margin: 0;
-  color: var(--pg-ink);
-  font-family: 'Nunito Sans', system-ui, sans-serif;
-  background-color: var(--pg-paper);
-  /* Grano de papel muy sutil: dos capas de ruido tenue sobre el crema. */
-  background-image:
-    radial-gradient(circle at 20% 15%, rgba(255,255,255,0.55) 0%, transparent 45%),
-    radial-gradient(circle at 85% 90%, rgba(216,105,127,0.05) 0%, transparent 40%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  color: var(--pg-c-ink);
+  font-family: var(--pg-font-body);
+  background-color: var(--pg-c-paper);
   background-attachment: fixed;
+  transition: background-color 0.3s ease;
 }
 
-/* Selección con color de marca */
-::selection { background: var(--pg-rose-soft); color: var(--pg-ink); }
+::selection { background: var(--pg-c-roseSoft); color: var(--pg-c-ink); }
+
+input, textarea, select { color: var(--pg-c-ink); }
+input::placeholder, textarea::placeholder { color: var(--pg-c-inkFaint); }
 
 /* ── Tipografía utilitaria ─────────────────────────────────────── */
-.font-display { font-family: 'Baloo 2', system-ui, sans-serif; }
-.font-hand { font-family: 'Caveat', 'Baloo 2', cursive; }
+.font-display { font-family: var(--pg-font-display); }
+.font-hand { font-family: var(--pg-font-hand); }
 .eyebrow {
-  font-family: 'Baloo 2', sans-serif;
+  font-family: var(--pg-font-display);
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   font-size: 11px;
-  color: var(--pg-sage);
+  color: var(--pg-c-sage);
 }
 
-/* ── Superficies con carácter ──────────────────────────────────── */
-/* Tarjeta suave: fondo hueso, borde cálido, sombra tibia y un brillo
-   interno arriba que simula papel iluminado. */
+/* ── Superficies ───────────────────────────────────────────────── */
 .pg-card {
-  background: var(--pg-surface);
-  border: 1.5px solid var(--pg-line);
+  background: var(--pg-c-surface);
+  border: 1.5px solid var(--pg-c-line);
   border-radius: 22px;
-  box-shadow: var(--pg-shadow-soft), inset 0 1px 0 rgba(255,255,255,0.7);
+  box-shadow: var(--pg-shadow-soft);
 }
-.pg-card-lift { box-shadow: var(--pg-shadow-lifted), inset 0 1px 0 rgba(255,255,255,0.7); }
+.pg-card-lift { box-shadow: var(--pg-shadow-lifted); }
 
-/* Marco "recortado a mano": doble contorno tipo sticker/pegatina. */
+/* Marco de escena (cuarto, tableros de juego). */
 .pg-sticker {
-  background: var(--pg-surface);
+  background: var(--pg-c-surface);
   border-radius: 26px;
-  box-shadow:
-    0 0 0 3px var(--pg-surface),
-    0 0 0 5px var(--pg-line),
-    var(--pg-shadow-soft);
+  box-shadow: 0 0 0 3px var(--pg-c-surface), 0 0 0 5px var(--pg-c-line), var(--pg-shadow-soft);
 }
 
 /* ── Botones ───────────────────────────────────────────────────── */
-/* Botón "chicloso": color sólido con un labio inferior más oscuro
-   (borde-abajo grueso) que se hunde al presionar. Da sensación tactil. */
 .pg-btn {
-  font-family: 'Baloo 2', sans-serif;
+  font-family: var(--pg-font-display);
   font-weight: 700;
   border: none;
   border-radius: 999px;
@@ -98,52 +94,257 @@ body {
 }
 .pg-btn:active { transform: translateY(2px); filter: saturate(1.05); }
 .pg-btn-rose {
-  background: var(--pg-rose);
-  color: #fff;
-  box-shadow: 0 4px 0 var(--pg-rose-deep), 0 8px 16px rgba(216,105,127,0.30);
+  background: var(--pg-c-rose);
+  color: var(--pg-c-onAccent);
+  box-shadow: 0 4px 0 var(--pg-c-roseDeep);
 }
-.pg-btn-rose:active { box-shadow: 0 2px 0 var(--pg-rose-deep), 0 4px 10px rgba(216,105,127,0.28); }
+.pg-btn-rose:active { box-shadow: 0 2px 0 var(--pg-c-roseDeep); }
 .pg-btn-sage {
-  background: var(--pg-sage);
-  color: #fff;
-  box-shadow: 0 4px 0 #5E8873, 0 8px 16px rgba(127,168,148,0.28);
+  background: var(--pg-c-sage);
+  color: var(--pg-c-onAccent);
+  box-shadow: 0 4px 0 var(--pg-c-sageDeep);
 }
-.pg-btn-sage:active { box-shadow: 0 2px 0 #5E8873, 0 4px 10px rgba(127,168,148,0.26); }
+.pg-btn-sage:active { box-shadow: 0 2px 0 var(--pg-c-sageDeep); }
 .pg-btn-ghost {
-  background: var(--pg-surface);
-  color: var(--pg-ink);
-  border: 1.5px solid var(--pg-line);
-  box-shadow: 0 3px 0 var(--pg-line);
+  background: var(--pg-c-surface);
+  color: var(--pg-c-ink);
+  border: 1.5px solid var(--pg-c-line);
+  box-shadow: 0 3px 0 var(--pg-c-line);
 }
-.pg-btn-ghost:active { box-shadow: 0 1px 0 var(--pg-line); }
+.pg-btn-ghost:active { box-shadow: 0 1px 0 var(--pg-c-line); }
 .pg-btn:disabled {
-  background: #EFE4D8; color: var(--pg-ink-faint);
+  background: var(--pg-c-track); color: var(--pg-c-inkFaint);
   box-shadow: none; cursor: default; transform: none;
 }
 
-/* Focus accesible y coherente */
 .pg-focus:focus-visible {
-  outline: 3px solid var(--pg-rose-soft);
+  outline: 3px solid var(--pg-c-rose);
   outline-offset: 2px;
 }
 
-/* ── Filtro "hecho a mano": aplica un temblorcito a los SVG ─────── */
 .pg-wobble { filter: url(#pg-wobble); }
 
-/* ── Textura tablero de ajedrez (lienzo de dibujo transparente) ─── */
+/* Sprites ya redibujados: en pixel no se deben suavizar al escalar. */
+.pg-sprite { display: block; user-select: none; -webkit-user-drag: none; }
+.pg-pixelated { image-rendering: pixelated; image-rendering: crisp-edges; }
+
+/* ── Tablero de ajedrez (lienzo transparente del creador) ──────── */
 .pg-checker {
-  background-color: #FBF8F3;
+  background-color: var(--pg-c-surfaceAlt);
   background-image:
-    linear-gradient(45deg, #EFE3D6 25%, transparent 25%),
-    linear-gradient(-45deg, #EFE3D6 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #EFE3D6 75%),
-    linear-gradient(-45deg, transparent 75%, #EFE3D6 75%);
+    linear-gradient(45deg, var(--pg-c-lineSoft) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--pg-c-lineSoft) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--pg-c-lineSoft) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--pg-c-lineSoft) 75%);
   background-size: 16px 16px;
   background-position: 0 0, 0 8px, 8px -8px, -8px 0;
 }
 
+/* Barra de scroll amable para bandejas horizontales */
+.pg-scroll-x { scrollbar-width: none; }
+.pg-scroll-x::-webkit-scrollbar { display: none; }
+
+/* ═════════════════════════════════════════════════════════════════
+   PIXEL ART
+   Todo cuadrado, bordes de 3 px con esquinas mordidas (el truco de
+   las cuatro sombras deja las esquinas vacías, como un panel de un
+   juego de 16 bits), sombras duras y letra pixelada sin suavizar.
+   ═════════════════════════════════════════════════════════════════ */
+[data-style="pixel"] body {
+  background-color: var(--pg-c-paper);
+  background-image:
+    linear-gradient(45deg, rgba(43,29,46,0.035) 25%, transparent 25%, transparent 75%, rgba(43,29,46,0.035) 75%),
+    linear-gradient(45deg, rgba(43,29,46,0.035) 25%, transparent 25%, transparent 75%, rgba(43,29,46,0.035) 75%);
+  background-size: 12px 12px;
+  background-position: 0 0, 6px 6px;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+}
+[data-style="pixel"] *:not(.pg-keep-round) { border-radius: 0 !important; }
+[data-style="pixel"] .pg-keep-round {
+  border-radius: 0 !important;
+  clip-path: polygon(25% 0, 75% 0, 75% 6%, 88% 6%, 88% 12%, 94% 12%, 94% 25%, 100% 25%, 100% 75%, 94% 75%, 94% 88%, 88% 88%, 88% 94%, 75% 94%, 75% 100%, 25% 100%, 25% 94%, 12% 94%, 12% 88%, 6% 88%, 6% 75%, 0 75%, 0 25%, 6% 25%, 6% 12%, 12% 12%, 12% 6%, 25% 6%);
+}
+[data-style="pixel"] .pg-card,
+[data-style="pixel"] .pg-sticker {
+  border: none;
+  box-shadow:
+    0 -3px 0 0 var(--pg-c-ink), 0 3px 0 0 var(--pg-c-ink),
+    -3px 0 0 0 var(--pg-c-ink), 3px 0 0 0 var(--pg-c-ink),
+    inset 0 -3px 0 0 rgba(43,29,46,0.12), inset 0 3px 0 0 rgba(255,255,255,0.65),
+    6px 6px 0 0 rgba(43,29,46,0.18);
+}
+[data-style="pixel"] .pg-btn {
+  letter-spacing: 0.02em;
+  box-shadow:
+    0 -3px 0 0 var(--pg-c-ink), 0 3px 0 0 var(--pg-c-ink),
+    -3px 0 0 0 var(--pg-c-ink), 3px 0 0 0 var(--pg-c-ink),
+    inset 0 -4px 0 0 rgba(0,0,0,0.22), inset 0 3px 0 0 rgba(255,255,255,0.35);
+  transition: none;
+}
+[data-style="pixel"] .pg-btn:active { transform: translateY(3px); box-shadow:
+    0 -3px 0 0 var(--pg-c-ink), 0 3px 0 0 var(--pg-c-ink),
+    -3px 0 0 0 var(--pg-c-ink), 3px 0 0 0 var(--pg-c-ink),
+    inset 0 3px 0 0 rgba(0,0,0,0.22); }
+[data-style="pixel"] .pg-btn-ghost { border: none; }
+[data-style="pixel"] .pg-btn:disabled { box-shadow: 0 -3px 0 0 var(--pg-c-inkFaint), 0 3px 0 0 var(--pg-c-inkFaint), -3px 0 0 0 var(--pg-c-inkFaint), 3px 0 0 0 var(--pg-c-inkFaint); }
+[data-style="pixel"] .pg-focus:focus-visible { outline: 3px dashed var(--pg-c-rose); outline-offset: 5px; }
+[data-style="pixel"] input[type="range"] { accent-color: var(--pg-c-rose); }
+
+/* ═════════════════════════════════════════════════════════════════
+   LO-FI NOCHE
+   Cielo nocturno con estrellitas, tarjetas como ventanas encendidas
+   y un brillo cálido de lámpara en lo importante.
+   ═════════════════════════════════════════════════════════════════ */
+[data-style="lofi"] body {
+  background-color: #1A1529;
+  background-image:
+    radial-gradient(1.4px 1.4px at 12% 18%, rgba(255,240,210,0.8), transparent 60%),
+    radial-gradient(1.2px 1.2px at 78% 12%, rgba(255,240,210,0.7), transparent 60%),
+    radial-gradient(1px 1px at 42% 30%, rgba(255,240,210,0.6), transparent 60%),
+    radial-gradient(1.6px 1.6px at 88% 44%, rgba(255,240,210,0.5), transparent 60%),
+    radial-gradient(1px 1px at 24% 64%, rgba(255,240,210,0.45), transparent 60%),
+    radial-gradient(circle at 85% 0%, rgba(255,199,126,0.16), transparent 45%),
+    linear-gradient(180deg, #1E1834 0%, #1A1529 55%, #221A33 100%);
+}
+[data-style="lofi"] .pg-card {
+  background: linear-gradient(180deg, var(--pg-c-surfaceAlt), var(--pg-c-surface));
+  border: 1px solid var(--pg-c-line);
+  border-radius: 20px;
+  box-shadow: var(--pg-shadow-soft), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+[data-style="lofi"] .pg-sticker {
+  box-shadow: 0 0 0 1px var(--pg-c-line), 0 0 30px rgba(255,199,126,0.10), var(--pg-shadow-soft);
+}
+[data-style="lofi"] .pg-btn-rose { box-shadow: 0 4px 0 var(--pg-c-roseDeep), 0 0 22px rgba(242,155,180,0.28); }
+[data-style="lofi"] .pg-btn-sage { box-shadow: 0 4px 0 var(--pg-c-sageDeep), 0 0 22px rgba(143,203,175,0.24); }
+[data-style="lofi"] h1, [data-style="lofi"] h2 { text-shadow: 0 0 18px rgba(255,199,126,0.25); }
+
+/* ═════════════════════════════════════════════════════════════════
+   RETRO SETENTERO
+   Contornos marrones gruesos, sombras sólidas corridas, botones
+   pastilla y el abanico de rayas del fondo.
+   ═════════════════════════════════════════════════════════════════ */
+[data-style="retro"] body {
+  background-color: var(--pg-c-paper);
+  background-image:
+    repeating-conic-gradient(from 0deg at 50% 115%, rgba(217,98,42,0.10) 0deg 7deg, rgba(231,174,48,0.10) 7deg 14deg, transparent 14deg 21deg),
+    radial-gradient(circle at 50% 115%, rgba(231,174,48,0.25), transparent 55%);
+}
+[data-style="retro"] .pg-card {
+  border: 3px solid var(--pg-c-ink);
+  border-radius: 24px;
+  box-shadow: 5px 5px 0 var(--pg-c-ink);
+}
+[data-style="retro"] .pg-sticker {
+  box-shadow: 0 0 0 3px var(--pg-c-ink), 7px 7px 0 3px var(--pg-c-ink);
+}
+[data-style="retro"] .pg-btn { border: 3px solid var(--pg-c-ink); letter-spacing: 0.03em; }
+[data-style="retro"] .pg-btn-rose, [data-style="retro"] .pg-btn-sage, [data-style="retro"] .pg-btn-ghost { box-shadow: 4px 4px 0 var(--pg-c-ink); }
+[data-style="retro"] .pg-btn:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--pg-c-ink); }
+[data-style="retro"] h1, [data-style="retro"] h2 { letter-spacing: 0.02em; text-shadow: 2px 2px 0 var(--pg-c-amber); }
+
+/* ═════════════════════════════════════════════════════════════════
+   PAPEL RECORTADO
+   Cartulina sobre papel kraft: bordes un poco irregulares, sombra
+   corta de capa de papel y cinta adhesiva en las escenas.
+   ═════════════════════════════════════════════════════════════════ */
+[data-style="papel"] body {
+  background-color: var(--pg-c-paper);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.45 0 0 0 0 0.36 0 0 0 0 0.25 0 0 0 0.16 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+[data-style="papel"] .pg-card {
+  border: none;
+  border-radius: 6px 14px 8px 16px / 14px 6px 16px 8px;
+  box-shadow: var(--pg-shadow-soft);
+}
+[data-style="papel"] .pg-sticker {
+  position: relative;
+  border-radius: 8px 16px 10px 18px / 16px 8px 18px 10px;
+  box-shadow: var(--pg-shadow-lifted);
+}
+[data-style="papel"] .pg-btn {
+  border-radius: 10px 16px 12px 18px / 16px 10px 18px 12px;
+}
+[data-style="papel"] .pg-btn-rose, [data-style="papel"] .pg-btn-sage, [data-style="papel"] .pg-btn-ghost {
+  box-shadow: 2px 3px 0 rgba(61,50,41,0.3);
+}
+[data-style="papel"] .pg-btn-ghost { border: none; background: var(--pg-c-surface); }
+[data-style="papel"] h1, [data-style="papel"] h2 { letter-spacing: 0.01em; }
+
+/* ═════════════════════════════════════════════════════════════════
+   NEÓN NOCTURNO
+   Fondo casi negro con rejilla en perspectiva; todo lo importante es
+   un tubo de luz: borde fino, brillo alrededor y texto encendido.
+   ═════════════════════════════════════════════════════════════════ */
+[data-style="neon"] body {
+  background-color: #0B0718;
+  background-image:
+    radial-gradient(ellipse at 50% 110%, rgba(255,79,216,0.22), transparent 55%),
+    radial-gradient(ellipse at 50% -10%, rgba(77,225,255,0.12), transparent 50%),
+    linear-gradient(rgba(181,124,255,0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(181,124,255,0.07) 1px, transparent 1px);
+  background-size: auto, auto, 32px 32px, 32px 32px;
+}
+[data-style="neon"] .pg-card {
+  background: rgba(21,14,43,0.88);
+  border: 1.5px solid var(--pg-c-line);
+  border-radius: 16px;
+  box-shadow: 0 0 0 1px rgba(181,124,255,0.18), 0 0 18px rgba(181,124,255,0.18), inset 0 0 22px rgba(181,124,255,0.06);
+}
+[data-style="neon"] .pg-sticker {
+  box-shadow: 0 0 0 2px var(--pg-c-rose), 0 0 18px rgba(255,79,216,0.55), 0 0 42px rgba(77,225,255,0.18);
+}
+[data-style="neon"] .pg-btn-rose {
+  background: rgba(255,79,216,0.12); color: #FFE6FA;
+  border: 2px solid var(--pg-c-rose);
+  box-shadow: 0 0 14px rgba(255,79,216,0.65), inset 0 0 12px rgba(255,79,216,0.35);
+  text-shadow: 0 0 8px rgba(255,79,216,0.9);
+}
+[data-style="neon"] .pg-btn-sage {
+  background: rgba(61,255,154,0.10); color: #E6FFF1;
+  border: 2px solid var(--pg-c-sage);
+  box-shadow: 0 0 14px rgba(61,255,154,0.55), inset 0 0 12px rgba(61,255,154,0.3);
+  text-shadow: 0 0 8px rgba(61,255,154,0.9);
+}
+[data-style="neon"] .pg-btn-ghost {
+  background: transparent; color: var(--pg-c-sky);
+  border: 1.5px solid var(--pg-c-sky);
+  box-shadow: 0 0 10px rgba(77,225,255,0.4);
+}
+[data-style="neon"] .pg-btn:active { transform: scale(0.97); }
+[data-style="neon"] .pg-icon { filter: drop-shadow(0 0 3px currentColor); }
+/* Orbitron es muy ancha: "Alimentar" se cortaba en el dock. */
+[data-style="neon"] .pg-dock-label { font-size: 9.5px !important; letter-spacing: -0.03em; }
+[data-style="neon"] h1, [data-style="neon"] h2 { text-shadow: 0 0 6px rgba(255,79,216,0.85), 0 0 18px rgba(255,79,216,0.45); }
+
+/* ═════════════════════════════════════════════════════════════════
+   STICKER KAWAII
+   Cada tarjeta es una pegatina: borde blanco gordo, un contorno muy
+   suave alrededor y sombrita. Fondo de lunares menta.
+   ═════════════════════════════════════════════════════════════════ */
+[data-style="sticker"] body {
+  background-color: var(--pg-c-paper);
+  background-image:
+    radial-gradient(rgba(255,122,166,0.16) 3px, transparent 3.5px),
+    radial-gradient(rgba(98,189,240,0.14) 3px, transparent 3.5px);
+  background-size: 36px 36px, 36px 36px;
+  background-position: 0 0, 18px 18px;
+}
+[data-style="sticker"] .pg-card {
+  border: 1.5px solid var(--pg-c-line);
+  border-radius: 24px;
+  box-shadow: 0 0 0 4px #FFFFFF, 0 0 0 5.5px var(--pg-c-line), 0 10px 22px rgba(91,58,71,0.14);
+}
+[data-style="sticker"] .pg-sticker {
+  box-shadow: 0 0 0 6px #FFFFFF, 0 0 0 7.5px var(--pg-c-line), 0 14px 28px rgba(91,58,71,0.18);
+}
+[data-style="sticker"] .pg-btn-rose { box-shadow: 0 0 0 3px #FFFFFF, 0 5px 0 3px var(--pg-c-roseDeep); }
+[data-style="sticker"] .pg-btn-sage { box-shadow: 0 0 0 3px #FFFFFF, 0 5px 0 3px var(--pg-c-sageDeep); }
+
 /* ─────────────────────────────────────────────────────────────────
-   Animaciones — el alma de la mascota y del "juice"
+   Animaciones
    ───────────────────────────────────────────────────────────────── */
 @keyframes pg-breathe {
   0%, 100% { transform: scale(1) translateY(0); }
@@ -206,7 +407,6 @@ body {
   0%, 100% { opacity: 0.35; transform: scale(0.9); }
   50% { opacity: 1; transform: scale(1.15); }
 }
-
 @keyframes pg-food-fly {
   0% { transform: translate(-50%, 0) scale(0.9); opacity: 0; }
   15% { opacity: 1; }
@@ -217,28 +417,21 @@ body {
   0% { transform: scale(0.6) translateY(6px); opacity: 0; }
   100% { transform: scale(1) translateY(0); opacity: 1; }
 }
-
 @keyframes pg-nudge {
   0%, 60%, 100% { transform: translateY(0); }
   75% { transform: translateY(-3px); }
   88% { transform: translateY(-1px); }
 }
-
-/* ── Minijuegos ─────────────────────────────────────────────────── */
-/* Una ficha que hace línea: se hincha, brilla y desaparece. Sin esto
-   las fichas se cambiaban de golpe y no se entendía qué había pasado. */
 @keyframes pg-tile-clear {
   0%   { transform: scale(1) rotate(0deg); opacity: 1; }
   35%  { transform: scale(1.25) rotate(-6deg); opacity: 1; filter: brightness(1.6); }
   100% { transform: scale(0.1) rotate(14deg); opacity: 0; }
 }
-/* Las fichas nuevas caen desde arriba en vez de aparecer de la nada. */
 @keyframes pg-tile-drop {
   0%   { transform: translateY(calc(-1 * var(--pg-drop, 60px))); opacity: 0.2; }
   70%  { transform: translateY(3px); opacity: 1; }
   100% { transform: translateY(0); }
 }
-/* Jugada que no vale: la ficha se sacude en el sitio. */
 @keyframes pg-shake {
   0%, 100% { transform: translateX(0); }
   20% { transform: translateX(-6px) rotate(-3deg); }
@@ -246,38 +439,75 @@ body {
   60% { transform: translateX(-4px) rotate(-2deg); }
   80% { transform: translateX(4px) rotate(2deg); }
 }
-/* Botón de Simón encendido: destello que se apaga solo. */
 @keyframes pg-pad-flash {
   0%   { filter: brightness(1); }
   25%  { filter: brightness(1.75) saturate(1.3); }
   100% { filter: brightness(1); }
 }
-/* Onda al tocar, como cuando tiras algo al agua. */
 @keyframes pg-ripple {
   0%   { transform: scale(0.35); opacity: 0.55; }
   100% { transform: scale(1.9); opacity: 0; }
 }
-/* Aviso de combo: entra de golpe y sale flotando. */
 @keyframes pg-combo-burst {
   0%   { transform: scale(0.4) rotate(-8deg); opacity: 0; }
   35%  { transform: scale(1.18) rotate(3deg); opacity: 1; }
   60%  { transform: scale(1) rotate(0deg); opacity: 1; }
   100% { transform: scale(1.05) translateY(-26px); opacity: 0; }
 }
-/* Pista de "tocá aquí" que late para guiar la primera jugada. */
 @keyframes pg-hint-ring {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(216,105,127,0.55); }
-  50%      { box-shadow: 0 0 0 9px rgba(216,105,127,0); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pg-c-rose) 55%, transparent); }
+  50%      { box-shadow: 0 0 0 9px transparent; }
 }
-/* Ruedas girando y humito del escape. */
 @keyframes pg-spin { to { transform: rotate(360deg); } }
 @keyframes pg-exhaust {
   0%   { opacity: 0.45; transform: translateX(0) scale(0.5); }
   100% { opacity: 0; transform: translateX(-14px) scale(1.5); }
 }
 
+/* Movimientos propios de cada estilo (ver styles/motion.js). */
+@keyframes pg-pixel-bob {          /* dos cuadros: arriba y abajo, sin interpolar */
+  0%, 49.9% { transform: translateY(0); }
+  50%, 100% { transform: translateY(-3px); }
+}
+@keyframes pg-pixel-float {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-84px); }
+}
+@keyframes pg-stop-sway {          /* papel: animación cuadro a cuadro */
+  0% { transform: rotate(-2.5deg) translateY(0); }
+  33% { transform: rotate(1.5deg) translateY(-2px); }
+  66% { transform: rotate(-0.5deg) translateY(-1px); }
+  100% { transform: rotate(-2.5deg) translateY(0); }
+}
+@keyframes pg-neon-flicker {
+  0%, 18%, 22%, 60%, 64%, 100% { filter: drop-shadow(0 0 6px var(--pg-c-rose)) brightness(1); }
+  20%, 62% { filter: drop-shadow(0 0 2px var(--pg-c-rose)) brightness(0.75); }
+}
+@keyframes pg-retro-bounce {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  40% { transform: translateY(-6px) scale(0.96, 1.05); }
+  70% { transform: translateY(0) scale(1.06, 0.94); }
+}
+@keyframes pg-calm-breathe {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50% { transform: scale(1.02) translateY(-1.5px); }
+}
+@keyframes pg-jelly-idle {
+  0%, 100% { transform: scale(1, 1); }
+  25% { transform: scale(1.04, 0.96); }
+  50% { transform: scale(0.97, 1.03); }
+  75% { transform: scale(1.02, 0.98); }
+}
+@keyframes pg-screen-in {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: none; }
+}
+
 .pg-anim-rise { animation: pg-rise 0.45s ease both; }
 .pg-anim-pop { animation: pg-pop-in 0.4s cubic-bezier(.34,1.56,.64,1) both; }
+/* Guía de bienvenida: el borde de lo iluminado late. */
+@keyframes pg-tut-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 196, 92, 0.6); } 50% { box-shadow: 0 0 0 7px rgba(255, 196, 92, 0); } }
+.pg-tut-ring { animation: pg-tut-pulse 1.4s ease-in-out infinite; }
 .pg-anim-wiggle { animation: pg-wiggle 0.5s ease; }
 .pg-anim-nudge { animation: pg-nudge 2.6s ease-in-out infinite; }
 .pg-anim-shake { animation: pg-shake 0.42s ease both; }
@@ -285,11 +515,93 @@ body {
 .pg-anim-drop { animation: pg-tile-drop 0.3s cubic-bezier(.34,1.4,.64,1) both; }
 .pg-anim-combo { animation: pg-combo-burst 1.1s cubic-bezier(.34,1.56,.64,1) both; }
 .pg-anim-hint { animation: pg-hint-ring 1.5s ease-in-out infinite; }
+.pg-screen { animation: pg-screen-in 0.32s ease both; }
 
-/* Barra de scroll amable para bandejas horizontales */
-.pg-scroll-x { scrollbar-width: none; }
-.pg-scroll-x::-webkit-scrollbar { display: none; }
+/* En pixel todo salta por cuadros (no hay interpolación suave en un
+   juego de 16 bits); en papel, a 8 cuadros por segundo, como el stop
+   motion. */
+[data-style="pixel"] .pg-anim-pop,
+[data-style="pixel"] .pg-anim-rise,
+[data-style="pixel"] .pg-screen,
+[data-style="pixel"] .pg-anim-combo,
+[data-style="pixel"] .pg-anim-shake { animation-timing-function: steps(4, end); }
+[data-style="pixel"] .pg-anim-nudge { animation-timing-function: steps(2, end); }
+[data-style="papel"] .pg-anim-pop,
+[data-style="papel"] .pg-anim-rise,
+[data-style="papel"] .pg-screen { animation-timing-function: steps(5, end); }
+[data-style="neon"] .pg-screen { animation: pg-screen-in 0.32s ease both, pg-neon-screen 0.5s steps(2) 1; }
+@keyframes pg-neon-screen { 0% { filter: brightness(0.4); } 50% { filter: brightness(1.3); } 100% { filter: none; } }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
 }
+
+/* Pedidos: la caja en la puerta salta para que la veas, y tiembla al
+   abrirla. */
+@keyframes pg-parcel-hop {
+  0%, 70%, 100% { transform: translateY(0) scale(1, 1); }
+  78% { transform: translateY(0) scale(1.06, 0.92); }
+  86% { transform: translateY(-10px) scale(0.96, 1.05); }
+  94% { transform: translateY(0) scale(1.04, 0.96); }
+}
+.pg-parcel { animation: pg-parcel-hop 1.8s ease-in-out infinite; transform-origin: 50% 100%; }
+.pg-wiggle { animation: pg-wiggle 0.3s ease-in-out infinite; }
+[data-style="pixel"] .pg-parcel { animation-timing-function: steps(2); }
+
+/* Obra: cada baldosa cae y se asienta; la pintura fresca brilla un rato. */
+@keyframes pg-lay {
+  0% { transform: translateY(-14px) scale(0.7); opacity: 0; }
+  60% { transform: translateY(2px) scale(1.04); opacity: 1; }
+  100% { transform: translateY(0) scale(1); }
+}
+.pg-lay { animation: pg-lay 0.32s cubic-bezier(.34,1.56,.64,1) both; }
+[data-style="pixel"] .pg-lay { animation-timing-function: steps(3); }
+
+/* Mundo vivo: lluvia y nieve en las ventanas, zetas de dormir, bichitos. */
+@keyframes pg-rain-fall { from { transform: translate(0, 0); } to { transform: translate(-8px, 30px); } }
+@keyframes pg-snow-fall { from { transform: translate(0, 0); } to { transform: translate(6px, 26px); } }
+.pg-rain { animation: pg-rain-fall 0.35s linear infinite; }
+.pg-snow { animation: pg-snow-fall 2.6s linear infinite; }
+@keyframes pg-zzz { 0% { opacity: 0; transform: translate(0, 6px) scale(0.7); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(10px, -16px) scale(1.1); } }
+.pg-zzz { animation: pg-zzz 2.2s ease-out infinite; opacity: 0; }
+@keyframes pg-flutter { 0%, 100% { transform: translateY(0) rotate(-6deg); } 50% { transform: translateY(-10px) rotate(6deg); } }
+.pg-flutter { animation: pg-flutter 0.6s ease-in-out infinite; }
+@keyframes pg-glint { 0%, 100% { filter: brightness(1); transform: scale(1); } 50% { filter: brightness(1.4); transform: scale(1.12); } }
+.pg-glint { animation: pg-glint 1.1s ease-in-out infinite; }
+/* La mascota esperando en el mapa de niveles. */
+@keyframes pg-map-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+.pg-map-bob { animation: pg-map-bob 1.2s ease-in-out infinite; }
+[data-style="pixel"] .pg-map-bob { animation-timing-function: steps(2); }
+/* El flash de la cámara. */
+@keyframes pg-camflash { 0% { opacity: 0.95; } 100% { opacity: 0; } }
+.pg-camflash { animation: pg-camflash 0.5s ease-out forwards; }
+[data-style="pixel"] .pg-camflash { animation-timing-function: steps(4); }
+/* Gestos de la mascota (styles/motion.js: ACTS). */
+@keyframes pg-chew { 0%, 100% { transform: scale(1, 1); } 18% { transform: scale(1.07, 0.92); } 36% { transform: scale(0.97, 1.04); } 54% { transform: scale(1.07, 0.92); } 72% { transform: scale(0.98, 1.03); } }
+@keyframes pg-hop { 0%, 100% { transform: translateY(0) scale(1, 1); } 15% { transform: translateY(0) scale(1.08, 0.9); } 45% { transform: translateY(-22px) scale(0.95, 1.06); } 75% { transform: translateY(0) scale(1.06, 0.94); } }
+@keyframes pg-nope { 0%, 100% { transform: translateX(0) rotate(0); } 20% { transform: translateX(-5px) rotate(-3deg); } 40% { transform: translateX(5px) rotate(3deg); } 60% { transform: translateX(-4px) rotate(-2deg); } 80% { transform: translateX(3px) rotate(1deg); } }
+@keyframes pg-startle { 0%, 100% { transform: translate(0, 0) scale(1, 1); } 12% { transform: translate(0, -26px) scale(0.94, 1.08); } 30% { transform: translate(-4px, -8px); } 42% { transform: translate(4px, -4px); } 54% { transform: translate(-3px, 0); } 66% { transform: translate(3px, 0); } }
+@keyframes pg-px-chew { 0%, 100% { transform: translateY(0); } 25%, 75% { transform: translateY(4px); } 50% { transform: translateY(0); } }
+@keyframes pg-px-hop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-20px); } 70% { transform: translateY(-6px); } }
+@keyframes pg-px-nope { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-3px); } }
+@keyframes pg-px-startle { 0%, 100% { transform: translate(0, 0); } 15% { transform: translate(0, -24px); } 35% { transform: translate(-4px, -6px); } 55% { transform: translate(4px, 0); } 75% { transform: translate(-3px, 0); } }
+/* Halloween: los fantasmitas flotan; el truco hace parpadear la luz. */
+@keyframes pg-ghost { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(6px, -9px); } 50% { transform: translate(0, -14px); } 75% { transform: translate(-6px, -7px); } }
+.pg-ghost { animation: pg-ghost 2.6s ease-in-out infinite; opacity: 0.93; }
+/* Navidad: los copitos bajan y suben despacio, girando. */
+@keyframes pg-snowflake { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(8px, 22px) rotate(60deg); } }
+.pg-snowflake { animation: pg-snowflake 3.4s ease-in-out infinite; }
+[data-style="pixel"] .pg-snowflake { animation-timing-function: steps(5); }
+@keyframes pg-flicker { 0%, 30%, 52%, 100% { opacity: 0; } 12%, 40%, 64%, 86% { opacity: 0.72; } }
+.pg-flicker { animation: pg-flicker 1.3s steps(1) both; }
+[data-style="pixel"] .pg-ghost { animation-timing-function: steps(4); }
+@keyframes pg-hip { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(-16px); } }
+[data-style="pixel"] .pg-flutter, [data-style="pixel"] .pg-glint { animation-timing-function: steps(3); }
+@keyframes pg-fly-across { from { transform: translateX(0); } to { transform: translateX(var(--pg-dist)); } }
+.pg-fly-across { animation: pg-fly-across 32s linear forwards; }
+
+@keyframes pg-fly-buzz {
+  0% { transform: translate(-30px, 0); } 25% { transform: translate(10px, -22px); }
+  50% { transform: translate(34px, 4px); } 75% { transform: translate(-6px, 18px); } 100% { transform: translate(-30px, 0); }
+}
+.pg-fly { animation: pg-fly-buzz 1.6s linear infinite; }
