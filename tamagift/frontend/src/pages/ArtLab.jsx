@@ -89,9 +89,27 @@ function sets(name) {
   if (name === 'juegos') return GAME_ART_SET();
   if (name === 'cocina') return KITCHEN_ART_SET();
   if (name === 'deco') {
-    // &temporada=halloween: solo las de esa temporada
+    // &temporada=halloween: solo las de esa temporada; &ids=a,b: solo esas
     const season = q.get('temporada');
-    return DECOR_DEFS.filter((d) => !season || d.season === season).map((d) => ({ name: d.name, markup: d.svg(), w: d.w, h: d.h }));
+    const ids = q.get('ids') ? q.get('ids').split(',') : null;
+    return DECOR_DEFS.filter((d) => (!season || d.season === season) && (!ids || ids.includes(d.id))).map((d) => ({ name: d.name, markup: d.svg(q.get('pintura') || undefined), w: d.w, h: d.h }));
+  }
+  if (name === 'deco3') {
+    // cada adorno en un rincón del cuarto, a la escala del juego (×1.25),
+    // con una mochi al lado: lo de piso en el piso, lo de "sobre" encima de
+    // una mesita (y colgado si es ancho y bajito, como una guirnalda).
+    const season = q.get('temporada');
+    const ids = q.get('ids') ? q.get('ids').split(',') : null;
+    const pet = innerOf(mochiSvg(FAMILY[0].r, 'normal'));
+    const table = '<g><path d="M120 330h140v10H120Z" fill="#D9B08C" stroke="#3A2A3E" stroke-width="2.2" data-r="face"/><path d="M128 340h8v64h-8ZM244 340h8v64h-8Z" fill="#B98760" stroke="#3A2A3E" stroke-width="2" data-r="face"/></g>';
+    return DECOR_DEFS.filter((d) => (!season || d.season === season) && (!ids || ids.includes(d.id))).map((d) => {
+      const w = d.w * 1.25, h = d.h * 1.25;
+      const hang = d.place === 'sobre' && d.w > d.h * 1.6;
+      const bottom = d.place === 'piso' ? 404 + d.foot * 1.25 : hang ? 230 : 330 + d.foot * 1.25;
+      const x = 190 - w / 2, y = bottom - h;
+      const extra = (d.place === 'sobre' && !hang ? table : '') + `<g transform="translate(${x} ${y}) scale(1.25)">${innerOf(d.svg(q.get('pintura') || undefined))}</g><g transform="translate(330 224)">${pet}</g>`;
+      return { name: d.name, kind: 'surface', w: 384, h: 344, markup: cornerSvg(q.get('pared') || 'liso.crema', q.get('piso') || 'tablas.miel', extra) };
+    });
   }
   if (name === 'ui') return Object.entries(UI_SPRITES).map(([k, r]) => ({ name: k, markup: renderToStaticMarkup(r()), w: 90, h: 90 }));
   return FAMILY;
