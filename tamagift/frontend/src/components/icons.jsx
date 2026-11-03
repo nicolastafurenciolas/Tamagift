@@ -68,15 +68,14 @@ function Svg({ size = 24, color = 'currentColor', stroke = 2, wobble = false, ch
   return svg;
 }
 
-// Tazón con comida (Alimentar)
+// Tazón calientito con su vapor (Alimentar)
 export function IconBowl(props) {
   return (
     <Svg {...props} px="bowl">
-      <path d="M3.5 11.5 h17 a8.5 8.5 0 0 1 -17 0 Z" fill={props.fill || 'none'} />
-      <ellipse cx="12" cy="11.5" rx="8.5" ry="1.9" />
-      <path d="M9 8.2 a1.7 1.7 0 1 1 3 -0.4" />
-      <path d="M13 8 a1.5 1.5 0 1 1 2.6 -0.2" />
-      <path d="M12 5.5 c0 -1 1 -1.3 1 -2.2" />
+      <path d="M3.5 12 h17 a8.5 8 0 0 1 -17 0 Z" fill={props.fill || 'none'} />
+      <path d="M2.5 12 h19" />
+      <path d="M9.5 20 h5" />
+      <path d="M8.5 9 c-1.1 -1.3 1.1 -2.2 0 -3.6 M12 9 c-1.1 -1.3 1.1 -2.2 0 -3.6 M15.5 9 c-1.1 -1.3 1.1 -2.2 0 -3.6" />
     </Svg>
   );
 }
@@ -307,13 +306,14 @@ export function IconCards(props) {
   );
 }
 
-// Comida cayendo hacia un tazón: atrapar
+// Una manzana que cae hacia un tazón: atrapar
 export function IconCatch(props) {
   return (
     <Svg {...props} px="catch">
-      <circle cx="8" cy="4.5" r="1.8" />
-      <circle cx="15.5" cy="7" r="1.5" />
-      <path d="M3.5 14 h17 a8.5 8.5 0 0 1 -17 0 Z" />
+      <path d="M12 5.4 c-1.3 -1 -4 -0.6 -4 1.9 c0 2.1 1.8 3.7 4 3.7 s4 -1.6 4 -3.7 c0 -2.5 -2.7 -2.9 -4 -1.9 Z" fill={props.fill || 'none'} />
+      <path d="M12 5.4 c0 -1.1 0.5 -2 1.4 -2.5" />
+      <path d="M5 3.5 v3 M19 3.5 v3" />
+      <path d="M3.5 14 h17 a8.5 7 0 0 1 -17 0 Z" fill={props.fill || 'none'} />
       <path d="M2 14 h20" />
     </Svg>
   );
@@ -346,9 +346,10 @@ export function IconMole(props) {
 export function IconSnake(props) {
   return (
     <Svg {...props} px="snake">
-      <path d="M4 18 h8 a3 3 0 0 0 0 -6 h-4 a3 3 0 0 1 0 -6 h6" />
-      <circle cx="18.5" cy="6" r="2.2" />
-      <circle cx="19.2" cy="5.4" r="0.5" fill="currentColor" />
+      <path d="M3.5 19.5 h9 a3.3 3.3 0 0 0 0 -6.6 h-3.4 a3.2 3.2 0 0 1 0 -6.4 h4.6" />
+      <circle cx="16.1" cy="6.5" r="2.5" fill={props.fill || 'none'} />
+      <circle cx="16.7" cy="5.8" r="0.6" fill={props.color || 'currentColor'} stroke="none" />
+      <path d="M18.6 6.9 h1.5 l0.9 -0.9 M20.1 6.9 l0.9 0.9" />
     </Svg>
   );
 }

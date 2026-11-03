@@ -130,45 +130,69 @@ const FOOD = {
     s += line('M14 44C22 47 42 47 50 44', '#FFFFFF', 2, { opacity: 0.5 });
     return s;
   },
+  // Arepa de maíz gruesa en 3/4 (canto y tapa) con las manchitas
+  // tostadas de la plancha, abierta por el canto: el queso blanco
+  // derretido se sale por la raja y chorrea.
   arepa: () => {
-    let s = ground(32, 56, 26);
-    s += part('M5 32V39C5 47 17 52 32 52C47 52 59 47 59 39V32Z', '#D59A52');
-    s += part(ellD(32, 32, 27, 13), '#F2CB94');
-    [[18, 29, 4], [28, 25, 5], [42, 28, 4], [46, 36, 3], [22, 37, 3]].forEach(([x, y, w]) => { s += line(`M${x} ${y}h${w}`, '#B9772E', 2.4); });
-    s += flat('M22 31C24 26 38 25 44 30C46 33 44 37 40 36C38 40 35 41 34 37C30 38 23 36 22 31Z', '#FFFFFF');
-    s += flat('M40 36C41 41 42 44 40 46C38 44 38 40 38 37Z', '#FFFFFF');
-    s += line('M24 31C28 28 36 27 42 30', '#D8CDD6', 1.4, { opacity: 0.8 });
-    s += shine('M12 29C14 25 19 23 24 22C19 25 16 27 14 31Z', { opacity: 0.6 });
+    let s = ground(32, 57, 27);
+    s += part('M5 33V41C5 49 17 54 32 54C47 54 59 49 59 41V33Z', '#E0B468');
+    s += line('M7 43C15 48.5 49 48.5 57 43', '#F2D594', 1.6, { opacity: 0.8 });
+    [[10, 46], [20, 50], [44, 50], [54, 46]].forEach(([x, y]) => { s += dot(x, y, 1.2, '#B87A3A'); });
+    s += part(ellD(32, 33, 27, 13), '#F6E2A8');
+    s += shade(ellD(27, 30, 17, 7), '#FFF6DA', 0.8);
+    [[15, 29, 2.4, 1.4], [27, 24, 2, 1.2], [41, 27, 2.6, 1.5], [21, 37, 2.2, 1.3], [37, 38, 2.4, 1.3], [49, 34, 2, 1.2], [10, 35, 1.6, 1], [32, 31, 1.4, 0.9]]
+      .forEach(([x, y, rx, ry], i) => { s += Ell(x, y, rx, ry, { fill: i % 2 ? '#B87A3A' : '#9A5A28', opacity: 0.85, 'data-r': 'flat' }); });
+    // la raja del canto y el queso que se sale
+    s += line('M12 44C20 47 44 47 52 44', '#7A4A1E', 2);
+    s += part('M13 44C20 46.5 44 46.5 51 44C51 47 47 49.5 41 50C38 50 37 52 36 55C35 58 31 58 31 55C30 52 28 50.5 24 50.5C18 50 13 48 13 44Z', '#FFFFFF', { w: 1.8 });
+    s += shade('M36 48C41 48.5 46 47.5 49 46C48 48.5 44 50 40 50Z', '#C9BCD0', 0.6);
+    s += shade('M32 51C33 53 33 55 32.5 56C32 55 31.6 53 32 51Z', '#C9BCD0', 0.5);
+    s += shine('M12 29C14 25 18 23 22 22C18 25 16 27 14 31Z', { opacity: 0.55 });
     return s;
   },
+  // Empanada acostada con el lado recto hacia adelante: arriba se ve el
+  // domo dorado y, por todo el arco de atrás, el repulgue trenzado.
   empanada: () => {
-    let s = ground(32, 54, 26);
-    // media luna acostada: el doblez atrás y el borde curvo con repulgue
-    s += part('M5 24C12 20 22 18 32 18C42 18 52 20 59 24C60 38 49 50 32 50C15 50 4 38 5 24Z', '#E8B05E');
-    s += shine('M12 26C18 23 26 22 32 22C25 24 18 27 14 31Z', { opacity: 0.6 });
-    // repulgue: un cordón más tostado por todo el borde curvo, con las
-    // marcas del tenedor
-    s += line('M8 27C9 38 19 47 32 47C45 47 55 38 56 27', '#D29A4A', 5);
+    let s = ground(32, 56, 27);
+    s += part('M4 42C4 48 17 52 32 52C47 52 60 48 60 42L60 39L4 39Z', '#C27A2E');
+    s += part('M4 42C4 24 16 12 32 12C48 12 60 24 60 42C52 46 12 46 4 42Z', '#ECAA52');
+    s += shade('M10 38C10 26 19 17 32 17C24 21 16 29 16 40Z', '#FFE2A6', 0.75);
+    s += shade('M46 20C53 25 57 33 57 41C54 43 50 43 47 44C50 36 50 28 46 20Z', '#B8681E', 0.35);
+    // repulgue: un cordón tostado por el arco y, encima, sus trenzas
+    // claras (sin contorno propio: a tamaño chico no se vuelven una
+    // corona oscura en los estilos de contorno grueso)
+    s += line('M8.5 40C8.5 26 19 16.5 32 16.5C45 16.5 55.5 26 55.5 40', '#C8802E', 5.2);
     let crimp = '';
-    for (let i = 0; i <= 14; i++) {
-      const a = Math.PI * (0.04 + 0.92 * (i / 14));
-      const c = Math.cos(a), sn = Math.sin(a);
-      crimp += `M${(32 - c * 22).toFixed(1)} ${(26 + sn * 18).toFixed(1)}L${(32 - c * 26).toFixed(1)} ${(26 + sn * 22.6).toFixed(1)}`;
+    for (let i = 0; i <= 12; i++) {
+      const a = Math.PI * (0.05 + 0.9 * (i / 12));
+      const x = 32 - Math.cos(a) * 23.5, y = 41 - Math.sin(a) * 24.5;
+      crimp += Ell(x - 0.4, y - 0.4, 2.4, 1.5, { fill: '#F8D08A', 'data-r': 'flat', transform: `rotate(${(a * 180) / Math.PI - 60} ${x} ${y})` });
     }
-    s += line(crimp, '#9A5A34', 1.6);
-    [[26, 32], [36, 31], [31, 39]].forEach(([x, y]) => { s += dot(x, y, 1.4, '#C58A3E'); });
+    s += crimp;
+    [[27, 28], [37, 30], [31, 36], [22, 34], [42, 37]].forEach(([x, y]) => { s += dot(x, y, 1.3, '#C58A3E'); });
+    [9, 17, 25, 33, 41, 49].forEach((x) => { s += line(`M${x} 46V49`, '#8E4E1E', 1.4, { opacity: 0.6 }); });
+    s += shine('M15 27C17 22 22 19 27 18C23 21 20 24 18 29Z', { opacity: 0.6 });
     return s;
   },
+  // Ajiaco en cazuela de barro: orejitas, caldo amarillo, mazorca, crema
+  // y guascas, y el vapor subiendo.
   sopa: () => {
-    let s = ground(32, 60, 24);
-    const b = bowl(32, 33, 26, 22, '#D93A4C', '#F2C46B');
-    s += b.back;
-    [[22, 33, '#EE8434'], [36, 34, '#EE8434'], [29, 31, '#4FA358'], [43, 32, '#4FA358'], [15, 33, '#4FA358']]
-      .forEach(([x, y, c]) => { s += Ell(x, y, 2.6, 1.6, { fill: c, 'data-r': 'flat' }); });
-    s += b.front;
-    [14, 26, 38, 50].forEach((x) => { s += Cir(x, 46, 1.8, { fill: '#FFFFFF', opacity: 0.85, 'data-r': 'flat' }); });
-    s += shine('M10 37C11 43 14 48 18 51C13 48 10 43 10 37Z', { opacity: 0.6 });
-    s += line('M22 22C19 18 25 15 22 10M32 21C29 17 35 14 32 9M42 22C39 18 45 15 42 10', '#D8CDD6', 2.4, { opacity: 0.9 });
+    let s = ground(32, 58, 24);
+    s += line('M22 21C19 17 25 14 22 9M32 20C29 16 35 13 32 8M42 21C39 17 45 14 42 9', '#E4DAEC', 2.6, { opacity: 0.95 });
+    s += part(ellD(7, 36, 5.6, 3.8), '#C2603A', { w: 2 });
+    s += part(ellD(57, 36, 5.6, 3.8), '#C2603A', { w: 2 });
+    s += part('M7 33C7 46 14 55 32 55C50 55 57 46 57 33Z', '#C2603A');
+    s += shade('M11 36C12 45 17 51 25 53C17 52 11 46 11 36Z', '#F2B08A', 0.7);
+    s += line('M10 42C20 46 44 46 54 42', '#8E3A20', 1.8, { opacity: 0.7 });
+    [16, 24, 32, 40, 48].forEach((x, i) => { s += dot(x, 45 + (i % 2 ? 0.6 : -0.2), 1.3, '#F2B08A'); });
+    s += part(ellD(32, 33, 25.5, 7.6), '#D8784A');
+    s += flat(ellD(32, 33.6, 22, 5.6), '#E3A43A');
+    s += flat(ellD(29, 32.6, 15, 3.2), '#F6CE6A');
+    s += part(rr(36, 27, 11, 6.5, 3.2), '#F6C83A', { w: 1.6 });
+    s += line('M39 28V33M42 28V33M45 28V33', '#D89A1A', 1.1);
+    s += part(ellD(21, 32, 5.4, 2.6), '#FFF8EC', { w: 1.6 });
+    s += Cir(28, 36, 1.4, { fill: '#4FA358', 'data-r': 'flat' }) + Cir(15, 34, 1.3, { fill: '#4FA358', 'data-r': 'flat' }) + Cir(49, 35, 1.3, { fill: '#2C6A3D', 'data-r': 'flat' });
+    s += Ell(32, 36.5, 3, 1.4, { fill: '#F2E0A8', 'data-r': 'flat' });
     return s;
   },
   arroz: () => {
@@ -190,11 +214,17 @@ const FOOD = {
   },
   panqueques: () => {
     let s = ground(32, 58, 26);
-    [44, 37, 30].forEach((y) => {
-      s += part(`M6 ${y}V${y + 5}C6 ${y + 10} 18 ${y + 12} 32 ${y + 12}C46 ${y + 12} 58 ${y + 10} 58 ${y + 5}V${y}Z`, '#D59A52');
-      s += part(ellD(32, y, 26, 8), '#F2CB94');
-    });
+    // la pila es una sola pieza (el canto de los tres panqueques) y las
+    // separaciones son trazos tostados: así no se vuelve un bloque de
+    // contornos en los estilos de línea gruesa
+    s += part('M6 30V49C6 54 18 56.5 32 56.5C46 56.5 58 54 58 49V30Z', '#E3A85E');
+    s += line('M6.5 37C9 42 20 44 32 44C44 44 55 42 57.5 37M6.5 44C9 49 20 51 32 51C44 51 55 49 57.5 44', '#B8742E', 2);
+    s += line('M8 33C12 38 22 40 32 40C42 40 52 38 56 33M8 40C12 45 22 47 32 47C42 47 52 45 56 40', '#F6CF92', 1.6, { opacity: 0.9 });
+    s += shade('M48 33C53 36 56 40 57 44V49C56 52 52 54 47 55Z', '#9C5A20', 0.25);
+    s += part(ellD(32, 30, 26, 8), '#F2CB94');
+    s += shade(ellD(27, 28.5, 15, 4.5), '#FFE8BE', 0.7);
     s += flat('M14 30C16 25 26 24 32 24C40 24 48 26 50 30C49 33 44 33 44 37C42 40 40 38 40 35C34 37 26 37 22 35C22 40 19 42 18 38C17 35 14 34 14 30Z', '#C8681E');
+    s += flat('M20 28C24 26 30 25.5 34 26C29 27 24 28 21 30Z', '#E8902E');
     s += part('M25 22L32 19L39 22L39 26L32 29L25 26Z', '#FFE89C', { w: 2 });
     s += flat('M25 22L32 19L39 22L32 25Z', '#FFF6CC');
     s += shine('M16 27C19 25 24 24 28 24C23 25 19 27 17 29Z', { opacity: 0.6 });
@@ -212,15 +242,25 @@ const FOOD = {
     s += dot(22, 27, 1.4, '#4FA358') + dot(41, 25, 1.4, '#4FA358') + dot(33, 22, 1.2, '#4FA358');
     return s;
   },
+  // Un nigiri de salmón atrás y un maki adelante.
   sushi: () => {
-    let s = ground(32, 56, 25);
-    s += part(rr(7, 30, 50, 23, 9), '#FFF8F0');
-    [[15, 44], [24, 48], [38, 46], [48, 42], [30, 41]].forEach(([x, y]) => { s += Ell(x, y, 1.8, 1, { fill: '#D8CDD6', 'data-r': 'flat' }); });
-    s += part('M5 30C5 20 16 15 32 15C48 15 59 20 59 30C59 36 50 37 44 36C38 35 26 35 20 36C14 37 5 36 5 30Z', '#F7955A');
-    s += line('M13 23L20 31M22 19L30 30M33 18L41 30M44 20L51 30', '#FFD3B5', 2.4);
-    s += shine('M10 26C12 21 17 19 22 18C17 21 13 24 12 28Z', { opacity: 0.6 });
-    s += part(rr(28, 14, 8, 40, 1), '#272330', { w: 1.8 });
-    s += line('M30 18V50', '#5E5266', 1.2);
+    let s = ground(32, 57, 27);
+    let n = part(rr(7, 30, 50, 23, 9), '#FFF8F0');
+    [[15, 44], [24, 48], [38, 46], [48, 42], [30, 41]].forEach(([x, y]) => { n += Ell(x, y, 1.8, 1, { fill: '#D8CDD6', 'data-r': 'flat' }); });
+    n += part('M5 30C5 20 16 15 32 15C48 15 59 20 59 30C59 36 50 37 44 36C38 35 26 35 20 36C14 37 5 36 5 30Z', '#F7955A');
+    n += line('M13 23L20 31M22 19L30 30M33 18L41 30M44 20L51 30', '#FFD3B5', 2.4);
+    n += shine('M10 26C12 21 17 19 22 18C17 21 13 24 12 28Z', { opacity: 0.6 });
+    n += part(rr(28, 14, 8, 40, 1), '#272330', { w: 1.8 });
+    n += line('M30 18V50', '#5E5266', 1.2);
+    s += G({ transform: 'translate(-1 -4) scale(0.84)' }, n);
+    // maki: cilindro de alga, arroz y el centro de salmón y pepino
+    s += part('M37 41V53C37 58 61 58 61 53V41Z', '#272330');
+    s += line('M41 44V54', '#5E5266', 1.4, { opacity: 0.8 });
+    s += part(ellD(49, 41, 12, 5.6), '#2E3A36');
+    s += flat(ellD(49, 41, 10, 4.2), '#FFF8F0');
+    [[43, 40], [55, 42], [49, 44]].forEach(([x, y]) => { s += Ell(x, y, 1.3, 0.8, { fill: '#D8CDD6', 'data-r': 'flat' }); });
+    s += part(ellD(49, 41, 4.6, 2.2), '#F7955A', { w: 1.4 });
+    s += dot(51, 41, 1.3, '#4FA358');
     return s;
   },
   ramen: () => {
@@ -233,22 +273,27 @@ const FOOD = {
     s += part(rr(13, 22, 9, 10, 1), '#2C6A3D', { w: 1.8 });
     s += part(ellD(28, 29, 4, 3), '#FFFFFF', { w: 1.6 }) + line('M26 29C27 27 30 28 29 30', '#F28AB0', 1.4);
     s += b.front;
-    [14, 24, 34, 44].forEach((x) => { s += part(`M${x} 42h6v4h-6Z`, '#FFFFFF', { w: 1.2 }); });
+    // franja blanca de adorno que sigue la curva del tazón, con puntitos
+    s += line('M8 41C16 45.5 48 45.5 56 41', '#FFF4E6', 3.2);
+    [15, 23.5, 32, 40.5, 49].forEach((x, i) => { s += dot(x, 43.4 + (i === 0 || i === 4 ? -0.8 : 0.4), 1.1, '#8C1F3A'); });
     s += shine('M9 36C10 42 13 47 17 50C12 47 9 42 9 36Z', { opacity: 0.55 });
     return s;
   },
+  // Taco de lado e inclinado: la tortilla doblada (media luna) adelante y
+  // el relleno asomando por la abertura.
   tacos: () => {
-    let s = ground(32, 59, 25);
-    // tortilla doblada de lado: la mitad de atrás asoma detrás del relleno
-    // y la de adelante sube en dos puntas (no un borde recto de tazón)
-    s += part('M8 14C8 30 19 42 32 42C45 42 56 30 56 14C48 20 40 22 32 22C24 22 16 20 8 14Z', '#E3B04A');
-    [[13, 22], [21, 19], [30, 18], [39, 18], [48, 20], [53, 24]].forEach(([x, y]) => { s += ball(x, y, 5.6, '#4FA358', 1.8); });
-    [[18, 25], [33, 24], [45, 25]].forEach(([x, y]) => { s += ball(x, y, 3, '#E23B4E', 1.6); });
-    s += flat('M10 27C20 25 44 25 54 27L54 31L10 31Z', '#7A3A1E');
-    [[24, 27], [37, 27]].forEach(([x, y]) => { s += flat(`M${x} ${y}h6v2h-6Z`, '#FFE08A'); });
-    s += part('M4 21C4 42 17 57 32 57C47 57 60 42 60 21C51 29 42 32 32 32C22 32 13 29 4 21Z', '#F6C945');
-    [[18, 41], [33, 47], [45, 40], [25, 51]].forEach(([x, y]) => { s += dot(x, y, 1.6, '#D59B1E'); });
-    s += shine('M8 29C9 38 13 45 19 50C12 46 8 39 8 29Z', { opacity: 0.6 });
+    let s = ground(32, 58, 25);
+    let t = '';
+    [[8, 27, 5.2], [16, 25, 6], [26, 24, 6.2], [37, 24, 6.2], [47, 25, 6], [55, 27, 5]].forEach(([x, y, r]) => { t += ball(x, y, r, '#4FA358', 1.8) + Cir(x - 1.6, y - 1.8, r * 0.4, { fill: '#9BD86E', 'data-r': 'flat' }); });
+    t += part(rr(8, 27, 48, 6, 3), '#8A4A26', { w: 1.6 });
+    [[14, 29], [27, 30], [41, 29], [50, 30]].forEach(([x, y]) => { t += dot(x, y, 1.3, '#B8683A'); });
+    [[20, 26], [42, 25]].forEach(([x, y]) => { t += ball(x, y, 3.4, '#E23B4E', 1.6) + gleam(x - 1.2, y - 1.2, 0.9); });
+    [[31, 28, 20], [11, 30, -15], [53, 29, 30]].forEach(([x, y, a]) => { t += flat(rr(x - 3, y - 0.9, 6, 1.8, 0.9), '#FFE680', { transform: `rotate(${a} ${x} ${y})` }); });
+    t += part('M5 32A27 25 0 0 0 59 32Z', '#F4C842');
+    t += line('M7 33.5H57', '#FFE27A', 2.4);
+    [[18, 42], [33, 49], [46, 41], [25, 52], [40, 53], [12, 38]].forEach(([x, y]) => { t += dot(x, y, 1.5, '#D59B1E'); });
+    t += shine('M9 37C11 45 16 50 22 53C14 50 10 44 9 37Z', { opacity: 0.6 });
+    s += G({ transform: 'rotate(-14 32 38)' }, t);
     return s;
   },
   pizza: () => {
@@ -283,14 +328,19 @@ const FOOD = {
     s += shine('M14 34L15 52L13 52Z', { opacity: 0.5 });
     return s;
   },
+  // Perro caliente con el pan abierto: la mitad de atrás, la salchicha
+  // que asoma por los dos lados con su mostaza en onda y la mitad de
+  // adelante del pan encima.
   perro: () => {
     let s = ground(32, 54, 28);
-    s += part('M4 34C4 46 14 50 32 50C50 50 60 46 60 34Z', '#E3A35E');
-    s += part(rr(3, 25, 58, 13, 6.5), '#C2543A');
-    s += line('M9 31L14 28L19 33L24 28L29 33L34 28L39 33L44 28L49 33L55 29', '#F6C945', 2.6);
-    s += shine('M8 28C12 27 18 27 22 28C18 29 12 29 9 30Z', { opacity: 0.6 });
-    s += part('M7 32C7 24 15 20 32 20C49 20 57 24 57 32C51 30 13 30 7 32Z', '#E3A35E');
-    s += shine('M14 25C19 23 25 22 30 22C24 24 19 25 15 27Z', { opacity: 0.55 });
+    s += part('M8 32C8 22 18 18.5 32 18.5C46 18.5 56 22 56 32Z', '#E3A35E');
+    s += shade('M14 25C19 21.5 27 21 34 21C27 22.5 20 24.5 16 28Z', '#FFE4B0', 0.75);
+    s += part(rr(2.5, 24.5, 59, 12.5, 6.2), '#C8462E');
+    s += line('M8 27.8H50', '#F49A82', 2, { opacity: 0.85 });
+    s += line('M9 31.5C11 27.5 13 27.5 15 31.5S19 35.5 21 31.5S25 27.5 27 31.5S31 35.5 33 31.5S37 27.5 39 31.5S43 35.5 45 31.5S49 27.5 51 31.5S54 34 55 32', '#FFD02A', 2.6);
+    s += part('M6 34C6 46 16 50.5 32 50.5C48 50.5 58 46 58 34C50 37.5 14 37.5 6 34Z', '#E8A452');
+    s += shade('M10 38C16 40 25 41 33 41C25 42.5 16 42 11 41Z', '#FFE4B0', 0.75);
+    s += shade('M44 45C50 44 54 41 56 38C56 43 52 47 46 48Z', '#B8681E', 0.35);
     return s;
   },
   helado: () => {
@@ -317,20 +367,46 @@ const FOOD = {
     s += line('M25 32C27 36 37 36 39 32', '#B9772E', 1.6, { opacity: 0.7 });
     return s;
   },
+  // Tajada de torta con el corte de frente (capas de bizcocho, crema y
+  // mermelada) y, encima, la tapa en triángulo hacia atrás con crema.
   pastel: () => {
     let s = ground(32, 58, 25);
-    // tajada: cara de adelante con capas y la de arriba con crema
-    s += part('M6 30L52 30L52 55L6 55Z', '#F6D9A6');
-    s += flat('M6 35H52V39H6Z', '#FFE9C9');
-    s += flat('M6 43H52V48H6Z', '#F28AB0');
-    s += flat('M6 46H52V48H6Z', '#C9406B');
-    s += part('M6 30L20 16L58 16L52 30Z', '#FFFFFF');
-    s += part('M52 30L58 16L58 41L52 55Z', '#EADFD0');
-    s += flat('M10 30C10 34 12 35 13 33C14 36 17 36 17 32C19 35 22 35 22 31L6 30Z', '#FFFFFF');
-    s += flat('M30 30C30 33 32 34 33 32C35 35 38 34 38 30Z', '#FFFFFF');
-    s += ball(38, 13, 6, '#D93A4C', 2) + gleam(36, 11, 1.4);
-    s += part('M38 8L35 4L38 5L41 4Z', '#4FA358', { w: 1.4 });
-    s += shine('M12 26L22 19L28 19L16 27Z', { opacity: 0.5 });
+    s += part('M8 30H54V55H8Z', '#F6D9A6');
+    s += flat('M8 34H54V37H8Z', '#FFF4E6');
+    s += flat('M8 41H54V45H8Z', '#E85A78');
+    s += flat('M8 44H54V45H8Z', '#B8304E');
+    s += flat('M8 49H54V51H8Z', '#FFF4E6');
+    s += shade('M48 30H54V55H48Z', '#B8803E', 0.25);
+    [[16, 52], [30, 53], [44, 52], [22, 39], [38, 39]].forEach(([x, y]) => { s += dot(x, y, 0.9, '#E3B47A'); });
+    s += part('M7 30L55 30L33 17Z', '#FFFFFF');
+    s += flat('M8 30C8 34 10 35 11 33C12 36 15 36 15 32C17 35 20 35 21 31L8 30Z', '#FFFFFF');
+    s += flat('M34 30C34 33 36 34 37 32C39 35 42 34 42 30Z', '#FFFFFF');
+    s += part(ellD(33, 22, 5.6, 3.6), '#FFFFFF', { w: 1.6 });
+    s += ball(33, 15, 5.4, '#E23B4E', 2) + gleam(31, 13, 1.3);
+    s += part('M33 10L30 7L33 8L36 7Z', '#4FA358', { w: 1.4 });
+    return s;
+  },
+  // Variante para la comida que escribe quien regala ("pastel de
+  // chocolate", "torta de chocolate", "brownie"…): la misma tajada, con
+  // bizcocho de chocolate, crema, ganache que chorrea y una cereza.
+  pastelChocolate: () => {
+    let s = ground(32, 58, 25);
+    s += part('M8 30H54V55H8Z', '#7A4428');
+    s += flat('M8 35H54V38H8Z', '#F6E6D2');
+    s += flat('M8 42H54V46H8Z', '#4A2212');
+    s += flat('M8 42H54V43H8Z', '#8A4A2A');
+    s += flat('M8 50H54V52H8Z', '#F6E6D2');
+    s += shade('M48 30H54V55H48Z', '#2A1008', 0.25);
+    [[16, 40], [30, 40], [44, 40], [22, 48], [38, 48], [14, 53], [46, 53]].forEach(([x, y]) => { s += dot(x, y, 0.9, '#9A5C3C'); });
+    s += part('M7 30L55 30L33 17Z', '#5A2A18');
+    s += flat('M8 30C8 34 10 35.5 11.5 33C12.5 37 15.5 37 15.5 32C17 35 20 35 21 31L8 30Z', '#5A2A18');
+    s += flat('M33 30C33 33.5 35 35 36.5 32.5C38 36.5 41.5 35.5 41.5 30Z', '#5A2A18');
+    s += flat('M48 30C48 32.5 49.5 33.5 50.5 31.5Z', '#5A2A18');
+    s += shine('M15 28L30 20.5L32 21.5L18 29Z', { opacity: 0.35 });
+    [[22, 26, 30], [40, 25, -25], [28, 28, 70]].forEach(([x, y, a]) => { s += flat(rr(x - 2, y - 0.7, 4, 1.4, 0.7), '#C08050', { transform: `rotate(${a} ${x} ${y})` }); });
+    s += part(ellD(33, 22, 5.6, 3.6), '#FFF4E6', { w: 1.6 });
+    s += ball(33, 15, 5.4, '#C8243A', 2) + gleam(31, 13, 1.3);
+    s += line('M34 10C35 7 37 5 39 4', '#5A2F20', 1.6);
     return s;
   },
   galleta: () => {

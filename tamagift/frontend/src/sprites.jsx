@@ -26,7 +26,13 @@ const foodEl = (id) => React.createElement('svg', {
   dangerouslySetInnerHTML: { __html: foodInner(id) },
 });
 
-export const FOOD_SPRITES = FOODS.map((f) => ({
+// Variantes que no se venden en el súper pero sí reconocen las comidas
+// que escribe quien regala (van al final para no correr las de la lista).
+const FOOD_VARIANTS = [
+  { id: 'pastelChocolate', name: 'Pastel de chocolate', kind: 'dulce' },
+];
+
+export const FOOD_SPRITES = [...FOODS, ...FOOD_VARIANTS].map((f) => ({
   id: f.id, name: f.name, kind: f.kind,
   render: () => foodEl(f.id),
   svg: () => foodSvg(f.id),
@@ -45,20 +51,43 @@ const FOOD_WORDS = {
   pastel: ['torta', 'cheesecake', 'tiramisú', 'brownie', 'postre'], galleta: ['cookie', 'galletas'], chocolate: ['chocolatina', 'bombón', 'bombon'],
   cupcake: ['ponqué', 'ponque', 'muffin', 'magdalena'], macarons: ['macaron'], gomitas: ['gomita', 'caramelo', 'dulces', 'chicle'],
   algodon: ['algodón'], boba: ['té de burbujas', 'tapioca', 'malteada', 'milkshake', 'frappé', 'frappe', 'café', 'cafe'],
-  leche: ['yogur', 'yogurt'], jugo: ['limonada', 'smoothie', 'batido', 'agua'],
+  leche: ['yogur', 'yogurt', 'chocolate caliente', 'chocolatada', 'colada'], jugo: ['limonada', 'smoothie', 'batido', 'agua'],
 };
 // Si no hay ningún parecido, una comida que se vea del mismo tipo.
 const KIND_DEFAULT = { saludable: 'manzana', casera: 'arepa', chatarra: 'hamburguesa', dulce: 'pastel', bebida: 'jugo' };
 
+// Torta o tajada de chocolate ("pastel de chocolate", "torta de chocolate",
+// "brownie", "selva negra"…): antes caía en la tajada de fresa porque
+// "pastel" aparece primero en la lista.
+const CAKE = /(pastel|torta|tajada|ponqu|cake|brownie|selva negra)/;
+const CHOCO = /(chocolate|choco|brownie|nutella|selva negra|cacao)/;
+const NOT_CAKE = /(cupcake|muffin|magdalena|galleta|helado|malteada|batido|leche|caliente)/;
+
 export function foodSpriteFor(name, index = 0) {
   const n = (name || '').toLowerCase().trim();
   const byId = (id) => FOOD_SPRITES.find((f) => f.id === id);
+  if (byId(name)) return byId(name);
   if (byId(n)) return byId(n);
-  // primero el nombre de la comida ("helado de mora" es helado), después
-  // las palabras parecidas ("torta" es pastel)
-  const hit = FOOD_SPRITES.find((f) => n.includes(f.id) || n.includes(f.name.toLowerCase()))
-    || FOOD_SPRITES.find((f) => (FOOD_WORDS[f.id] || []).some((w) => n.includes(w)))
-    || FOOD_SPRITES.find((f) => n.includes(f.name.toLowerCase().slice(0, 5)));
+  if (CAKE.test(n) && CHOCO.test(n) && !NOT_CAKE.test(n)) return byId('pastelChocolate');
+  // El nombre de la comida o una palabra parecida ("torta" es pastel). Si
+  // aparecen dos comidas gana la que va primero en el nombre: en español
+  // lo que se come va adelante ("helado de mora" es helado, "pastel de
+  // fresa" es pastel, "jugo de naranja" es jugo). A igual posición gana la
+  // palabra más larga ("limonada" es jugo, no limón).
+  const first = (words) => {
+    let best = null, score = Infinity;
+    FOOD_SPRITES.forEach((f) => {
+      words(f).forEach((w) => {
+        const i = w ? n.indexOf(w) : -1;
+        if (i >= 0 && i * 100 - w.length < score) { best = f; score = i * 100 - w.length; }
+      });
+    });
+    return best;
+  };
+  // las frases de varias palabras van antes ("pastel de yuca" no es torta)
+  const hit = first((f) => (FOOD_WORDS[f.id] || []).filter((w) => w.includes(' ')))
+    || first((f) => [f.id, f.name.toLowerCase(), ...(FOOD_WORDS[f.id] || [])])
+    || first((f) => [f.name.toLowerCase().slice(0, 5)]);
   if (hit) return hit;
   if (n) return byId(KIND_DEFAULT[foodKindOf(n)]) || FOOD_SPRITES[0];
   return FOOD_SPRITES[index % FOOD_SPRITES.length];

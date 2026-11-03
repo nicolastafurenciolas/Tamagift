@@ -40,8 +40,17 @@ const SPRITES = {
     + Cir(14, 7, 3, { fill: '#F6C945', stroke: '#3A2A3E', 'stroke-width': 1.6, 'data-r': 'part' })
     + part('M16 10C26 6 34 14 44 10C48 9 52 9 56 10V36C52 35 48 35 44 36C34 40 26 32 16 36Z', '#FFFFFF')
     + [0, 1, 2, 3, 4, 5].map((i) => [0, 1, 2].map((j) => ((i + j) % 2 ? '' : flat(`M${16 + i * 6.7} ${11 + j * 8.4}h6.7v8.4h-6.7Z`, '#272330')))).flat().join(''),
-  pasto: () => part('M10 58C12 48 10 38 6 28C14 34 18 44 19 58ZM22 58C22 44 24 30 30 18C32 32 30 46 31 58ZM34 58C36 46 42 36 52 30C46 40 44 50 44 58ZM44 58C46 52 50 46 58 44C54 50 54 54 54 58Z', '#4FA358')
-    + line('M28 26C27 36 27 46 28 56', '#9BD86E', 2, { opacity: 0.9 }),
+  // Matita de pasto: hojas de largo y verde distintos, las de atrás más
+  // oscuras y las de adelante más claras, con su sombra en el piso.
+  pasto: () => ground(32, 58, 24, 3.4)
+    + part('M15 58C14 49 10 41 4 35C12 38 18 46 20 58Z', '#3F8F4A')
+    + part('M44 58C45 47 50 39 59 34C54 43 51 51 50 58Z', '#3F8F4A')
+    + part('M21 58C20 44 23 29 30 14C32 30 30 45 31 58Z', '#4FA358')
+    + part('M29 58C31 46 36 36 46 27C41 40 38 49 39 58Z', '#4FA358')
+    + line('M27 24C26 34 26 45 27 55M37 38C35 44 34 50 34 55', '#9BD86E', 1.8, { opacity: 0.9 })
+    + part('M10 58C11 51 14 45 21 41C18 47 17 53 18 58Z', '#7CC45E')
+    + part('M35 58C36 50 39 44 46 40C42 47 42 52 43 58Z', '#7CC45E')
+    + line('M14 54C15 50 16 47 18 45M39 54C40 50 41 47 43 45', '#C2EE98', 1.6, { opacity: 0.9 }),
   flor: () => line('M32 60V34', '#2C6A3D', 4)
     + part('M32 48C36 40 44 38 50 41C46 48 38 50 32 48Z', '#4FA358')
     + [0, 72, 144, 216, 288].map((a) => G({ transform: `rotate(${a} 32 24)` }, part(ellD(32, 12, 7.5, 10), '#F28AB0'))).join('')
