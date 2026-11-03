@@ -317,44 +317,54 @@ export const VIBE_FURNITURE = [
     },
   },
   {
-    // Silla mariposa (kawaii): alas de arriba de respaldo y alas de abajo
-    // de asiento, acolchadas con capitoné y lunares, cuerpo de cojín
-    // rayado, antenas y patas de metal.
+    // Silla mariposa: primero es una silla —asiento tapizado con su tapa,
+    // canto con ribete y botón, cuatro patas de madera (las de atrás más
+    // arriba, porque están más lejos, y en sombra)— y el respaldo tiene
+    // forma de mariposa: alas de arriba acolchadas con capitoné y su "ojo",
+    // alas de abajo que asoman a los lados como bracitos, el cuerpo de cojín
+    // rayado y las antenas.
     id: 'sillaMariposa', name: 'Silla mariposa', cat: 'asientos', price: 190, w: 140, h: 130, place: 'piso', vibes: ['y2k', 'kawaii'],
     draw: (p) => {
       const C = mat(p.cloth);
-      const spot = mix(p.cloth, '#FFFFFF', 0.55);
-      let s = floorShadow(70, 126, 58, 7);
-      s += rod(42, 108, 34, 124, 3.6, '#DCE1EA') + rod(98, 108, 106, 124, 3.6, '#DCE1EA');
-      s += face(rr(29, 121, 10, 4, 1.6), DARK, { w: 1.1 }) + face(rr(101, 121, 10, 4, 1.6), DARK, { w: 1.1 });
+      const A = acc(p, '#FFD45C');
+      const low = tone(p.cloth, 0.35);
+      let s = floorShadow(70, 125, 56, 6);
+      // patas de atrás
+      s += taperLegs([46, 94], 98, 117, 5, 3.4, tone(p.wood, -0.5));
       // antenas
-      s += line('M64 30C60 20 56 14 50 12M76 30C80 20 84 14 90 12', INK, 1.8);
-      s += part(ellD(49, 11, 3.6, 3.6), acc(p, '#FFD45C'), { w: 1.2 }) + part(ellD(91, 11, 3.6, 3.6), acc(p, '#FFD45C'), { w: 1.2 });
-      // alas de arriba (respaldo)
-      const upper = (k) => { const X = (v) => (k < 0 ? v : 140 - v); return `M${X(70)} 72C${X(54)} 30 ${X(30)} 16 ${X(16)} 24C${X(4)} 32 ${X(6)} 60 ${X(18)} 72C${X(30)} 82 ${X(52)} 84 ${X(70)} 82Z`; };
+      s += line('M66 26C62 15 58 10 52 7.6M74 26C78 15 82 10 88 7.6', INK, 1.8);
+      s += part(ellD(51, 7, 3.6, 3.6), A, { w: 1.2 }) + part(ellD(89, 7, 3.6, 3.6), A, { w: 1.2 });
       [-1, 1].forEach((k) => {
         const X = (v) => (k < 0 ? v : 140 - v);
-        s += part(upper(k), C.front, { w: 2 });
-        s += flat(`M${X(18)} 34C${X(24)} 26 ${X(34)} 26 ${X(40)} 32C${X(32)} 30 ${X(24)} 32 ${X(20)} 40Z`, C.hi, { opacity: 0.8 });
-        s += flat(`${ellD(X(30), 50, 7, 7)}${ellD(X(48), 64, 4, 4)}${ellD(X(20), 62, 3.4, 3.4)}`, spot);
-        s += line(`M${X(66)} 74C${X(48)} 70 ${X(32)} 60 ${X(24)} 44`, C.side, 1.4, { opacity: 0.5 });
-        s += flat(`${ellD(X(40), 44, 1.4, 1.4)}${ellD(X(56), 70, 1.4, 1.4)}`, C.deep);
+        // ala de abajo: asoma al costado del asiento, como un bracito
+        s += part(`M${X(66)} 70C${X(46)} 68 ${X(24)} 72 ${X(15)} 88C${X(10)} 100 ${X(22)} 110 ${X(36)} 104L${X(62)} 92Z`, low, { w: 1.9 });
+        s += flat(ellD(X(22), 95, 4, 3.6), mix(low, '#FFFFFF', 0.55));
+        // ala de arriba: el respaldo
+        s += part(`M${X(68)} 82C${X(56)} 42 ${X(36)} 13 ${X(18)} 16C${X(4)} 19 ${X(2)} 46 ${X(11)} 60C${X(21)} 74 ${X(44)} 80 ${X(68)} 86Z`, C.front, { w: 2 });
+        s += flat(`M${X(12)} 30C${X(15)} 21 ${X(25)} 18 ${X(34)} 21C${X(26)} 22 ${X(18)} 27 ${X(15)} 38Z`, C.hi, { opacity: 0.85 });
+        s += line(`M${X(64)} 76C${X(50)} 66 ${X(34)} 56 ${X(16)} 50`, C.side, 1.4, { opacity: 0.45 });
+        // el "ojo" del ala, lunares y capitoné
+        s += part(ellD(X(32), 40, 8, 8), A, { w: 1.3 }) + flat(ellD(X(32), 40, 4.2, 4.2), mix(p.cloth, '#FFFFFF', 0.75));
+        s += flat(`${ellD(X(16), 62, 3.4, 3.4)}${ellD(X(52), 66, 3, 3)}`, mix(p.cloth, '#FFFFFF', 0.5));
+        s += flat(`${ellD(X(50), 46, 1.5, 1.5)}${ellD(X(26), 58, 1.5, 1.5)}${ellD(X(40), 70, 1.5, 1.5)}`, C.deep);
+        s += line(`M${X(47)} 43L${X(53)} 49M${X(53)} 43L${X(47)} 49M${X(23)} 55L${X(29)} 61M${X(29)} 55L${X(23)} 61`, C.side, 1, { opacity: 0.4, 'data-skip': 'pixel' });
       });
-      // alas de abajo (asiento)
-      [-1, 1].forEach((k) => {
-        const X = (v) => (k < 0 ? v : 140 - v);
-        s += part(`M${X(70)} 80C${X(48)} 80 ${X(24)} 92 ${X(28)} 108C${X(32)} 122 ${X(56)} 116 ${X(70)} 100Z`, tone(p.cloth, 0.45), { w: 2 });
-        s += flat(`${ellD(X(42), 102, 5, 4)}`, mix(tone(p.cloth, 0.45), '#FFFFFF', 0.5));
-        s += shade(`M${X(30)} 110C${X(34)} 118 ${X(52)} 116 ${X(66)} 104L${X(68)} 102C${X(56)} 118 ${X(32)} 124 ${X(28)} 108Z`, C.deep, 0.3);
-      });
-      // cojín redondo del asiento (su tapa) entre las alas de abajo
-      s += face('M44 92A26 10 0 0 0 96 92V96A26 10 0 0 1 44 96Z', C.side, { w: 1.6 });
-      s += face(ellD(70, 92, 26, 10), mix(p.cloth, '#FFFFFF', 0.35), { w: 1.6 });
-      s += flat(ellD(64, 89, 10, 3.6), mix(p.cloth, '#FFFFFF', 0.6)) + flat(ellD(70, 92, 1.6, 1), C.side);
       // cuerpo de cojín, con rayas
-      s += part('M63 34C63 26 77 26 77 34L76 84Q70 88 64 84Z', tone(p.cloth, -0.8), { w: 1.6 });
-      s += flat('M63.6 48H76.4V52H63.6ZM64.2 66H75.8V70H64.2Z', tone(p.cloth, -1.4));
-      s += flat('M65.6 32Q67 29 70 29L67.8 80L66 80Z', tone(p.cloth, -0.2), { opacity: 0.8 });
+      s += part(rr(62.5, 22, 15, 64, 7.5), tone(p.cloth, -0.8), { w: 1.6 });
+      s += flat('M63.2 38H76.8V42H63.2ZM63.2 54H76.8V58H63.2ZM63.2 70H76.8V74H63.2Z', tone(p.cloth, -1.4));
+      s += flat(rr(65, 25, 2.4, 52, 1.2), tone(p.cloth, -0.1), { opacity: 0.85 });
+      // asiento: tapa con el cojín, sombra del respaldo y canto con ribete
+      // (tela un poco más clara que las alas, para que el asiento se lea)
+      const SE = mat(mix(p.cloth, '#FFFFFF', 0.28));
+      s += face(rrTop(24, 80, 92, 18, 12), SE.top);
+      s += shade(rr(32, 81.4, 76, 4, 2), C.deep, 0.28);
+      s += flat(ellD(58, 88.6, 20, 3.6), SE.hi, { opacity: 0.85 });
+      s += flat(ellD(70, 90.6, 2.2, 1.3), SE.side) + line('M60 89.6Q70 93 80 89.6', SE.side, 1.1, { opacity: 0.45, 'data-skip': 'pixel' });
+      s += face(rr(24, 94, 92, 13, 6), SE.front);
+      s += line('M30 95.8H110', A, 1.8);
+      s += shade(rr(28, 102.6, 84, 3.4, 1.7), SE.deep, 0.25);
+      // patas de adelante con regatón
+      s += taperLegs([36, 104], 105, 124, 6.4, 4.2, p.wood, { cap: BRASS });
       return s;
     },
   },
@@ -509,15 +519,28 @@ export const VIBE_FURNITURE = [
     },
   },
   {
-    // Tira de luces LED pegada a la pared: cinta con sus chips encendidos,
-    // la luz que baña la pared y la cajita del control al final.
+    // Tira LED de colores: cinta sujeta a la pared con clips, chips que
+    // pasan por el arcoíris (cada tramo tiñe la pared de su color), la
+    // cajita del control con sus botones y el cable que baja hasta el
+    // enchufe (nada queda colgando en el aire).
     id: 'tiraLed', name: 'Tira de luces LED', cat: 'luces', price: 120, w: 240, h: 40, place: 'pared', vibes: ['gamer', 'aesthetic', 'y2k'], light: true,
     draw: (p) => {
-      const L = p.accent === '#FFFFFF' ? '#BFE0F5' : p.accent;
-      let s = Ell(118, 19, 116, 21, { fill: L, opacity: 0.16, 'data-r': 'tone' }) + Ell(118, 19, 112, 14, { fill: L, opacity: 0.24, 'data-r': 'tone' }) + Ell(118, 19, 108, 9, { fill: L, opacity: 0.34, 'data-r': 'tone' });
-      s += face(rr(4, 14.4, 222, 7.2, 3.6), '#EEE8F4', { w: 1.5 });
-      for (let x = 12; x < 224; x += 14) s += face(rr(x - 2.6, 15.8, 5.2, 4.4, 1), mix(L, '#FFFFFF', 0.45), { w: 0.9 }) + flat(rr(x - 1, 16.8, 2, 2.2, 0.6), '#FFFFFF');
-      s += face(rr(226, 12, 10, 12, 2.5), '#3A3044', { w: 1.4 }) + flat(rr(229, 15, 3, 3, 1), L);
+      const RGB = ['#FF7EB6', '#FFB070', '#FFE27A', '#8EE6A8', '#7FD1FF', '#B79CFF'];
+      const colAt = (t) => { const f = t * (RGB.length - 1), i = Math.min(RGB.length - 2, Math.floor(f)); return mix(RGB[i], RGB[i + 1], f - i); };
+      let s = '';
+      for (let i = 0; i < 6; i++) { const t = (i + 0.5) / 6; s += halo(f1(14 + t * 192), 17, 28, 17, colAt(t), 1.6); }
+      // cinta, chips y clips
+      s += face(rr(4, 13, 206, 8, 4), '#F4F0F8', { w: 1.5 });
+      for (let i = 0; i < 17; i++) { const x = 12 + i * 12, c = colAt(i / 16); s += flat(rr(x - 3, 14.6, 6, 4.8, 1.4), c) + flat(rr(x - 1.4, 15.6, 2.8, 2.6, 0.8), mix(c, '#FFFFFF', 0.75)); }
+      [42, 102, 162].forEach((x) => { s += face(rr(x - 3, 10.6, 6, 12.2, 1.8), '#DDE3EE', { w: 1.1 }) + flat(rr(x - 1.8, 11.8, 1.2, 9.4, 0.6), '#FFFFFF', { opacity: 0.85 }) + flat(ellD(x + 0.6, 16.8, 1.1, 1.1), '#9AA2B6'); });
+      // control con botones y el cable al enchufe
+      s += G({ 'data-skip': 'pixel' }, line('M220 24C220 30 226 30 226 36', '#3A3044', 1.8)) + G({ 'data-only': 'pixel' }, tube('M220 24C220 30 226 30 226 36', 2.6, '#3A3044', { w: 0.8 }));
+      const box = mix(p.wood, DARK, 0.55);
+      s += face(rr(211, 9, 18, 15, 3.4), box, { w: 1.4 }) + flat(rr(213, 10.6, 14, 1.6, 0.8), tone(box, 0.8));
+      [['#FF7EB6', 215], ['#8EE6A8', 220], ['#7FD1FF', 225]].forEach(([c, x]) => { s += flat(rr(x - 1.3, 17.6, 2.6, 2.6, 0.8), c); });
+      s += flat(ellD(220, 13.8, 1.4, 1.4), '#1A1622');
+      s += face(rr(218, 34, 16, 14, 2.6), '#F6F2EC', { w: 1.3 }) + flat(rr(219.6, 35.4, 1.4, 11, 0.7), '#FFFFFF');
+      s += face(rr(222.4, 36.4, 7.2, 8, 1.6), '#4A4256', { w: 1.1 }) + flat(ellD(226, 46, 0.9, 0.9), '#B9B2C2');
       return s;
     },
   },
@@ -577,23 +600,41 @@ export const VIBE_FURNITURE = [
     },
   },
   {
-    // Tapete de yoga en el piso (rectángulo: las líneas que van al fondo
-    // son verticales), con su textura, un mandala y el extremo enrollado:
-    // el rollo muestra su espiral de frente.
+    // Esterilla de yoga en el piso: rectángulo (lo que va al fondo es
+    // vertical), canto de grosor, goma con franjas suaves, dos líneas guía
+    // y un loto; enrollada a la derecha (la espiral de frente) con su
+    // correa y hebilla, y una toalla doblada encima.
     id: 'tapeteYoga', name: 'Tapete de yoga', cat: 'alfombras', price: 90, w: 200, h: 46, place: 'piso', layer: 'suelo', vibes: ['deportiva', 'aesthetic'],
     draw: (p) => {
       const C = mat(p.cloth);
-      let s = Ell(96, 40, 92, 4, { fill: '#2A1C24', opacity: 0.16, 'data-r': 'tone' });
-      s += face(rr(10, 36, 166, 3.4, 1.2), C.side, { w: 1.6 });
-      s += face(rr(10, 12, 166, 25, 2), C.front, { w: 1.8 });
-      s += line('M16 18H172M16 24H172M16 30H172', C.side, 1.2, { opacity: 0.3 });
-      s += flat(ellD(42, 24, 11, 6), mix(p.cloth, '#FFFFFF', 0.4)) + flat(ellD(42, 24, 6, 3.2), C.front) + flat(ellD(42, 24, 2.4, 1.4), mix(p.cloth, '#FFFFFF', 0.4));
-      s += line('M14 13.6H172', C.hi, 1.4, { opacity: 0.8 });
-      // el rollo
-      s += face('M174 8H196V30A11 11 0 0 1 174 30Z', C.top);
-      s += face(ellD(185, 31, 11, 11), C.front, { w: 1.6 });
-      s += line('M185 31m-1.4 0a1.4 1.4 0 1 1 2.8 0a3.6 3.6 0 1 1 -7.2 0a6 6 0 1 1 12 0a8.4 8.4 0 1 1 -16.8 0', C.side, 1.3);
-      s += flat(rr(177, 10, 3, 18, 1.4), C.hi, { opacity: 0.8 });
+      const lite = mix(p.cloth, '#FFFFFF', 0.55);
+      const strap = acc(p, '#8A7FD0');
+      let s = Ell(94, 41, 90, 4, { fill: '#2A1C24', opacity: 0.16, 'data-r': 'tone' });
+      // la esterilla
+      s += face(rr(8, 36, 168, 3.6, 1.2), C.side, { w: 1.6 });
+      s += face(rr(8, 11, 168, 26, 2.4), C.front, { w: 1.8 });
+      s += line('M14 18.2H170M14 22.6H170M14 27H170M14 31.4H170', C.side, 1.2, { opacity: 0.22 });
+      s += line('M12 14.4H172M12 33.6H172', lite, 1.4, { opacity: 0.9 });
+      s += line('M12 12.4H172', C.hi, 1.3, { opacity: 0.7 });
+      // loto
+      s += flat('M30 28C26.6 25 26.6 20 30 17.4C33.4 20 33.4 25 30 28Z', lite);
+      s += flat('M30 28C24.6 28.4 20.4 25.6 19.4 21.6C24 21.4 28 24 30 28ZM30 28C35.4 28.4 39.6 25.6 40.6 21.6C36 21.4 32 24 30 28Z', mix(lite, p.cloth, 0.25));
+      s += flat(rr(22, 28.4, 16, 1.6, 0.8), lite);
+      // toalla doblada, con su sombrita
+      const T = '#FFFDF8';
+      s += contact(72, 31, 18, 0.22);
+      s += face(rrTop(56, 16, 32, 12, 2.6), T, { w: 1.4 });
+      s += face(rr(56, 27, 32, 4.2, 1.4), tone(T, -0.6), { w: 1.3 });
+      s += flat('M60 16.8h3v10.6h-3ZM80.6 16.8h3v10.6h-3Z', p.cloth) + flat('M60 27.6h3v3h-3ZM80.6 27.6h3v3h-3Z', tone(p.cloth, -0.5));
+      s += line('M58.6 21.6H85.4', tone(T, -0.8), 1.1, { opacity: 0.45 });
+      // el rollo con su correa
+      s += face('M172 6H196V30A12 12 0 0 1 172 30Z', C.top);
+      s += flat(rr(175, 8, 3, 20, 1.5), C.hi, { opacity: 0.85 });
+      s += face(ellD(184, 30, 12, 12), C.front, { w: 1.6 });
+      s += line('M184 30m-1.6 0a1.6 1.6 0 1 1 3.2 0a4 4 0 1 1 -8 0a6.6 6.6 0 1 1 13.2 0a9.4 9.4 0 1 1 -18.8 0', C.side, 1.3);
+      s += face(rr(170.4, 15, 27.2, 4.6, 1.4), strap, { w: 1.3 });
+      s += line('M197.2 17.4Q199.6 22 198 28', strap, 2.2);
+      s += face(rr(176, 13.8, 5.6, 7, 1.2), BRASS, { w: 1.1 }) + flat(rr(177.6, 15.6, 2.4, 3.4, 0.6), strap);
       return s;
     },
   },
