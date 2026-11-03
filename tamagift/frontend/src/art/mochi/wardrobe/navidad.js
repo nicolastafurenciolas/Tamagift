@@ -2,11 +2,11 @@
 // seasons.js). Lo comprado queda en el vestidor para siempre.
 
 import {
-  G, P, E, Cir, OUT, GOLD, GOLD_D, BOTTOM, nid,
-  shade, mixc, f, T, part, flat, line, shine, dot, ball, ellD, starD, heartD,
-  headband, onTop, garment, neckLine, clipBody,
+  BOTTOM, Cir, G, GOLD, GOLD_D, OUT, T, bail, ball, bandD, clipBody, clipTo, dot, ellD, f, flat,
+  furAlong, garment, headband, heartD, lightOf, line, neckGeo, neckLine, neckScale, neckShadow,
+  neckYAt, onTop, part, rr, shade, shine, skipPx, skirt, smileYAt, starD, strip, tone,
 } from './kit.js';
-import { neckBand, skirt } from './outfit.js';
+import { neckBand } from './outfit.js';
 
 const sc = (g) => Math.max(0.8, Math.min(1.12, g.w / 144));
 const FUR = '#FFFFFF', FUR_SH = '#DCE4F0';
@@ -20,14 +20,6 @@ const flakeD = (x, y, r) => {
   }
   return d;
 };
-// Pelusa de piel blanca (bordes de gorro y vestido): borde ondulado.
-function furBand(x1, x2, y, h, n = 7) {
-  const step = (x2 - x1) / n;
-  let top = `M${f(x1)} ${f(y + h / 2)}`, bot = '';
-  for (let i = 0; i < n; i++) top += ` Q${f(x1 + step * (i + 0.5))} ${f(y - 2)} ${f(x1 + step * (i + 1))} ${f(y + h * 0.15)}`;
-  for (let i = n; i > 0; i--) bot += ` Q${f(x1 + step * (i - 0.5))} ${f(y + h + 2)} ${f(x1 + step * (i - 1))} ${f(y + h * 0.85)}`;
-  return part(`${top} L${f(x2)} ${f(y + h * 0.85)}${bot}Z`, FUR, { stroke: '#9AA6BA', 'stroke-width': 1.8 });
-}
 // Banda del collar: punto en t (0 izq … 1 der).
 const neckAt = (g, t, dy = 0) => {
   const y = g.neckY, sag = 5, L = g.l - 6, R = g.r + 6;
@@ -40,13 +32,18 @@ const HEAD = [
   {
     id: 'gorroNoel', label: 'Gorro de Papá Noel', price: 110, colors: ['#D9364F'],
     draw: (g, k) => {
-      const s = sc(g), x1 = 100 - g.w * 0.38, x2 = 100 + g.w * 0.38;
-      const yL = g.topAt(x1) + 7, yR = g.topAt(x2) + 7, top = g.top;
-      // el cono cae hacia la derecha y termina en un pompón
-      const tipX = x2 + 16 * s, tipY = top + 6 * s;
-      const cone = part(`M${f(x1)} ${f(yL)} C${f(x1 + 4)} ${f(top - 22 * s)} ${f(100 + g.w * 0.1)} ${f(top - 30 * s)} ${f(x2 + 4)} ${f(top - 14 * s)} C${f(x2 + 12 * s)} ${f(top - 8 * s)} ${f(tipX + 2)} ${f(tipY - 4)} ${f(tipX)} ${f(tipY)} C${f(x2 + 4)} ${f(top - 4 * s)} ${f(x2)} ${f(yR - 10)} ${f(x2)} ${f(yR)}Z`, k.c1)
-        + line(`M${f(x1 + 12)} ${f(top - 12 * s)} C${f(100 - 6)} ${f(top - 24 * s)} ${f(100 + 14)} ${f(top - 24 * s)} ${f(x2 - 4)} ${f(top - 14 * s)}`, shade(k.c1, 1.1), 1.6, { opacity: 0.6 });
-      return { top: cone + headband(g, g.w * 0.42, -3, 11, FUR) + ball(tipX, tipY + 2, 7.5 * s, FUR, { stroke: '#9AA6BA' }) };
+      const s = sc(g), x1 = 100 - g.w * 0.39, x2 = 100 + g.w * 0.39, top = g.top;
+      const yL = g.topAt(x1) + 5, yR = g.topAt(x2) + 5;
+      // gorro de terciopelo: el cono se dobla y cae a la derecha con su
+      // pompón; borde de piel esponjosa que sigue la cabeza
+      const tipX = x2 + 18 * s, tipY = top + 6 * s;
+      const cone = `M${f(x1)} ${f(yL)} C${f(x1 + 2)} ${f(top - 22 * s)} ${f(100 + g.w * 0.08)} ${f(top - 33 * s)} ${f(x2 + 2)} ${f(top - 17 * s)} C${f(x2 + 12 * s)} ${f(top - 10 * s)} ${f(tipX + 2)} ${f(tipY - 6)} ${f(tipX)} ${f(tipY)} C${f(x2 + 3)} ${f(top - 5 * s)} ${f(x2 - 1)} ${f(yR - 10)} ${f(x2)} ${f(yR)}Z`;
+      return {
+        top: part(cone, k.c1) + clipTo(cone, tone(`M${f(100 + g.w * 0.05)} ${f(top - 40)} C${f(x2)} ${f(top - 30)} ${f(x2 + 4)} ${f(top - 6)} ${f(x2 - 6)} ${f(yR)} L${f(x2 + 30)} ${f(yR)} L${f(x2 + 30)} ${f(top - 40)}Z`, '#2A1C30', 0.2)
+          + line(`M${f(x1 + 8)} ${f(top - 6 * s)} C${f(100 - 14)} ${f(top - 22 * s)} ${f(100 + 4)} ${f(top - 26 * s)} ${f(x2 - 8)} ${f(top - 17 * s)}`, lightOf(k.c1), 1.8, { opacity: 0.7 }))
+          + furAlong(x1 - 5, x2 + 5, (x) => g.topAt(Math.max(x1, Math.min(x2, x))) - 5, 12, 6)
+          + ball(tipX, tipY + 2, 8 * s, '#FFFFFF', { stroke: '#8A98B4' }) + tone(ellD(tipX + 2, tipY + 5, 5.4 * s, 3.6 * s), '#8FA0C0', 0.3) + shine(tipX - 2.6, tipY - 1, 1.7),
+      };
     },
   },
   {
@@ -100,28 +97,37 @@ const NECK = [
   {
     id: 'bufandaNavidad', label: 'Bufanda navideña', price: 90, colors: ['#D9364F', '#FFFFFF'],
     draw: (g, k) => {
-      const y = g.neckY - 3, sag = 5, L = g.l - 8, R = g.r + 8, w = 10;
-      const band = `M${f(L)} ${f(y)} Q100 ${f(y + sag * 2.4)} ${f(R)} ${f(y)} L${f(R)} ${f(y + w)} Q100 ${f(y + w + sag * 2.4)} ${f(L)} ${f(y + w)}Z`;
+      const nk = neckGeo(g), th = 13, wrap = nk.band(th, 0);
+      // bufanda tejida a rayas que abraza el cuerpo; una punta cae por
+      // delante con sus rayas y flecos
       let stripes = '';
-      for (let x = L + 8; x < R; x += 12) stripes += `M${f(x)} ${f(y - 2)} V${f(y + w + 14)} `;
-      const hx = 100 + g.w * 0.17, hy = y + w + 2;
-      const end = part(`M${f(hx - 6)} ${f(hy - 4)} L${f(hx + 6)} ${f(hy - 4)} L${f(hx + 8)} ${f(hy + 24)} L${f(hx - 4)} ${f(hy + 24)}Z`, k.c1)
-        + flat(`M${f(hx - 5.4)} ${f(hy + 4)} L${f(hx + 6.4)} ${f(hy + 4)} L${f(hx + 6.9)} ${f(hy + 9)} L${f(hx - 4.9)} ${f(hy + 9)}Z M${f(hx - 4.8)} ${f(hy + 14)} L${f(hx + 7.2)} ${f(hy + 14)} L${f(hx + 7.6)} ${f(hy + 18)} L${f(hx - 4.4)} ${f(hy + 18)}Z`, k.c2)
-        + line(`M${f(hx - 3)} ${f(hy + 24)} v4 M${f(hx + 1)} ${f(hy + 24)} v4 M${f(hx + 5)} ${f(hy + 24)} v4`, k.c1, 1.8);
-      // la bufanda abraza el cuerpo (recortada a la silueta); solo la
-      // punta cuelga por delante
-      const id = nid('bf');
+      for (let x = nk.L - 2; x < nk.R + 6; x += 12) stripes += `M${f(x)} ${f(nk.y - 14)} h6 V${f(nk.y + 30)} h-6Z`;
+      let ribs = '';
+      for (let x = nk.L; x < nk.R; x += 3.6) ribs += `M${f(x)} ${f(nk.yAt(x) - th / 2 + 2)} v${f(th - 4)}`;
+      const tx = 100 + g.w * 0.17, t0 = nk.yAt(tx) + 3;
+      const end = `M${f(tx - 7)} ${f(t0)} C${f(tx - 9)} ${f(t0 + 9)} ${f(tx - 8)} ${f(t0 + 17)} ${f(tx - 6)} ${f(t0 + 23)} L${f(tx + 9)} ${f(t0 + 23)} C${f(tx + 9)} ${f(t0 + 15)} ${f(tx + 9)} ${f(t0 + 7)} ${f(tx + 8)} ${f(t0 - 2)}Z`;
+      let endStripes = '';
+      for (let i = 0; i < 3; i++) endStripes += `M${f(tx - 12)} ${f(t0 + 3 + i * 7)} h24 v3.4 h-24Z`;
       return {
-        front: clipBody(g, part(band, k.c1) + E('clipPath', { id }, P(band)) + G({ 'clip-path': `url(#${id})` }, line(stripes, k.c2, 4)) + P(band, { fill: 'none', stroke: OUT, 'stroke-width': 2.2, 'data-r': 'line' })) + end,
+        front: clipBody(g, part(wrap, k.c1) + clipTo(wrap, flat(stripes, k.c2) + skipPx(line(ribs, shade(k.c1, -1), 0.9, { opacity: 0.4 })) + tone(nk.band(4, th / 2), '#2A1C30', 0.2)) + line(nk.curve(-th * 0.3), lightOf(k.c1), 1.2, { opacity: 0.7 }))
+          + part(end, k.c1) + clipTo(end, flat(endStripes, k.c2) + tone(`M${f(tx + 3)} ${f(t0 - 4)} H${f(tx + 12)} V${f(t0 + 26)} H${f(tx + 4)}Z`, '#2A1C30', 0.18))
+          + line(`M${f(tx - 4.5)} ${f(t0 + 24)} v5 M${f(tx - 1)} ${f(t0 + 24)} v6 M${f(tx + 2.5)} ${f(t0 + 24)} v5.5 M${f(tx + 6)} ${f(t0 + 24)} v5`, shade(k.c1, -0.4), 2),
       };
     },
   },
   {
     id: 'collarCascabeles', label: 'Collar de cascabeles', price: 75, colors: ['#D9364F', GOLD],
     draw: (g, k) => {
-      const y = g.neckY, sag = 5, L = g.l - 6, R = g.r + 6;
-      let s = clipBody(g, P(`M${f(L)} ${f(y)} Q100 ${f(y + sag * 2.4)} ${f(R)} ${f(y)}`, { fill: 'none', stroke: k.c1, 'stroke-width': 4, 'data-r': 'line' }));
-      [0.32, 0.5, 0.68].forEach((t, i) => { const [x, yy] = neckAt(g, t, 2); s += bell(x, yy + 6, i === 1 ? 5.4 : 4.4, k.c2); });
+      const nk = neckGeo(g), S = neckScale(g);
+      let s = clipBody(g, part(nk.band(5.5), k.c1, { 'stroke-width': 1.8 }) + line(nk.curve(-1.4), lightOf(k.c1), 1.1, { opacity: 0.75 }));
+      [0.34, 0.5, 0.66].forEach((t, i) => {
+        const [x, yy] = nk.pt(t, 3);
+        const r = (i === 1 ? 6 : 4.8) * S;
+        s += bail(x, yy + 0.6, k.c2) + bell(x, yy + 2 + r, r, k.c2);
+      });
+      // ramita de acebo en el centro
+      const [hx, hy] = nk.pt(0.5, -1);
+      s += part(`M${f(hx)} ${f(hy)} C${f(hx - 4)} ${f(hy - 6)} ${f(hx - 12)} ${f(hy - 6)} ${f(hx - 14)} ${f(hy - 2)} C${f(hx - 10)} ${f(hy - 1)} ${f(hx - 6)} ${f(hy + 1)} ${f(hx)} ${f(hy)}Z M${f(hx)} ${f(hy)} C${f(hx + 4)} ${f(hy - 6)} ${f(hx + 12)} ${f(hy - 6)} ${f(hx + 14)} ${f(hy - 2)} C${f(hx + 10)} ${f(hy - 1)} ${f(hx + 6)} ${f(hy + 1)} ${f(hx)} ${f(hy)}Z`, '#2F7A4E', { 'stroke-width': 1.3 });
       return { front: s };
     },
   },
@@ -147,14 +153,21 @@ const OUTFIT = [
     id: 'vestidoNoel', label: 'Vestido de Mamá Noel', price: 180, colors: ['#D9364F', '#2A2230'],
     draw: (g, k) => {
       const nl = neckLine(g, { side: 8, center: 26 });
-      const yW = nl.yc + 14;
-      const sk = skirt(g, yW, k.c1, { flare: 10, pleats: 0, hem: BOTTOM + 2 });
-      const belt = clipBody(g, part(`M${f(g.l - 4)} ${f(yW - 4)} Q100 ${f(yW)} ${f(g.r + 4)} ${f(yW - 4)} L${f(g.r + 4)} ${f(yW + 3)} Q100 ${f(yW + 7)} ${f(g.l - 4)} ${f(yW + 3)}Z`, k.c2));
-      const buckle = part(`M${f(100 - 5)} ${f(yW - 3)} h10 v8 h-10Z`, GOLD, { stroke: GOLD_D, 'stroke-width': 1.4 }) + flat(`M${f(100 - 2.4)} ${f(yW - 0.6)} h4.8 v3.2 h-4.8Z`, k.c2);
+      const yW = Math.min(nl.yc + 13, BOTTOM - 16);
+      const hw = g.chordAt(yW) / 2 + 2;
+      const fl = 9, xl = g.l - fl, xr = g.r + fl, hem = BOTTOM - 2;
+      // terciopelo: brillo suave en el costado iluminado
+      const sheen = tone(`M${f(g.l + 6)} ${f(nl.ys + 6)} q5 12 4 ${f(yW - nl.ys - 8)} l-4 0 q1 -10 -4 -20Z`, '#FFFFFF', 0.25);
+      const belt = strip(bandD(100 - hw, 100 + hw, yW - 3, 6, 2), k.c2);
+      const buckle = part(rr(100 - 5.5, yW - 3.6, 11, 8.2, 1.2), GOLD, { stroke: GOLD_D, 'stroke-width': 1.4 }) + flat(rr(100 - 2.8, yW - 1.2, 5.6, 3.4, 0.6), k.c2) + shine(96, yW - 2.2, 0.8);
+      const poms = [0, 1].map((i) => { const y = nl.yc + 6 + i * 5.5; return y < yW - 4 ? ball(100, y, 2, FUR, { stroke: '#9AA6BA', 'stroke-width': 1 }) : ''; }).join('');
       return {
-        outfit: garment(g, k.c1, { side: 8, center: 26 }).svg + sk
-          + furBand(g.l - 12, g.r + 12, BOTTOM - 4, 9, 9) + clipBody(g, furBand(g.l - 10, g.r + 10, nl.ys - 3, 7, 8))
-          + belt + buckle + [0, 1].map((i) => dot(100, nl.yc + 4 + i * 6, 1.6, FUR)).join(''),
+        outfit: garment(g, k.c1, { side: 8, center: 26, extra: sheen + neckShadow(g, nl, 6, 3, 0.2) }).svg
+          + clipBody(g, furAlong(g.l - 10, g.r + 10, (x) => neckYAt(g, nl, x) - 2, 8, 9))
+          + poms
+          + skirt(g, yW, k.c1, { flare: fl, folds: 6, hem })
+          + furAlong(xl - 1, xr + 1, (x) => smileYAt(xl, xr, hem - 5, 4, x), 9, 10)
+          + belt + buckle,
       };
     },
   },
