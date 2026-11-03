@@ -27,8 +27,13 @@ export const surf = (cx, y, rx) => Ell(cx, y, rx, f1(rx * 0.2), { fill: SHADOW, 
 /** Sombra de contacto en el piso. */
 export const floorSh = (cx, y, rx, ry = rx * 0.17) => Ell(cx, y, rx, f1(ry), { fill: SHADOW, opacity: 0.18, 'data-r': 'tone' })
   + Ell(cx, f1(y - ry * 0.1), f1(rx * 0.72), f1(ry * 0.62), { fill: SHADOW, opacity: 0.3, 'data-r': 'tone' });
-/** Halo de luz (lámparas, velas). */
-export const glow = (cx, cy, rx, ry, c = '#FFE9A8', op = 0.3) => Ell(cx, cy, rx, ry, { fill: c, opacity: op, 'data-r': 'tone' });
+/**
+ * Halo de luz (lámparas, velas): tres escalones que se desvanecen hacia
+ * afuera. En neón no va (allí la luz la dan los tubos y un disco
+ * semitransparente se ve como una mancha oscura).
+ */
+export const glow = (cx, cy, rx, ry, c = '#FFE9A8', op = 0.3) => [[1, 0.5], [0.72, 0.5], [0.46, 0.9]]
+  .map(([k, o]) => Ell(cx, cy, f1(rx * k), f1(ry * k), { fill: c, opacity: f1(op * o), 'data-r': 'tone', 'data-skip': 'neon' })).join('');
 
 /** Media luna abajo a la derecha de una elipse (el lado en sombra de lo redondo). */
 export function crescent(cx, cy, rx, ry, t = 0.3, a1 = -40, a2 = 130) {
@@ -427,23 +432,22 @@ export const DECOR_VIBES = [
     draw: () => {
       const R = '#E8505E';
       let s = surf(28, 57.6, 21);
-      // la tapa despegada, parada atrás
-      s += part('M12.6 21C9 9.6 22 2.4 37.6 5C43.6 6 46 9 45 12.4C40 12.4 34.4 15 30.4 21Z', '#F4F0EA', { w: 1.5 });
-      s += flat('M17 11.6C22 7.6 30 6.4 36.4 7.8L35.6 10.8C29.4 9.8 23.4 10.6 19 13.4Z', R);
+      // la tapa despegada, doblada hacia atrás
+      s += part('M12.6 21.4C10.4 13 15.6 6.6 24.6 5.6C31 5 35.4 7.6 34.6 12C30.6 12.6 27.4 15.6 26.4 21.4Z', '#F4F0EA', { w: 1.5 });
+      s += flat('M15.8 14.2C17.4 10 21.6 8.2 26.8 8L27.4 10.8C23.4 10.8 20.4 12.4 19 15.6Z', R) + line('M30.4 7.4Q32.6 9 32.2 11.6', '#D6CFE0', 1.2);
       // el vaso con su banda
       s += part('M10 22L15 54A13 4 0 0 0 41 54L46 22Z', '#FFFFFF', { w: 1.8 });
-      s += flat('M11.6 32.4H44.4L43.2 41H12.8Z', R) + flat(star(28, 36.8, 3.6), '#FFE07A') + dots([[17.6, 36.8], [38.4, 36.8]], 1.2, '#FFE07A');
+      s += flat('M11.6 32.4H44.4L43.2 41H12.8Z', R) + flat(star(28, 36.8, 3.8), '#FFE07A') + dots([[17.6, 36.8], [38.4, 36.8]], 1.3, '#FFE07A');
       s += shade('M38 22.6H46L41 54A13 4 0 0 1 35 57.6Z', '#B8AFC4', 0.3);
-      // la boca: caldo, fideos y lo de arriba
+      // la boca: caldo, fideos, medio huevo y naruto
       s += face(ellD(28, 22, 18, 6.4), '#F4F0EA', { w: 1.6 });
       s += flat(ellD(28, 22.6, 15.6, 4.8), '#E8A24E');
-      s += line('M14.6 22.6q2.4 -2.4 4.8 0t4.8 0t4.8 0t4.8 0t4.8 0', '#FFE7A0', 2) + line('M17 25.2q2.4 -2 4.8 0t4.8 0t4.8 0t4.8 0', '#FFE7A0', 1.8);
-      s += face(rr(37.6, 12.6, 5.6, 9, 0.8), '#2E4A3A', { w: 1.2 });
-      s += part(ellD(20.6, 20.6, 4.4, 3.2), '#FFFFFF', { w: 1.1 }) + dot(20.6, 20.8, 1.9, '#FFC23D');
-      s += part(ellD(33.4, 20.4, 4, 3), '#FFFFFF', { w: 1.1 }) + line('M32.2 20.6a1.3 1 0 1 1 1.6 1', '#F28CA8', 1.1);
-      s += dots([[27, 19.4], [28.6, 24.4], [39.4, 23.4], [16.4, 23.8]], 1.1, '#7FC48A');
-      // palillos apoyados en el borde
-      s += tube('M5.6 29.6L44.6 10.6', 2.4, '#D9B48A') + tube('M8.6 32.6L48 15.6', 2.4, '#C9A06A');
+      s += line('M14.6 23q2.6 -2.4 5.2 0t5.2 0t5.2 0t5.2 0t5.2 0', '#FFE7A0', 2.2);
+      s += part(ellD(20.4, 20.6, 5, 3.4), '#FFFFFF', { w: 1.2 }) + dot(20.4, 20.8, 2.2, '#FFC23D');
+      s += part(ellD(35.2, 20.8, 4.6, 3.3), '#FFFFFF', { w: 1.2 }) + line('M33.8 21a1.6 1.2 0 1 1 1.9 1.1', '#F28CA8', 1.3);
+      s += dots([[28, 19.2], [27.4, 25], [41.6, 23.4]], 1.2, '#7FC48A');
+      // un par de palillos apoyados sobre el borde
+      s += tube('M6 30.4L51 14.6', 2.6, '#D9B48A') + tube('M8.4 33.4L52.6 17.8', 2.6, '#C9A06A');
       return s;
     },
   },
@@ -554,9 +558,9 @@ export const DECOR_VIBES = [
       s += part('M39 31C43 12 36 4 32.4 8C30 12 31 22 32 32Z', W, { w: 1.6 }) + flat('M37 27C39 15.6 36 10.6 34 12.4C32.6 15.4 33 22 33.6 28Z', '#FFC4D6');
       // cuerpo de silicona encendido
       s += part('M8 56C8 36 16 27 27 27C38 27 46 36 46 56C46 63.4 40 66.6 27 66.6C14 66.6 8 63.4 8 56Z', W, { w: 1.8 });
-      s += flat(ellD(27, 50, 13.4, 11.4), '#FFF1C8', { opacity: 0.9, 'data-skip': 'neon' }) + shine(ellD(27, 50, 12, 10), { opacity: 0.5, 'data-only': 'neon' });
+      s += flat(ellD(27, 50, 13.4, 11.4), '#FFF1C8', { opacity: 0.9, 'data-skip': 'neon' });
       // dormidito
-      s += line('M17.6 46.4q2.8 2.6 5.6 0M30.8 46.4q2.8 2.6 5.6 0', INK, 1.5) + blush(16.4, 51.6, 3) + blush(37.6, 51.6, 3) + catMouth(27, 51, 3.6);
+      s += line('M17.4 46.2q3 2.8 6 0M30.6 46.2q3 2.8 6 0', INK, 1.8) + blush(16.4, 51.6, 3) + blush(37.6, 51.6, 3) + catMouth(27, 51.2, 4);
       s += part(ellD(20.4, 63, 4, 2.6), W, { w: 1.3 }) + part(ellD(33.6, 63, 4, 2.6), W, { w: 1.3 });
       return s;
     },
@@ -741,25 +745,29 @@ export const DECOR_VIBES = [
   {
     id: 'pan', name: 'Canasta de pan', price: 45, w: 74, h: 50, place: 'sobre', vibes: ['cottagecore', 'chef'],
     draw: () => {
-      const W = '#C8955E', mw = mat(W), K = '#E8505E';
+      const W = '#C8955E', mw = mat(W), K = '#E8505E', KL = mix(K, '#FFFFFF', 0.62);
       let s = surf(37, 47.6, 31);
-      // boca de la canasta con la servilleta adentro
-      s += face(ellD(37, 24, 31, 9), mix(mw.side, '#2A1C24', 0.2), { w: 1.6 });
-      s += flat(ellD(37, 24.6, 26, 6.6), mix(K, '#FFFFFF', 0.62));
-      // panes: baguette atrás, hogaza al medio y pancito
-      s += `<g transform="rotate(-14 50 15)">${part(rr(31, 9.4, 38, 10, 5), '#F0C27E', { w: 1.5 })}${line('M38.6 11.4l3.6 5.6M46.4 11.4l3.6 5.6M54.2 11.4l3.6 5.6M62 11.4l2.6 4', '#B87A3C', 1.6)}${shine(rr(34, 11, 10, 1.6, 0.8), { opacity: 0.6 })}</g>`;
-      s += part(ellD(28, 20.4, 12.6, 9.4), '#C97F3E', { w: 1.6 }) + roundShade(28, 20.4, 12.6, 9.4, '#C97F3E', 0.26, 0.3);
-      s += line('M21.4 15.4L34.6 24.6M34.6 15.4L21.4 24.6', '#F6DDB0', 2) + gloss(21.6, 15.4, 2.6, 1.2, -25, 0.6);
-      s += part(ellD(48.6, 23.4, 8.6, 6.2), '#E6A85C', { w: 1.5 }) + line('M44.4 22.4Q48.6 19.6 52.8 22.4', '#B87A3C', 1.5) + roundShade(48.6, 23.4, 8.6, 6.2, '#E6A85C', 0.3, 0.26);
-      // dos puntas de la servilleta caen por el borde de adelante
-      const flap = (d, dark) => part(d, mix(K, '#FFFFFF', 0.62), { w: 1.3 }) + shade(dark, K, 0.5);
-      s += flap('M10 25.6L23 30.6L15 40Z', 'M13.4 27L16.4 28.2L15.4 36.4L14.4 37.6ZM10.6 29.4L21 31.6L20 33L11.6 31.2Z');
-      s += flap('M64 25.6L51 30.6L59 40Z', 'M60.6 27L57.6 28.2L58.6 36.4L59.6 37.6ZM63.4 29.4L53 31.6L54 33L62.4 31.2Z');
+      // la boca, forrada con la servilleta
+      s += face(ellD(37, 24, 31, 9), KL, { w: 1.6 });
+      // panes: baguette atrás y hogaza con su corte en cruz
+      s += `<g transform="rotate(-14 50 15)">${part(rr(29, 9.4, 40, 10.4, 5.2), '#F0C27E', { w: 1.5 })}${line('M37.4 11.4l3.6 5.8M45.6 11.4l3.6 5.8M53.8 11.4l3.6 5.8M62 11.6l2.6 4', '#B87A3C', 1.7)}${shine(rr(32.4, 11, 11, 1.8, 0.9), { opacity: 0.6 })}</g>`;
+      s += part(ellD(30, 20.4, 13.4, 9.8), '#C97F3E', { w: 1.6 }) + roundShade(30, 20.4, 13.4, 9.8, '#C97F3E', 0.26, 0.3);
+      s += line('M22.6 15L37.4 25.4M37.4 15L22.6 25.4', '#F6DDB0', 2.2) + gloss(23.4, 15, 2.8, 1.3, -25, 0.6);
       // la canasta: frente tejido y borde enrollado
       s += basketFront(37, 25, 31, 9, 43, 25, 5.4, W, 3);
       s += face('M5.4 24A31.6 9.4 0 0 0 68.6 24V27.4A31.6 9.4 0 0 1 5.4 27.4Z', mw.top, { w: 1.6 });
-      s += line('M9 26.4l2 2.6M15.6 29l2 2.6M23 31.2l2 2.6M31 32.4l2 2.6M39 32.6l2 2.6M47 31.6l2 2.6M54.6 29.6l2 2.6M61.4 26.8l2 2.4', mw.side, 1.2, { opacity: 0.65 });
-      s += flap('M12 27.4L22 31.4L17 38.6Z', 'M14.6 28.6L16.8 29.6L16.6 35.6Z') + flap('M62 27.4L52 31.4L57 38.6Z', 'M59.4 28.6L57.2 29.6L57.4 35.6Z');
+      s += line('M9 26.4l2 2.6M15.6 29l2 2.6M23 31.2l2 2.6M31 32.4l2 2.6M39 32.6l2 2.6M47 31.6l2 2.6M54.6 29.6l2 2.6M61.4 26.8l2 2.4', mw.side, 1.2, { opacity: 0.6 });
+      // las dos puntas de la servilleta caen sobre el borde, a cuadros
+      const flap = (A, B, C) => {
+        const L = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+        const pt = ([x, y]) => `${f1(x)} ${f1(y)}`;
+        let o = part(`M${pt(A)}L${pt(B)}L${pt(C)}Z`, KL, { w: 1.4 });
+        let st = '';
+        [[0.3, 0.48], [0.66, 0.82]].forEach(([t1, t2]) => { st += `M${pt(L(A, C, t1))}L${pt(L(B, C, t1))}L${pt(L(B, C, t2))}L${pt(L(A, C, t2))}Z`; });
+        [[0.22, 0.4], [0.6, 0.78]].forEach(([u1, u2]) => { const p1 = L(A, B, u1), p2 = L(A, B, u2); st += `M${pt(p1)}L${pt(p2)}L${pt(L(p2, C, 0.86))}L${pt(L(p1, C, 0.86))}Z`; });
+        return o + shade(st, K, 0.5);
+      };
+      s += flap([6.4, 24.6], [24.6, 29.6], [14.4, 41.4]) + flap([67.6, 24.6], [49.4, 29.6], [59.6, 41.4]);
       return s;
     },
   },
@@ -953,8 +961,8 @@ export const DECOR_VIBES = [
       s += shine('M11.6 11.4h4L11.6 15.4Z', { opacity: 0.5 }) + gloss(9, 8, 1.6, 0.8, -40, 0.7);
       s += flat(star(24, 27, 1.8, 0.5), '#FFFFFF');
       // correa con dijes colgando de la esquina
-      s += line('M28.6 7.6C33.4 7 34.6 14 33.2 21', A, 1.6) + dots([[33.8, 12.4], [33.9, 16.6]], 1.6, '#FFFFFF');
-      s += part(star(33, 25, 3.6, 0.5), '#FFE07A', { w: 1.1 }) + line('M32.6 28.4L31 31', A, 1.2) + part(heart(30.4, 32.6, 2.6), A, { w: 1 });
+      s += line('M28.6 7.6C32.2 8 33 12.4 31.8 16.6', A, 1.8) + part(ellD(31.6, 18.6, 1.9, 1.9), '#FFFFFF', { w: 1 });
+      s += part(heart(31.2, 24.4, 3.4), A, { w: 1.2 }) + gloss(29.9, 23.1, 0.8, 0.55, -40, 0.9);
       return s;
     },
   },
@@ -986,8 +994,8 @@ export const DECOR_VIBES = [
     draw: (p) => {
       const U = 'M0 0C-3 -13 -17 -14.6 -17.6 -5.4C-17.8 0.6 -9 3 0 1.4Z', L = 'M0 1.4C-7 3 -13.6 10 -9.4 14C-5.4 16.6 -1 11.4 0 5Z';
       const both = (d) => `${d}<g transform="scale(-1 1)">${d}</g>`;
-      const fly = (x, y, sc, c, a) => {
-        const m = mat(c), t = (dx, dy) => `translate(${x + dx} ${y + dy}) rotate(${a}) scale(${sc})`;
+      const fly = (x, y, sc, c) => {
+        const t = (dx, dy) => `translate(${x + dx} ${y + dy}) scale(${sc})`;
         let o = `<g transform="${t(2.4, 3)}">${both(shade(U + L, '#2A1C24', 0.13))}</g>`;
         o += `<g transform="${t(0, 0)}">`;
         o += both(part(U, c, { w: 1.4 }) + flat('M-4 -2C-6 -9 -13 -10.6 -14.6 -6C-14.4 -2.4 -9 -0.6 -4 -2Z', tone(c, 0.5)) + part(L, tone(c, 0.3), { w: 1.3 }));
@@ -996,7 +1004,7 @@ export const DECOR_VIBES = [
         o += line('M-0.6 -4.6Q-3 -10 -5 -11.4M0.6 -4.6Q3 -10 5 -11.4', '#4A3A50', 1.1) + dots([[-5.2, -11.6], [5.2, -11.6]], 1.2, '#4A3A50');
         return o + '</g>';
       };
-      return fly(23, 23, 1, p.cloth, -10) + fly(66, 18, 0.8, p.accent === '#FFFFFF' ? '#9FD8E8' : p.accent, 12) + fly(49, 43, 0.62, tone(p.cloth, 0.5), -4);
+      return fly(23, 22, 1, p.cloth) + fly(67, 19, 0.86, p.accent === '#FFFFFF' ? '#9FD8E8' : p.accent) + fly(48, 42, 0.72, tone(p.cloth, 0.5));
     },
   },
   // ── Celestial ──────────────────────────────────────────────────
@@ -1323,23 +1331,32 @@ export const DECOR_VIBES = [
     id: 'terrario', name: 'Terrario', price: 70, w: 56, h: 64, place: 'sobre', vibes: ['aesthetic', 'cottagecore'],
     draw: () => {
       const F = '#D9B266', mf = mat(F);
+      const Lx = (y) => 5 + (y - 40) * 0.263, Rx = (y) => 51 - (y - 40) * 0.263;
+      const band = (y0, y1) => `M${f1(Lx(y0))} ${y0}H${f1(Rx(y0))}L${f1(Rx(y1))} ${y1}H${f1(Lx(y1))}Z`;
       let s = surf(28, 61.6, 23);
-      // terrario geométrico: vidrio de atrás
+      // vidrio de atrás, verdoso
       const out = 'M10 59L5 40L17 15H39L51 40L46 59Z';
-      s += shade(out, '#E3F2F8', 0.42);
-      // capas: piedritas, tierra y musgo
-      s += flat('M6.6 46.6H49.4L46 58.6H10Z', '#C9C2D0') + dots([[12, 52], [19, 55], [27, 52.6], [35, 55.4], [43, 52]], 1.3, '#A8A0B4');
-      s += flat('M5.8 43.4H50.2L49.4 47H6.6Z', '#7A5A44');
-      s += part('M6.4 43.6C10 38.6 19 37.6 28 39.4C37 37.6 46 38.6 49.6 43.6C42 46 14 46 6.4 43.6Z', '#86BE6E', { w: 1.3 });
-      // plantitas: suculenta, helecho y un hongo rojo
-      s += spoon(17.4, 40.4, 9.4, -152, 3.4, '#76B394') + spoon(20, 40.4, 9.4, -28, 3.4, '#76B394') + spoon(18.7, 40.4, 10, -90, 3.4, '#96CFAF');
-      s += line('M37 41C37 34 38 28 42 24', '#5BAA5C', 1.6);
-      s += leaf(37.6, 36, 6, -160, 2, '#6CB577') + leaf(38.4, 31, 5.4, -20, 1.8, '#6CB577') + leaf(39.6, 27, 4.6, -150, 1.6, '#86C49A') + leaf(37.2, 38.6, 6, -10, 2, '#86C49A');
-      s += face(rr(28.4, 37, 2.2, 4.4, 1), '#FFF6E8', { w: 0.9 }) + part('M25.6 37.4C25.6 33.4 33.4 33.4 33.4 37.4Z', '#E8505E', { w: 1.1 }) + dots([[28, 35.4], [31.2, 36]], 0.7, '#FFFFFF');
-      // marco de bronce y brillos del vidrio
+      s += shade(out, '#CFEAE6', 0.55);
+      // las capas a la vista: arena, piedritas, carbón y tierra
+      s += flat(band(52.6, 59), '#EAD9B8') + dots([[14, 56], [24, 57.4], [33, 55.6], [42, 56.8]], 0.9, '#CDB68C');
+      s += flat(band(47.4, 52.6), '#B9B2C6') + dots([[11, 50], [17, 49.4], [23, 51], [29, 49.6], [35, 51], [41, 49.6], [46, 50.6]], 1.6, '#958CA6') + dots([[14, 51.4], [26, 48.6], [38, 48.8], [44, 51.6]], 1.1, '#E2DCEA');
+      s += flat(band(45.6, 47.4), '#4A3E44');
+      s += flat(band(41.6, 45.6), '#7A5A44') + dots([[12, 43.6], [21, 44.4], [33, 43.4], [43, 44.2]], 0.9, '#9A7658');
+      // musgo en lomitas
+      s += part('M5.6 42C9 37 16 36.4 22 38.6C26 36.2 33 35.8 37 38.2C41 36.6 47.6 37.6 50.4 42C42 44.4 14 44.4 5.6 42Z', '#86BE6E', { w: 1.3 });
+      s += dots([[11, 39.8], [18, 38.6], [30, 38.2], [42, 39]], 1.3, '#A8D88E');
+      // un helecho alto, una suculenta, una piedrita y un hongo rojo
+      s += line('M17.6 39.6C16 31 14 25 9.6 18.6', '#4E8F62', 1.7);
+      [[16.8, 35.6, 6.4], [15.6, 31, 6], [14.2, 26.6, 5.2], [12.4, 22.6, 4.4]].forEach(([x, y, l]) => { s += leaf(x, y, l, 200, 2.2, '#6CB577') + leaf(x, y, l, -30, 2.2, '#86C49A'); });
+      s += line('M21 39.6C22 32 24.6 27 28.6 23.4', '#4E8F62', 1.5);
+      [[21.8, 35, 5], [23.4, 30.6, 4.6], [25.6, 27, 4]].forEach(([x, y, l]) => { s += leaf(x, y, l, -150, 1.9, '#7FBF8A') + leaf(x, y, l, -10, 1.9, '#6CB577'); });
+      s += spoon(39, 40, 10, -150, 3.6, '#76B394') + spoon(42, 40, 10, -30, 3.6, '#76B394') + spoon(40.5, 40, 11, -90, 3.6, '#96CFAF') + spoon(39.6, 40.6, 7, 150, 3.2, '#96CFAF') + spoon(41.4, 40.6, 7, 30, 3.2, '#96CFAF');
+      s += part(ellD(32.6, 41, 3, 1.8), '#C9C2D0', { w: 1.1 });
+      s += face(rr(27.2, 37.4, 2.2, 4.4, 1), '#FFF6E8', { w: 0.9 }) + part('M24.6 37.8C24.6 33.8 32 33.8 32 37.8Z', '#E8505E', { w: 1.1 }) + dots([[26.8, 35.8], [29.8, 36.2]], 0.7, '#FFFFFF');
+      // marco de bronce y los reflejos del vidrio
       s += line(out, mf.side, 1.8) + line('M5 40H51M17 15L13 40L10 59M39 15L43 40L46 59', F, 1.3);
       s += part(ellD(28, 13, 2.2, 1.8), F, { w: 1 }) + line('M28 13V15', mf.side, 1.4);
-      s += shine('M9.6 38.6L17 23.4L18.4 24.2L11.4 39Z', { opacity: 0.65 }) + shine('M42 22L44 26L43 26.4L41 22.4Z', { opacity: 0.5 });
+      s += shine('M8.4 37.6L16.6 19.4L19 20.4L10.8 38.4Z', { opacity: 0.6 }) + shine('M41.6 19L46.6 30.4L45.4 31L40.4 19.6Z', { opacity: 0.45 }) + shine('M44.4 44.6L43.2 54.4L44.6 54.8L45.8 45Z', { opacity: 0.45 });
       return s;
     },
   },

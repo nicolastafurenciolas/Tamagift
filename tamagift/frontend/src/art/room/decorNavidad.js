@@ -136,25 +136,37 @@ export const DECOR_NAVIDAD = [
     id: 'coronaNavidad', name: 'Corona navideña', price: 70, w: 80, h: 86, place: 'sobre', season: 'navidad',
     draw: () => {
       const cx = 40, cy = 46;
+      const rad = (d) => (d * Math.PI) / 180;
+      // borde de agujas: zigzag con puntas desparejas alrededor de un círculo
+      const fringe = (n, rv, rt, off, dir) => {
+        let d = '';
+        for (let i = 0; i <= n; i++) {
+          const a = dir * rad(off + (i * 360) / n), am = dir * rad(off + ((i + 0.5) * 360) / n);
+          const v = `${f1(cx + Math.cos(a) * rv)} ${f1(cy + Math.sin(a) * rv)}`;
+          d += i ? `L${v}` : `M${v}`;
+          if (i < n) { const k = [0, 1.7, 0.5, 2.3, 0.9][i % 5] * (rt > rv ? 1 : -0.55), aj = am + dir * rad([0, 2.2, -1.6, 1, -2.4][i % 5]); d += `L${f1(cx + Math.cos(aj) * (rt + k))} ${f1(cy + Math.sin(aj) * (rt + k))}`; }
+        }
+        return `${d}Z`;
+      };
       // la cinta que la cuelga del clavito
       let s = part('M36.4 4 L43.6 4 L44.6 22 L35.4 22Z', RED, { w: 1.4 }) + flat('M40 4.6 L43.4 4.6 L44 21 L40.4 21Z', tone(RED, -0.6));
       s += part(ellD(40, 5, 2.8, 2.6), '#C8C0D0', { w: 1.2 }) + Cir(39.2, 4.2, 0.9, { fill: '#FFFFFF', 'data-r': 'shine' });
-      // el aro de pino: borde mullido por fuera y por dentro
-      s += part(fluffyRing(cx, cy, 29, 13.5, 17, 9, 4.4, 3), GREEN_M, { w: 2, a: { 'fill-rule': 'evenodd' } });
-      s += shade(`${ellD(cx + 1.4, cy + 1.8, 26.6, 26.6)} ${ellD(cx - 1.6, cy - 1.8, 25.4, 25.4)}`, '#1E4A30', 0.4, { 'fill-rule': 'evenodd' });
-      // matas más claras donde pega la luz y agujitas
-      [[-150, 22], [-118, 22], [-180, 21], [-88, 22], [-210, 22]].forEach(([a, r]) => {
-        const ar = (a * Math.PI) / 180;
-        s += flat(fluffyBlob(cx + Math.cos(ar) * r, cy + Math.sin(ar) * r, 6.4, 5, 2), GREEN_L, { 'data-skip': 'neon' });
-      });
-      let nd = '';
-      for (let i = 0; i < 20; i++) {
-        const ar = ((i * 18 + (i % 2) * 7) * Math.PI) / 180, r = i % 2 ? 25 : 18;
-        const x = cx + Math.cos(ar) * r, y = cy + Math.sin(ar) * r, ux = Math.cos(ar), uy = Math.sin(ar);
-        nd += `M${f1(x - uy * 3 - ux * 1.6)} ${f1(y + ux * 3 - uy * 1.6)} L${f1(x + ux * 1.6)} ${f1(y + uy * 1.6)} L${f1(x + uy * 3 - ux * 1.6)} ${f1(y - ux * 3 - uy * 1.6)} `;
+      // la silueta: un solo aro con agujas que asoman por afuera y por adentro
+      // (redondo y frondoso, no un polígono; en papel queda una sola cartulina)
+      s += part(`${fringe(26, 23.4, 28, 0, 1)} ${fringe(14, 15.2, 11.6, 10, -1)}`, GREEN, { w: 1.7, a: { 'fill-rule': 'evenodd' } });
+      // el cuerpo del aro, más claro, tapando el nacimiento de las agujas
+      s += part(`${ellD(cx, cy, 24, 24)} ${ellD(cx, cy, 14.6, 14.6)}`, GREEN_M, { w: 1.4, a: { 'fill-rule': 'evenodd' } });
+      s += shade(`${ellD(cx + 1.6, cy + 2, 23.2, 23.2)} ${ellD(cx - 1.4, cy - 1.6, 22.4, 22.4)}`, '#1E4A30', 0.45, { 'fill-rule': 'evenodd' });
+      // ramitas claras y oscuras encima (en papel serían confeti: no van)
+      let lt = '', dk = '';
+      for (let i = 0; i < 18; i++) {
+        const a = rad(i * 20 + 6), r = i % 2 ? 21 : 17.6, b = a + rad(75);
+        const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r, ux = Math.cos(b) * 3.4, uy = Math.sin(b) * 3.4;
+        const d = `M${f1(x - ux - uy * 0.4)} ${f1(y - uy + ux * 0.4)} L${f1(x + ux)} ${f1(y + uy)} L${f1(x - ux + uy * 0.4)} ${f1(y - uy - ux * 0.4)}Z `;
+        if (Math.sin(a) < 0.35 && Math.cos(a) < 0.5) lt += d; else dk += d;
       }
-      s += line(nd, tone(GREEN, -0.5), 1.1, { opacity: 0.75, 'data-skip': 'pixel neon' });
-      // acebo con racimos de bolitas y una piña
+      s += flat(lt, GREEN_L, { 'data-skip': 'papel' }) + flat(dk, tone(GREEN_M, -0.45), { 'data-skip': 'papel' });
+      // acebo con racimos de bolitas, una piña y el moño
       s += holly(26, 22, 200, 12) + holly(27, 23, 250, 11, '#3A8556') + berries(28, 24);
       s += holly(66, 46, -20, 11) + holly(66, 47, 30, 11, '#3A8556') + berries(64, 46.4);
       s += part('M17 52 C13 56 13 63 17 66 C21 63 22 57 17 52Z', '#9A6B48', { w: 1.3 }) + line('M14.4 57 L19.6 58 M14 61 L20 62', '#6E4A30', 1.1);

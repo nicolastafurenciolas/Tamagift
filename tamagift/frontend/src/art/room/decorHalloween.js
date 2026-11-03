@@ -137,19 +137,20 @@ export const DECOR_HALLOWEEN = [
   {
     id: 'murcielagos', name: 'Guirnalda de murciélagos', price: 55, w: 150, h: 66, place: 'sobre', season: 'halloween',
     draw: () => {
-      const str = sagging(7, 143, 8, 21);
-      let s = line(str.d, TWINE, 1.6);
-      // calabacitas de fieltro entre los murciélagos
-      [51, 99].forEach((x) => {
+      const str = sagging(7, 143, 8, 19);
+      let s = line(str.d, TWINE, 1.8);
+      // tres murciélagos grandes colgando a distintas alturas: el del medio
+      // adelante, y entre ellos dos cuentas de calabaza en el cordel
+      const hang = (x, drop, k, c) => {
         const [y] = str.at(x);
-        s += line(`M${x} ${f1(y)} V${f1(y + 5)}`, TWINE, 1.2);
-        s += pumpkin(x, y + 18, 0.3, '#F7A24E', { lobes: 3, w: 1.2, stemC: '#6E8A3A' });
-      });
-      [[27, 0.88, BAT], [75, 0.98, '#54476A'], [123, 0.88, BAT]].forEach(([x, k, c]) => {
+        return line(`M${x} ${f1(y)} V${f1(y + drop)}`, TWINE, 1.4) + bat(x, y + drop + 11 * k, k, c);
+      };
+      s += hang(29, 6, 1.18, BAT) + hang(121, 6, 1.18, '#5A4A70');
+      [53, 97].forEach((x) => {
         const [y] = str.at(x);
-        s += line(`M${x} ${f1(y)} V${f1(y + 8)}`, TWINE, 1.2);
-        s += bat(x, y + 8 + 10.6 * k, k, c);
+        s += part(ellD(x, y + 1.6, 4.4, 3.6), PUMPKIN, { w: 1.2 }) + line(`M${x - 1.6} ${f1(y - 0.6)}V${f1(y + 3.8)}M${x + 1.6} ${f1(y - 0.6)}V${f1(y + 3.8)}`, PUMPKIN_D, 1) + flat(rr(x - 0.8, y - 3, 1.6, 2, 0.5), STEM);
       });
+      s += hang(75, 4, 1.34, '#54476A');
       s += tack(7, 8) + tack(143, 8);
       return s;
     },
