@@ -13,10 +13,10 @@ function remember(key, value) {
   if (cache.size > MAX_CACHE) cache.delete(cache.keys().next().value);
 }
 
-export function artKey({ sourceKey, styleId, w, h, kind = 'art', pixel, fit }) {
+export function artKey({ sourceKey, styleId, w, h, kind = 'art', pixel, fit, bleed }) {
   const st = getStyle(styleId);
   const px = st.art.kind === 'pixel' ? pixelSizeFor(st, w, h, pixel) : 0;
-  return `A|${st.id}|${kind}|${fit || ''}|${Math.round(w)}x${Math.round(h)}|${px ? px.toFixed(2) : ''}|${sourceKey}`;
+  return `A|${st.id}|${kind}|${fit || ''}|${bleed ? 'b' : ''}|${Math.round(w)}x${Math.round(h)}|${px ? px.toFixed(2) : ''}|${sourceKey}`;
 }
 
 export function peekArt(key) { return cache.get(key) || null; }

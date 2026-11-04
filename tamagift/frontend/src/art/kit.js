@@ -99,7 +99,72 @@ function gradientBase(svg, ref) {
   const s = stops[Math.floor((stops.length - 1) / 2 + 0.5)];
   const c = parseColor(s.getAttribute('stop-color') || getComputedStyle(s).stopColor);
   if (c) c[3] *= parseFloat(s.getAttribute('stop-opacity') ?? 1);
+  // una luz que se desvanece (opaca → transparente) no es "nada": para
+  // decidir su rol cuenta la opacidad promedio
+  if (c && c[3] < 0.05) c[3] = stops.reduce((a, t) => a + parseFloat(t.getAttribute('stop-opacity') ?? 1), 0) / stops.length;
   return c;
+}
+
+// El degradado completo (para dibujar luces y sombras suaves pieza por
+// pieza): tipo, unidades, coordenadas, transformación y paradas, siguiendo
+// los `href` que heredan paradas o atributos.
+const GRAD_KEYS = ['gradientUnits', 'x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'r', 'fx', 'fy', 'gradientTransform'];
+function gradSpec(svg, id) {
+  let g = svg.querySelector(`[id="${id}"]`);
+  if (!g || (g.tagName !== 'linearGradient' && g.tagName !== 'radialGradient')) return null;
+  const type = g.tagName;
+  const at = {};
+  let stops = null;
+  for (let n = g, guard = 0; n && guard < 6; guard++) {
+    for (const k of GRAD_KEYS) if (at[k] == null && n.getAttribute(k) != null) at[k] = n.getAttribute(k);
+    if (!stops) { const s = [...n.querySelectorAll('stop')]; if (s.length) stops = s; }
+    const h = n.getAttribute('href') || n.getAttribute('xlink:href');
+    n = h ? svg.querySelector(`[id="${h.slice(1)}"]`) : null;
+  }
+  if (!stops) return null;
+  const num = (v, d) => (v == null ? d : v.trim().endsWith('%') ? parseFloat(v) / 100 : parseFloat(v));
+  const st = stops.map((s) => {
+    const c = parseColor(s.getAttribute('stop-color') || getComputedStyle(s).stopColor) || [0, 0, 0, 1];
+    return { o: Math.min(1, Math.max(0, num(s.getAttribute('offset'), 0))), c: [c[0], c[1], c[2], c[3] * parseFloat(s.getAttribute('stop-opacity') ?? 1)] };
+  });
+  let gt = new DOMMatrix();
+  if (at.gradientTransform) {
+    const tmp = document.createElementNS(NS, 'g');
+    tmp.setAttribute('transform', at.gradientTransform);
+    svg.appendChild(tmp);
+    const t = tmp.transform.baseVal.consolidate();
+    if (t) gt = DOMMatrix.fromMatrix(t.matrix);
+    tmp.remove();
+  }
+  const cx = num(at.cx, 0.5), cy = num(at.cy, 0.5);
+  return {
+    type, user: at.gradientUnits === 'userSpaceOnUse', gt, stops: st,
+    x1: num(at.x1, 0), y1: num(at.y1, 0), x2: num(at.x2, 1), y2: num(at.y2, 0),
+    cx, cy, r: num(at.r, 0.5), fx: num(at.fx, cx), fy: num(at.fy, cy),
+  };
+}
+
+// Copia un degradado con sus colores pasados por `fn` (cada kit tiñe la
+// luz a su modo sin perder lo suave). Devuelve la referencia nueva.
+function recolorGrad(svg, defs, id, fn) {
+  const g = svg.querySelector(`[id="${id}"]`);
+  if (!g) return null;
+  const c = g.cloneNode(true);
+  c.id = uid('rg');
+  if (!c.querySelector('stop')) {
+    const spec = gradSpec(svg, id);
+    if (!spec) return null;
+    c.removeAttribute('href'); c.removeAttribute('xlink:href');
+    for (const s of spec.stops) c.appendChild(mk('stop', { offset: s.o, 'stop-color': hex(s.c), 'stop-opacity': s.c[3] }));
+    for (const k of GRAD_KEYS) { if (c.getAttribute(k) == null && g.getAttribute(k) == null) { /* hereda del original */ } }
+  }
+  c.querySelectorAll('stop').forEach((s) => {
+    const col = parseColor(s.getAttribute('stop-color') || getComputedStyle(s).stopColor);
+    if (col) s.setAttribute('stop-color', hex(fn(col)));
+    s.removeAttribute('style');
+  });
+  defs.appendChild(c);
+  return `url(#${c.id})`;
 }
 
 function readPaint(svg, v) {
@@ -174,7 +239,21 @@ function makeItem(svg, el, { op, clips, role, px, skip = [] }) {
     }
   }
   if (r === 'line' && !stroke && fill) { stroke = fill; }
-  return { el, tag, role: r, fill, stroke, sw, op, clips, px, skip, fillRule: cs.fillRule, cap: cs.strokeLinecap, join: cs.strokeLinejoin };
+  // degradado de verdad (luz o sombra suave): se guarda para dibujarlo
+  // entero en vez de un color plano
+  const gm = /^url\(["']?#([^"')]+)["']?\)/.exec(cs.fill || '');
+  const gEl = gm && svg.querySelector(`[id="${gm[1]}"]`);
+  const grad = gEl && (gEl.tagName === 'linearGradient' || gEl.tagName === 'radialGradient') ? gm[1] : null;
+  // guiones (costuras, cordones punteados)
+  let dash = null;
+  if (stroke && cs.strokeDasharray && cs.strokeDasharray !== 'none') {
+    const v = cs.strokeDasharray.split(/[\s,]+/).map(parseFloat).filter((n) => n >= 0);
+    if (v.length && v.some((n) => n > 0)) dash = v.length % 2 ? [...v, ...v] : v;
+  }
+  return {
+    el, tag, role: r, fill, stroke, sw, op, clips, px, skip, fillRule: cs.fillRule, cap: cs.strokeLinecap, join: cs.strokeLinejoin,
+    grad, gradK: parseFloat(cs.fillOpacity || 1) * op, dash, dashOff: parseFloat(cs.strokeDashoffset) || 0,
+  };
 }
 
 // ── Utilidades DOM para los kits vectoriales ─────────────────────
@@ -264,6 +343,19 @@ function kitSticker(svg, items, o) {
   }
   if (o.kind === 'art' || o.kind === 'pet') {
     const r = Math.max(2.5, 4.2 * o.u);
+    o.bleed = r * 1.9;
+    // Lo blanco que flota suelto (vapor, destellos) no lleva borde: si no,
+    // el borde blanco lo engorda hasta volverlo una mancha.
+    const shapes = items.filter((it) => isShapeRole(it.role) && it.fill).map((it) => rootBox(svg, it.el));
+    const loose = items.filter((it) => {
+      if (it.clips.length || it.role === 'stamp' || it.role === 'raw') return false;
+      const c = it.role === 'line' ? it.stroke : (it.role === 'shine' || it.role === 'flat') ? it.fill : null;
+      if (!c || lum(c) < 0.86) return false;
+      const b = rootBox(svg, it.el);
+      const mx = b.x + b.width / 2, my = b.y + b.height / 2;
+      return !shapes.some((s) => mx >= s.x && mx <= s.x + s.width && my >= s.y && my <= s.y + s.height);
+    });
+    const lifted = loose.map((it) => liftToRoot(svg, it));
     const id = uid('stk');
     const f = mk('filter', { id, x: '-20%', y: '-20%', width: '140%', height: '140%' });
     f.innerHTML = `<feMorphology in="SourceAlpha" operator="dilate" radius="${r}" result="d"/>
@@ -273,7 +365,42 @@ function kitSticker(svg, items, o) {
       <feMerge><feMergeNode in="shadow"/><feMergeNode in="border"/><feMergeNode in="SourceGraphic"/></feMerge>`;
     defs.appendChild(f);
     wrapAll(svg, { filter: `url(#${id})` });
+    lifted.forEach((n) => n && svg.appendChild(n));
   }
+}
+// Caja de una pieza en las coordenadas del dibujo (no las de su grupo).
+function rootBox(svg, el) {
+  const b = bbox(el);
+  const m = relMatrix(svg, el);
+  const pts = [[b.x, b.y], [b.x + b.width, b.y], [b.x, b.y + b.height], [b.x + b.width, b.y + b.height]].map(([x, y]) => [m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f]);
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+  return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+}
+function relMatrix(svg, el) {
+  let probe = svg.querySelector(':scope > g[data-probe]');
+  if (!probe) { probe = mk('g', { 'data-probe': '1' }); svg.appendChild(probe); }
+  const root = probe.getCTM(), own = el.getCTM();
+  if (!root || !own) return new DOMMatrix();
+  return DOMMatrix.fromMatrix(root).inverse().multiply(DOMMatrix.fromMatrix(own));
+}
+// Saca una pieza de sus grupos (con su posición y estilo ya resueltos)
+// para dibujarla aparte, encima de todo.
+function liftToRoot(svg, it) {
+  const el = it.el;
+  const m = relMatrix(svg, el);
+  const cs = getComputedStyle(el);
+  const keep = {
+    fill: it.fill ? el.getAttribute('fill') || cs.fill : 'none', stroke: el.getAttribute('stroke') || cs.stroke,
+    'stroke-width': cs.strokeWidth, 'stroke-linecap': cs.strokeLinecap, 'stroke-linejoin': cs.strokeLinejoin,
+    'stroke-opacity': el.getAttribute('stroke-opacity') || cs.strokeOpacity, 'fill-opacity': el.getAttribute('fill-opacity') || cs.fillOpacity,
+    'stroke-dasharray': cs.strokeDasharray !== 'none' ? cs.strokeDasharray : null,
+  };
+  el.remove();
+  for (const [k, v] of Object.entries(keep)) if (v != null) el.setAttribute(k, v);
+  el.setAttribute('transform', `matrix(${m.a} ${m.b} ${m.c} ${m.d} ${m.e} ${m.f})`);
+  el.setAttribute('opacity', +it.op.toFixed(3));
+  el.removeAttribute('style');
+  return el;
 }
 function vivid(c) { const [h, s, l] = rgbToHsl(c); return hslToRgb([h, s < 0.1 ? s : Math.min(1, s * 1.12 + 0.03), l]); }
 
@@ -286,6 +413,7 @@ function lofiGrade(c) {
 }
 function kitLofi(svg, items, o) {
   const defs = defsOf(svg);
+  o.bleed = 2 * o.u;
   for (const it of items) {
     const el = it.el;
     if (it.role === 'stamp' || it.role === 'raw') continue;
@@ -315,6 +443,10 @@ function kitLofi(svg, items, o) {
             after(el, rim);
           }
         }
+      } else if (it.grad && (it.role === 'tone' || it.role === 'shine')) {
+        // luz de lámpara o sombra suave: sigue siendo suave, en la paleta
+        const g = recolorGrad(svg, defs, it.grad, lofiGrade);
+        if (g) el.setAttribute('fill', g);
       } else {
         el.setAttribute('fill', hex(base));
         if (it.fill[3] < 1) el.setAttribute('fill-opacity', it.fill[3] / (it.op || 1));
@@ -365,6 +497,16 @@ function kitRetro(svg, items, o) {
     return pats[k];
   };
   const vbA = o.vb.width * o.vb.height;
+  // El contorno grueso es del estilo, pero en un sprite chico (comida de
+  // 40 px) o en una pieza diminuta lo tapa todo: se achica con el tamaño.
+  const sizePx = Math.min(o.vb.width, o.vb.height) / o.u;
+  const k = Math.max(0.5, Math.min(1, sizePx / 110));
+  const lineFor = (b, sw) => {
+    const piecePx = Math.min(b.width, b.height) / o.u;
+    const px = Math.max(3.3 * k, (sw / o.u) * 1.1 * k);
+    return Math.max(1.1, Math.min(px, piecePx * 0.24)) * o.u;
+  };
+  o.bleed = 3.3 * k * o.u;
   for (const it of items) {
     const el = it.el;
     if (it.role === 'stamp' || it.role === 'raw') continue;
@@ -374,7 +516,7 @@ function kitRetro(svg, items, o) {
       el.setAttribute('stroke', 'none');
       const b = bbox(el);
       // color corrido respecto de la línea, como una impresión barata
-      const shift = mk('g', { transform: `translate(${1.3 * o.u} ${1.1 * o.u})` });
+      const shift = mk('g', { transform: `translate(${1.3 * k * o.u} ${1.1 * k * o.u})` });
       el.replaceWith(shift);
       shift.appendChild(el);
       let last = shift;
@@ -386,10 +528,13 @@ function kitRetro(svg, items, o) {
         g.appendChild(lit);
         last = after(shift, g);
       }
-      after(last, cloneShape(el, { fill: 'none', stroke: RETRO_LINE, 'stroke-width': Math.max(3.3 * o.u, it.sw * 1.1), 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+      after(last, cloneShape(el, { fill: 'none', stroke: RETRO_LINE, 'stroke-width': lineFor(b, it.sw), 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
     } else if (it.role === 'flat' && it.fill) {
       el.setAttribute('fill', hex(retroMap(it.fill)));
       el.setAttribute('stroke', 'none');
+    } else if (it.grad && (it.role === 'tone' || it.role === 'shine')) {
+      const g = recolorGrad(svg, defs, it.grad, retroMap);
+      if (g) el.setAttribute('fill', g);
     } else if (it.role === 'tone' && it.fill) {
       const dark = lum(it.fill) < 0.5;
       el.setAttribute('fill', dark ? dots(retroMap(mixRgb(it.fill, [246, 231, 200], 0.4))) : hex(retroMap(it.fill)));
@@ -414,24 +559,31 @@ function cutPath(el, o, seed) {
   let len = 0;
   try { len = el.getTotalLength(); } catch (e) { return null; }
   if (!len) return null;
-  const step = Math.max(2.2 * o.u, Math.min(7 * o.u, len / 14));
+  // con agujeros o varias islas (M…M…) se muestrea más fino, para que
+  // cada contorno chico tenga sus puntos
+  const multi = el.tagName === 'path' && ((el.getAttribute('d') || '').match(/[Mm]/g) || []).length > 1;
+  const step = Math.max((multi ? 1.2 : 2.2) * o.u, Math.min(7 * o.u, len / (multi ? 40 : 14)));
   const n = Math.max(6, Math.round(len / step));
   const r = rng(seed);
   const amp = 0.95 * o.u;
-  const pts = [];
+  const raw = [];
   for (let i = 0; i < n; i++) {
     const p = el.getPointAtLength((i / n) * len);
-    pts.push([p.x + (r() - 0.5) * 2 * amp, p.y + (r() - 0.5) * 2 * amp]);
+    raw.push([p.x, p.y]);
   }
-  // Varios trazos (M…M…): se separan donde el muestreo salta.
+  // Varios trazos: se separan donde el muestreo salta. Se mide sobre los
+  // puntos sin temblor: en un mismo trazo dos muestras nunca están más
+  // lejos que el paso.
+  const real = len / n;
   let d = '', start = true;
-  for (let i = 0; i < pts.length; i++) {
-    const [x, y] = pts[i];
+  for (let i = 0; i < raw.length; i++) {
+    const [x, y] = raw[i];
     if (!start && i > 0) {
-      const [px, py] = pts[i - 1];
-      if (Math.hypot(x - px, y - py) > step * 3) { d += 'Z'; start = true; }
+      const [px, py] = raw[i - 1];
+      if (Math.hypot(x - px, y - py) > real * 1.6 + 0.01) { d += 'Z'; start = true; }
     }
-    d += `${start ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`;
+    const jx = x + (r() - 0.5) * 2 * amp, jy = y + (r() - 0.5) * 2 * amp;
+    d += `${start ? 'M' : 'L'}${jx.toFixed(1)} ${jy.toFixed(1)}`;
     start = false;
   }
   return `${d}Z`;
@@ -442,6 +594,7 @@ function kitPapel(svg, items, o) {
   const sf = mk('filter', { id: sid, x: '-20%', y: '-20%', width: '140%', height: '150%' });
   sf.innerHTML = `<feDropShadow dx="${0.9 * o.u}" dy="${1.9 * o.u}" stdDeviation="${0.5 * o.u}" flood-color="#2A1C14" flood-opacity="0.45"/>`;
   defs.appendChild(sf);
+  o.bleed = 3.4 * o.u;
   let seed = 11;
   for (const it of items) {
     const el = it.el;
@@ -453,6 +606,12 @@ function kitPapel(svg, items, o) {
       continue;
     }
     if (!it.fill) continue;
+    if (it.grad && (it.role === 'tone' || it.role === 'shine')) {
+      // una luz suave no es una cartulina: se queda suave, en tono de papel
+      const g = recolorGrad(svg, defs, it.grad, paperTone);
+      if (g) { el.setAttribute('fill', g); el.setAttribute('stroke', 'none'); }
+      continue;
+    }
     const base = paperTone(it.fill);
     const d = (it.role === 'shine' && it.tag === 'circle') ? null : cutPath(el, o, seed * 131);
     let target = el;
@@ -501,6 +660,8 @@ function kitNeon(svg, items, o) {
   gf.innerHTML = `<feGaussianBlur stdDeviation="${2.2 * o.u}"/>`;
   defs.appendChild(gf);
   const glowCopy = (el, color, w) => cloneShape(el, { fill: 'none', stroke: color, 'stroke-width': w, filter: `url(#${gid})`, opacity: 0.95, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+  o.bleed = 6 * o.u;
+  const vbA = o.vb.width * o.vb.height;
   for (const it of items) {
     const el = it.el;
     if (it.role === 'stamp' || it.role === 'raw') continue;
@@ -512,6 +673,12 @@ function kitNeon(svg, items, o) {
         el.setAttribute('stroke-opacity', Math.min(0.55, it.stroke[3]));
         continue;
       }
+      if (it.stroke[3] / (it.op || 1) < 0.7) {
+        // trazo tenue (veta de madera, junta, textura): marca, no es un
+        // tubo de luz
+        el.setAttribute('stroke-opacity', Math.min(0.45, it.stroke[3]));
+        continue;
+      }
       el.setAttribute('stroke-width', Math.max(it.sw, 1.6 * o.u));
       el.before(glowCopy(el, c, Math.max(it.sw, 1.6 * o.u) * 1.8));
       continue;
@@ -521,6 +688,13 @@ function kitNeon(svg, items, o) {
       el.setAttribute('fill', '#FFFFFF');
       continue;
     }
+    if (it.grad && it.role === 'tone') {
+      // luz de lámpara o ventana: brilla tal cual; sombra: noche
+      const light = lum(it.fill) > 0.45;
+      const g = light ? null : recolorGrad(svg, defs, it.grad, () => NIGHT);
+      if (g) el.setAttribute('fill', g);
+      continue;
+    }
     if (it.role === 'tone') {
       const light = lum(it.fill) > 0.6;
       el.setAttribute('fill', light ? '#E9E2FF' : hex(NIGHT));
@@ -528,10 +702,22 @@ function kitNeon(svg, items, o) {
       continue;
     }
     const n = neonize(it.fill);
-    // Lo oscuro y chico (ojos, narices) se enciende: en la noche la
-    // mirada brilla.
-    let darkSmall = it.role === 'flat' && lum(it.fill) < 0.22 && o.kind !== 'surface';
-    if (darkSmall) { const b = bbox(el); darkSmall = b.width * b.height < o.vb.width * o.vb.height * 0.012; }
+    // Lo oscuro y chico de la mascota (ojos, narices) se enciende: en la
+    // noche la mirada brilla. En el resto solo si la pieza dice que es un
+    // ojo (`data-eye`): un botón o una lente oscura no se prenden en rosa.
+    const eyeOk = o.kind === 'pet' || !!it.el.closest('[data-eye]');
+    let darkSmall = eyeOk && it.role === 'flat' && lum(it.fill) < 0.22 && o.kind !== 'surface';
+    if (darkSmall) { const b = bbox(el); darkSmall = b.width * b.height < vbA * 0.012; }
+    // Detalles chicos de color (lunares, botones, estrellitas): se encienden
+    // enteros como lucecitas; con solo el contorno se leen como aros.
+    if (it.role === 'flat' && !darkSmall && o.kind !== 'surface' && lum(it.fill) >= 0.22) {
+      const b = bbox(el);
+      if (b.width * b.height < vbA * 0.006) {
+        el.setAttribute('fill', hex(mixRgb(n, NIGHT, 0.12)));
+        el.setAttribute('stroke', 'none');
+        continue;
+      }
+    }
     // el cuerpo conserva algo de su color (una mochi rosada sigue siendo
     // rosada en la oscuridad), las piezas un poco menos
     const night = it.role === 'body' ? 0.64 : it.role === 'flat' ? 0.7 : 0.76;
@@ -636,10 +822,95 @@ function kitPixel(svg, items, o) {
       ctx.lineWidth = Math.max(it.sw, 1.3 / scale);
       ctx.lineCap = it.cap || 'round';
       ctx.lineJoin = 'round';
+      if (it.dash) { ctx.setLineDash(it.dash); ctx.lineDashOffset = it.dashOff; }
       ctx.stroke(path);
+    } else if (mode === 'clip') {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillRect(0, 0, W, H);
     } else {
       ctx.fill(path, it.fillRule === 'evenodd' ? 'evenodd' : 'nonzero');
     }
+    ctx.restore();
+    return ctx.getImageData(0, 0, W, H).data;
+  };
+
+  // Trazo fino (menos de ~2 px): se recorre la línea y se unen los puntos
+  // con escalones de un píxel, así queda continua (rasterizada salía
+  // punteada en diagonal). Respeta los guiones.
+  const thinMask = (it) => {
+    const mask = new Uint8Array(N);
+    const el = it.el;
+    let len = 0;
+    try { len = el.getTotalLength(); } catch (e) { return mask; }
+    if (!len) return mask;
+    const M = el.getCTM();
+    const sc = Math.hypot(M.a, M.b) || 1;
+    const step = 0.45 / sc;
+    const dash = it.dash, period = dash ? dash.reduce((a, b) => a + b, 0) : 0;
+    const onDash = (s) => {
+      if (!dash || !period) return true;
+      let t = (((s + it.dashOff) % period) + period) % period;
+      for (let k = 0; k < dash.length; k++) { if (t < dash[k]) return k % 2 === 0; t -= dash[k]; }
+      return true;
+    };
+    const plot = (x, y) => { if (x >= 0 && y >= 0 && x < W && y < H) mask[y * W + x] = 1; };
+    const line = (x0, y0, x1, y1) => {
+      const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+      let e = dx + dy;
+      for (let guard = 0; guard < 4096; guard++) {
+        plot(x0, y0);
+        if (x0 === x1 && y0 === y1) break;
+        const e2 = 2 * e;
+        if (e2 >= dy) { e += dy; x0 += sx; }
+        if (e2 <= dx) { e += dx; y0 += sy; }
+      }
+    };
+    const n = Math.min(20000, Math.ceil(len / step));
+    let prev = null;
+    for (let k = 0; k <= n; k++) {
+      const s = Math.min(len, (k / n) * len);
+      if (!onDash(s)) { prev = null; continue; }
+      const pt = el.getPointAtLength(s);
+      const x = M.a * pt.x + M.c * pt.y + M.e, y = M.b * pt.x + M.d * pt.y + M.f;
+      const gx = Math.floor(x), gy = Math.floor(y);
+      // un salto largo es otro trazo del mismo camino (M…M…): no se une
+      if (prev && Math.hypot(x - prev[0], y - prev[1]) <= 1.6) line(prev[2], prev[3], gx, gy); else plot(gx, gy);
+      prev = [x, y, gx, gy];
+    }
+    if (it.clips.length) {
+      const c = raster(it, 'clip');
+      for (let p = 0; p < N; p++) if (c[p * 4 + 3] < 128) mask[p] = 0;
+    }
+    return mask;
+  };
+
+  // Luz o sombra con degradado: se pinta el degradado de verdad y se baja
+  // a bandas parejas, como se hacen las luces en un sprite.
+  const gradRaster = (it) => {
+    const spec = gradSpec(svg, it.grad);
+    if (!spec) return null;
+    let bb;
+    try { bb = it.el.getBBox(); } catch (e) { return null; }
+    if (!spec.user && (!bb.width || !bb.height)) return null;
+    const M = it.el.getCTM();
+    const B = spec.user ? new DOMMatrix() : new DOMMatrix([bb.width, 0, 0, bb.height, bb.x, bb.y]);
+    const BG = B.multiply(spec.gt);
+    const inv = BG.inverse();
+    if (!Number.isFinite(inv.a)) return null;
+    const T = DOMMatrix.fromMatrix(M).multiply(BG);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    applyClips(ctx, svg, it.clips);
+    ctx.setTransform(T.a, T.b, T.c, T.d, T.e, T.f);
+    const p2 = new Path2D();
+    p2.addPath(pathOf(it.el), inv);
+    const g = spec.type === 'linearGradient'
+      ? ctx.createLinearGradient(spec.x1, spec.y1, spec.x2, spec.y2)
+      : ctx.createRadialGradient(spec.fx, spec.fy, 0, spec.cx, spec.cy, spec.r);
+    for (const s of spec.stops) g.addColorStop(s.o, `rgba(${s.c[0]},${s.c[1]},${s.c[2]},${s.c[3]})`);
+    ctx.fillStyle = g;
+    ctx.fill(p2, it.fillRule === 'evenodd' ? 'evenodd' : 'nonzero');
     ctx.restore();
     return ctx.getImageData(0, 0, W, H).data;
   };
@@ -655,10 +926,17 @@ function kitPixel(svg, items, o) {
     }
     if (it.role === 'line') {
       if (!it.stroke) continue;
-      const d = raster(it, 'stroke');
       const c = it.stroke;
       const mm = it.el.getCTM();
       const thick = it.sw * (Math.hypot(mm.a, mm.b) || 1) >= 1.9;
+      let d;
+      if (thick) d = raster(it, 'stroke');
+      else {
+        // la máscara fina se pasa al mismo formato (alfa en cada 4.º byte)
+        const m = thinMask(it);
+        d = new Uint8ClampedArray(N * 4);
+        for (let p = 0; p < N; p++) if (m[p]) d[p * 4 + 3] = 255;
+      }
       if (c[3] < 0.95) {
         // trazo tenue: tiñe lo que hay debajo (como una junta o una veta)
         const a = Math.min(0.8, Math.max(0.25, c[3] * 1.4));
@@ -687,8 +965,45 @@ function kitPixel(svg, items, o) {
       continue;
     }
     if (!it.fill) continue;
+    if (it.grad && (it.role === 'tone' || it.role === 'shine')) {
+      const g = gradRaster(it);
+      if (g) {
+        const k = it.gradK;
+        for (let p = 0; p < N; p++) {
+          const ga = (g[p * 4 + 3] / 255) * k;
+          // bandas de a quinto: la luz baja en escalones, no en niebla
+          const a = Math.min(0.85, Math.round(ga * 5) / 5);
+          if (a <= 0) continue;
+          const gc = [g[p * 4], g[p * 4 + 1], g[p * 4 + 2]];
+          if (al[p] >= 0.99) {
+            col[p * 3] += (gc[0] - col[p * 3]) * a; col[p * 3 + 1] += (gc[1] - col[p * 3 + 1]) * a; col[p * 3 + 2] += (gc[2] - col[p * 3 + 2]) * a;
+          } else {
+            col[p * 3] = gc[0]; col[p * 3 + 1] = gc[1]; col[p * 3 + 2] = gc[2];
+            al[p] = Math.max(al[p], Math.round(Math.min(0.5, a) * 8) / 8);
+          }
+        }
+        continue;
+      }
+    }
     const d = raster(it, 'fill');
     const c = it.fill;
+    if ((it.role === 'shine' || it.role === 'flat') && c[3] < 0.93) {
+      // brillo o detalle semitransparente (lente, tul, rubor): sobre algo
+      // se mezcla en escalones de a cuarto y la pieza de abajo sigue siendo
+      // la dueña del píxel (su contorno y su luz no cambian)
+      const a = Math.max(0.25, Math.round(c[3] * 4) / 4);
+      for (let p = 0; p < N; p++) {
+        if (d[p * 4 + 3] < 128) continue;
+        if (al[p] >= 0.99) {
+          col[p * 3] += (c[0] - col[p * 3]) * a; col[p * 3 + 1] += (c[1] - col[p * 3 + 1]) * a; col[p * 3 + 2] += (c[2] - col[p * 3 + 2]) * a;
+        } else {
+          col[p * 3] = c[0]; col[p * 3 + 1] = c[1]; col[p * 3 + 2] = c[2];
+          al[p] = Math.max(al[p], a);
+          idx[p] = it.i;
+        }
+      }
+      continue;
+    }
     if (it.role === 'tone') {
       const a = Math.min(0.85, c[3]);
       for (let p = 0; p < N; p++) {
@@ -713,6 +1028,13 @@ function kitPixel(svg, items, o) {
   }
 
   const inItem = (x, y, i) => x >= 0 && y >= 0 && x < W && y < H && idx[y * W + x] === i && al[y * W + x] >= 0.99;
+  // ¿la pieza sigue por ahí (aunque algo de adelante la tape)? Lo que se
+  // le pone encima no es su borde: no lleva filo de luz ni de sombra.
+  const underOrIn = (x, y, i) => {
+    if (x < 0 || y < 0 || x >= W || y >= H) return false;
+    const q = y * W + x;
+    return al[q] >= 0.99 && (idx[q] === i || idx[q] > i || isLine[q] > 0);
+  };
   const setC = (p, c) => { col[p * 3] = c[0]; col[p * 3 + 1] = c[1]; col[p * 3 + 2] = c[2]; };
 
   // Sombreado por parte
@@ -747,10 +1069,10 @@ function kitPixel(svg, items, o) {
       for (let y = b.y0; y <= b.y1; y++) for (let x = b.x0; x <= b.x1; x++) {
         const p = y * W + x;
         if (idx[p] !== i || isLine[p] || al[p] < 0.99) continue;
-        const up2 = !inItem(x, y - 2, i) && inItem(x, y - 1, i);
-        const left2 = !inItem(x - 2, y, i) && inItem(x - 1, y, i);
-        const dn2 = !inItem(x, y + 2, i) && inItem(x, y + 1, i);
-        const rt2 = !inItem(x + 2, y, i) && inItem(x + 1, y, i);
+        const up2 = !underOrIn(x, y - 2, i) && inItem(x, y - 1, i);
+        const left2 = !underOrIn(x - 2, y, i) && inItem(x - 1, y, i);
+        const dn2 = !underOrIn(x, y + 2, i) && inItem(x, y + 1, i);
+        const rt2 = !underOrIn(x + 2, y, i) && inItem(x + 1, y, i);
         if (dn2 || rt2) setC(p, sh1); else if (up2 || left2) setC(p, lt1);
       }
     }
@@ -765,6 +1087,10 @@ function kitPixel(svg, items, o) {
     const it = items[i];
     if (it.role === 'shine' || it.role === 'tone' || !it.fill) continue;
     const base = it.fill;
+    // una pieza de 3 píxeles o menos de ancho no lleva contorno por dentro:
+    // se comería todo su color (tiras finas, tallos, cintas)
+    const bx = boxes.get(i);
+    const tiny = bx && Math.min(bx.x1 - bx.x0, bx.y1 - bx.y0) < 3;
     let edge = false, inner = false;
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const qx = x + dx, qy = y + dy;
@@ -772,7 +1098,7 @@ function kitPixel(svg, items, o) {
       const q = qy * W + qx;
       if (al[q] < 0.99) { edge = true; continue; }
       const j = isLine[q] ? underIdx[q] : idx[q];
-      if (j >= 0 && j !== i && j < i && isShapeRole(it.role)) {
+      if (j >= 0 && j !== i && j < i && isShapeRole(it.role) && !tiny) {
         const jt = items[j];
         if (jt.role !== 'line' && jt.role !== 'shine' && jt.role !== 'tone' && jt.fill) inner = true;
       }
@@ -805,15 +1131,20 @@ function kitPixel(svg, items, o) {
     img.data[p * 4] = out[p * 3]; img.data[p * 4 + 1] = out[p * 3 + 1]; img.data[p * 4 + 2] = out[p * 3 + 2];
     img.data[p * 4 + 3] = Math.round(al[p] * 255);
   }
-  // Piezas hechas a mano (ojos, bocas…)
-  for (const s of stamps) drawStamp(img, W, H, s, o);
+  // Piezas hechas a mano (ojos, bocas…). Lo que en el dibujo va delante
+  // (unas gafas de sol, un antifaz, un flequillo) las tapa.
+  for (const s of stamps) {
+    const si = s.it.i;
+    const covered = (p) => idx[p] > si && al[p] >= 0.99 && !isLine[p] && items[idx[p]] && items[idx[p]].role !== 'stamp';
+    drawStamp(img, W, H, s, o, covered);
+  }
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.putImageData(img, 0, 0);
   return cv;
 }
 function colorDist(a, b) { const dr = a[0] - b[0], dg = a[1] - b[1], db = a[2] - b[2]; return dr * dr + dg * dg + db * db; }
 
-function drawStamp(img, W, H, s, o) {
+function drawStamp(img, W, H, s, o, covered) {
   const el = s.it.el;
   const name = s.it.px;
   const st = stampFor(name, s.w, s.h);
@@ -841,6 +1172,7 @@ function drawStamp(img, W, H, s, o) {
     if (ch === '.' || ch === ' ') continue;
     const x = x0 + c, y = y0 + r;
     if (x < 0 || y < 0 || x >= W || y >= H) continue;
+    if (covered && covered(y * W + x)) continue;
     const p = (y * W + x) * 4;
     let col;
     if (own) col = own[ch];
@@ -907,7 +1239,7 @@ export function pixelSizeFor(style, w, h, pixel) {
  * Dibuja `markup` en el estilo `styleId`. Sincrónico.
  * Devuelve { url, cssW, cssH, pixelated }.
  */
-export function drawArt({ markup, styleId, w, h, kind = 'art', pixel, fit }) {
+export function drawArt({ markup, styleId, w, h, kind = 'art', pixel, fit, bleed }) {
   const style = getStyle(styleId);
   const kitName = style.art.kind;
   // En pixel, un dibujo que tiene versión hecha a mano se pinta con ella.
@@ -929,8 +1261,23 @@ export function drawArt({ markup, styleId, w, h, kind = 'art', pixel, fit }) {
       return { url: cv.toDataURL('image/png'), cssW: w, cssH: h, pixelated: true };
     }
     (KITS[kitName] || kitSticker)(svg, items, o);
+    svg.querySelectorAll(':scope > g[data-probe], :scope g[data-probe]').forEach((n) => n.remove());
+    // Margen: el borde blanco del sticker, el brillo del neón o la sombra
+    // del papel salen un poco de la caja; si el dibujo toca el borde, se
+    // cortaban. Se agranda el lienzo para afuera (la imagen va centrada,
+    // así que el dibujo queda en el mismo lugar).
+    let cssW = w, cssH = h, pad = 0;
+    if (bleed && o.bleed && kind !== 'surface' && fit !== 'cover') {
+      const p = o.bleed;
+      pad = Math.ceil(p / o.u);
+      const pu = pad * o.u;
+      svg.setAttribute('viewBox', `${vb.x - pu} ${vb.y - pu} ${vb.width + pu * 2} ${vb.height + pu * 2}`);
+      cssW = w + pad * 2; cssH = h + pad * 2;
+      svg.setAttribute('width', cssW);
+      svg.setAttribute('height', cssH);
+    }
     const s = new XMLSerializer().serializeToString(svg);
-    return { url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(s)}`, cssW: w, cssH: h, pixelated: false };
+    return { url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(s)}`, cssW, cssH, pixelated: false, pad };
   } finally {
     host().innerHTML = '';
   }

@@ -40,7 +40,9 @@ export default function Sprite({
   );
 
   const isArt = !!markup;
-  const req = { markup, src, w, h, kind, fit, pixel, sourceKey, styleId };
+  // `bleed`: el dibujo puede salir un poco de la caja (borde del sticker,
+  // brillo del neón); la imagen va centrada, así que no se mueve.
+  const req = { markup, src, w, h, kind, fit, pixel, sourceKey, styleId, bleed: true };
   const key = isArt ? artKey(req) : spriteCacheKey(req, styleId);
   const peek = isArt ? peekArt : peekSprite;
   const [result, setResult] = useState(() => peek(key));
