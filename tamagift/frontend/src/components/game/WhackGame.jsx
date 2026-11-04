@@ -6,13 +6,21 @@ import Sprite from '../Sprite';
 import { FoodSprite } from './common';
 import { foodSpriteFor } from '../../sprites';
 import { useFinish } from './meta';
-import { moleSvg, bombSvg, holeBackSvg, holeFrontSvg, burstSvg } from '../../art/minigames';
+import { moleSvg, bombSvg, holeBackSvg, holeFrontSvg, burstSvg, gardenSvg, WHACK, MOUTH_POLY } from '../../art/minigames';
 
 // ── Dale al que salga ─────────────────────────────────────────────
-// Nueve hoyos en el pasto, vistos en 3/4 (los de atrás un poco más chicos
-// y más arriba). Sale un topo o lo que eligió quien regaló; a veces un
-// topo dorado (vale 3) y a veces una bomba que NO hay que tocar (−3).
-// Tocar un hoyo vacío resta 1: tocar todo sin mirar no sirve.
+// Nueve hoyos en el césped de un jardín (art/minigames.js: gardenSvg),
+// todos del mismo tamaño: la vista 3/4 del juego no tiene punto de fuga.
+// Sale un topo o lo que eligió quien regaló; a veces un topo dorado
+// (vale 3) y a veces una bomba que NO hay que tocar (−3). Tocar un hoyo
+// vacío resta 1: tocar todo sin mirar no sirve.
+//
+// Lo que sale va ADENTRO del hoyo: se dibuja entre el fondo del hoyo y
+// su labio de adelante, recortado por la boca (MOUTH_POLY), así que sube
+// desde lo hondo y la base nunca se ve debajo de la tierra.
+
+// La boca del hoyo como clip-path (en % de la caja del hoyo).
+const MOUTH = `polygon(${MOUTH_POLY.map(([x, y]) => `${x}% ${y}%`).join(', ')})`;
 
 const HOLES = 9;
 const DURATION = 25;
@@ -101,8 +109,11 @@ export default function WhackGame({ onBack, onComplete, targets = [], rank = 1 }
   }
 
   function renderTarget(h, px) {
-    if (h.kind === 'bomba') return <Sprite markup={bombSvg()} cacheKey="wk-bomba" w={px} h={px} />;
-    if (h.kind === 'dorado' || !targets.length) return <Sprite markup={moleSvg(h.kind === 'dorado' ? 'dorado' : 'topo')} cacheKey={`wk-${h.kind}`} w={px} h={px} />;
+    if (h.kind === 'bomba') return <Sprite markup={bombSvg()} cacheKey="wk-bomba" w={px} h={px} pixel={2} />;
+    if (h.kind === 'dorado' || !targets.length) {
+      const hit = !!h.hit;
+      return <Sprite markup={moleSvg(h.kind === 'dorado' ? 'dorado' : 'topo', hit)} cacheKey={`wk-${h.kind}-${hit ? 1 : 0}`} w={px} h={px} pixel={2} />;
+    }
     const t = targets[h.what % targets.length];
     if (t.image) return <Sprite src={t.image} w={px * 0.8} h={px * 0.8} kind="art" />;
     return <FoodSprite food={foodSpriteFor(t.label)} size={px * 0.75} />;
@@ -115,40 +126,44 @@ export default function WhackGame({ onBack, onComplete, targets = [], rank = 1 }
     window.addEventListener('resize', calc);
     return () => window.removeEventListener('resize', calc);
   }, []);
-  const H = W * 0.95;
+  const H = W * (WHACK.H / WHACK.W);
+  const px = Math.round(W * WHACK.HOLE);
+  // el topo: una caja de 0.78 del hoyo; asomado, las manotas quedan
+  // apoyadas en el labio de adelante
+  const mole = px * 0.78;
+  const yUp = px * 0.85 - mole * 0.84, yHit = yUp + px * 0.06, yDown = px * 0.98;
 
   return (
     <Screen>
       <ScreenHeader title="Dale al que salga" subtitle="Dorado vale 3 · ¡no toques la bomba!" onBack={onBack} right={<HeaderTag color={C.rose}>{gameOver ? '' : `${timeLeft}s`}</HeaderTag>} />
-      <div style={{ position: 'relative', width: W, height: H, borderRadius: 22, overflow: 'hidden', border: `2.5px solid ${C.ink}`, background: `linear-gradient(180deg, ${C.ground1}, ${C.ground2})`, opacity: gameOver ? 0.6 : 1, touchAction: 'manipulation' }}>
+      <div style={{ position: 'relative', width: W, height: H, borderRadius: 22, overflow: 'hidden', border: `2.5px solid ${C.ink}`, background: C.ground1, opacity: gameOver ? 0.6 : 1, touchAction: 'manipulation' }}>
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          <Sprite markup={gardenSvg()} cacheKey="wk-garden" w={W} h={H} kind="surface" />
+        </div>
         {holes.map((h, i) => {
           const r = Math.floor(i / 3), c = i % 3;
-          // 3/4: la fila de atrás más chica y más arriba
-          const s = 0.84 + r * 0.08;
-          const cell = (W / 3) * s;
-          const cx = W / 2 + (c - 1) * (W / 3) * (0.9 + r * 0.05);
-          const cy = H * (0.2 + r * 0.31);
-          const px = cell;
+          const cx = W * WHACK.COLS[c];
+          const cy = H * WHACK.ROWS[r];
+          const y = h ? (h.hit ? yHit : yUp) : yDown;
           return (
             <button
               key={i} onClick={() => tapHole(i)} className="pg-focus" aria-label={h ? 'Tocar' : 'Hoyo vacío'}
-              style={{ position: 'absolute', left: cx - px / 2, top: cy - px * 0.62, width: px, height: px, padding: 0, background: 'none', border: 'none', cursor: 'pointer' }}
+              style={{ position: 'absolute', left: cx - px / 2, top: cy - px * WHACK.MOUTH_Y, width: px, height: px, padding: 0, background: 'none', border: 'none', cursor: 'pointer' }}
             >
-              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}><Sprite markup={holeBackSvg()} cacheKey="wk-hole-b" w={px} h={px} /></div>
-              {/* lo que sale: recortado en el borde del hoyo */}
-              <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: px * 0.8, overflow: 'hidden', pointerEvents: 'none' }}>
+              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}><Sprite markup={holeBackSvg()} cacheKey="wk-hole-b" w={px} h={px} kind="surface" pixel={2} /></div>
+              {/* lo que sale: adentro del hoyo, recortado por la boca */}
+              <div style={{ position: 'absolute', inset: 0, clipPath: MOUTH, pointerEvents: 'none' }}>
                 <div style={{
-                  position: 'absolute', left: px * 0.1, width: px * 0.8, height: px * 0.8, top: 0,
-                  transform: h ? (h.hit ? 'translateY(12%) scale(0.95)' : 'translateY(8%)') : 'translateY(100%)',
+                  position: 'absolute', left: (px - mole) / 2, top: 0, width: mole, height: mole,
+                  transform: `translateY(${y}px)${h && h.hit ? ' scale(0.96)' : ''}`,
                   transition: 'transform 0.14s', display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-                  filter: h && h.hit ? 'brightness(1.4)' : undefined,
                 }}>
-                  {h && renderTarget(h, px * 0.8)}
+                  {h && renderTarget(h, mole)}
                 </div>
               </div>
-              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}><Sprite markup={holeFrontSvg()} cacheKey="wk-hole-f" w={px} h={px} /></div>
+              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}><Sprite markup={holeFrontSvg()} cacheKey="wk-hole-f" w={px} h={px} kind="surface" pixel={2} /></div>
               {h && h.hit && (
-                <div style={{ position: 'absolute', left: px * 0.25, top: 0, width: px * 0.5, height: px * 0.5, pointerEvents: 'none', animation: 'pg-pop-in 0.25s ease-out both' }}>
+                <div style={{ position: 'absolute', left: px * 0.25, top: px * 0.02, width: px * 0.5, height: px * 0.5, pointerEvents: 'none', animation: 'pg-pop-in 0.25s ease-out both' }}>
                   <Sprite markup={burstSvg(h.kind === 'bomba' ? '#FF8A5C' : h.kind === 'dorado' ? '#FFE37A' : '#FFFFFF')} cacheKey={`wk-burst-${h.kind}`} w={px * 0.5} h={px * 0.5} />
                 </div>
               )}

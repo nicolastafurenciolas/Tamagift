@@ -6,7 +6,7 @@ import { FOOD_SPRITES } from '../../sprites';
 import Sprite from '../Sprite';
 import { PetSprite, FoodSprite, useElementWidth } from './common';
 import { useFinish } from './meta';
-import { powerSvg } from '../../art/minigames';
+import { powerSvg, kitchenSvg, groundShadowSvg } from '../../art/minigames';
 
 // ── Atrapa la comida ──────────────────────────────────────────────
 // Cae comida; hay que atrapar SOLO lo que le gusta. Atrapar algo que
@@ -17,6 +17,9 @@ import { powerSvg } from '../../art/minigames';
 //
 // La física trabaja en un tablero fijo de 300×380 unidades y se dibuja
 // en porcentajes, para encogerse entera en un celular bajo.
+//
+// El escenario es una cocina (art/minigames.js: kitchenSvg): la comida
+// cae de la alacena abierta y la mochi la ataja en el piso a cuadros.
 
 const AREA_W = 300;
 const AREA_H = 380;
@@ -197,10 +200,15 @@ export default function CatchGame({ look, foods = [], onBack, onComplete, rank =
         onPointerMove={(e) => { if (e.buttons || e.pointerType === 'touch') dragMove(e); }}
         style={{
           height: `min(${AREA_H}px, 56vh)`, aspectRatio: `${AREA_W} / ${AREA_H}`, maxWidth: '86vw',
-          background: `linear-gradient(180deg, ${C.sky1}, ${C.sky2})`,
+          background: C.paper,
         }}
       >
         <div ref={boardRef} style={{ position: 'absolute', inset: 0 }} />
+        <Sprite
+          markup={kitchenSvg()} cacheKey="ct-kitchen" w={boardW} h={Math.round(boardW * AREA_H / AREA_W)} kind="surface"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+          imgStyle={{ width: '100%', height: '100%' }}
+        />
         {!gameOver && items.map((item) => (
           <div
             key={item.id}
@@ -220,7 +228,6 @@ export default function CatchGame({ look, foods = [], onBack, onComplete, rank =
             )}
           </div>
         ))}
-        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '9%', background: `linear-gradient(180deg, ${C.ground1}, ${C.ground2})`, borderTop: `2px solid ${C.ink}` }} />
         {!gameOver && (
           <div style={{
             position: 'absolute', left: `${(catcherX / AREA_W) * 100}%`, top: `${((CATCHER_Y - 24) / AREA_H) * 100}%`,
@@ -232,6 +239,7 @@ export default function CatchGame({ look, foods = [], onBack, onComplete, rank =
                 {combo} {mult > 1 ? `×${mult}` : ''}
               </div>
             )}
+            <Sprite markup={groundShadowSvg()} cacheKey="ct-shadow" w={petPx} h={Math.round(petPx * 0.25)} style={{ position: 'absolute', left: 0, top: petPx * 0.86 }} />
             <PetSprite look={look} mood="feliz" size={petPx} />
           </div>
         )}

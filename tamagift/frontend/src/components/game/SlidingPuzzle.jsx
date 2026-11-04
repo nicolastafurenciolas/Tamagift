@@ -4,11 +4,14 @@ import { Screen, ScreenHeader, HeaderTag } from '../ui';
 import { play } from '../../sound';
 import { useFinish } from './meta';
 import { LevelMap, StarRow } from './levelUi';
+import Sprite from '../Sprite';
+import { puzzleFrameSvg, PUZZLE_FRAME } from '../../art/minigames';
 
 // ── Rompecabezas deslizante ───────────────────────────────────────
 // Con SUS fotos: tres de 3×3 y tres de 4×4. La foto se recorta a un
 // cuadrado centrado (antes se estiraba). Mantener apretado "Ver foto"
-// muestra cómo tiene que quedar.
+// muestra cómo tiene que quedar. Las piezas van en una bandeja de madera
+// (art/minigames.js) y en el hueco se ve el fondo de la bandeja.
 
 export const PUZZLE_LEVELS = [
   { n: 3, shuffle: 50, stars: [45, 80] },
@@ -94,7 +97,7 @@ function PuzzleLevel({ level, url0, onExit, onComplete }) {
   const { finish } = useFinish(onComplete);
   const [px, setPx] = useState(270);
   useEffect(() => {
-    const calc = () => setPx(Math.floor(Math.min(Math.min(window.innerWidth, 360) - 44, window.innerHeight - 270, 320) / N) * N);
+    const calc = () => setPx(Math.floor(Math.min(Math.min(window.innerWidth, 360) - 44 - PUZZLE_FRAME.F * 2, window.innerHeight - 290, 300) / N) * N);
     calc();
     window.addEventListener('resize', calc);
     return () => window.removeEventListener('resize', calc);
@@ -133,28 +136,35 @@ function PuzzleLevel({ level, url0, onExit, onComplete }) {
           onPointerDown={() => setPeek(true)} onPointerUp={() => setPeek(false)} onPointerLeave={() => setPeek(false)}
         >Mantén para ver la foto</button>
       </div>
-      <div className="pg-sticker" style={{ position: 'relative', display: 'grid', gridTemplateColumns: `repeat(${N}, ${tile}px)`, width: px, overflow: 'hidden', borderRadius: 16, boxShadow: SHADOW.lifted, touchAction: 'manipulation' }}>
-        {tiles.map((t, pos) => {
-          if (t === N * N - 1 && !won) {
-            return <div key={pos} style={{ width: tile, height: tile, background: C.paperDeep }} />;
-          }
-          const row = Math.floor(t / N), col = t % N;
-          return (
-            <button
-              key={pos} onClick={() => tapTile(pos)} aria-label={`Pieza ${t + 1}`}
-              style={{
-                width: tile, height: tile, padding: 0, cursor: 'pointer',
-                border: won ? 'none' : `1px solid ${C.glass}`,
-                backgroundColor: C.paperDeep,
-                backgroundImage: url ? `url(${url})` : 'none',
-                backgroundSize: `${px}px ${px}px`,
-                backgroundPosition: `-${col * tile}px -${row * tile}px`,
-                transition: 'border 0.3s',
-              }}
-            />
-          );
-        })}
-        {peek && url && <img src={url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.95 }} />}
+      <div style={{ position: 'relative', width: px + PUZZLE_FRAME.F * 2, height: px + PUZZLE_FRAME.F * 2 + PUZZLE_FRAME.FRONT }}>
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          <Sprite markup={puzzleFrameSvg(px)} cacheKey={`pz-frame-${px}`} w={px + PUZZLE_FRAME.F * 2} h={px + PUZZLE_FRAME.F * 2 + PUZZLE_FRAME.FRONT} kind="surface" pixel={2} />
+        </div>
+        <div style={{ position: 'absolute', left: PUZZLE_FRAME.F, top: PUZZLE_FRAME.F, display: 'grid', gridTemplateColumns: `repeat(${N}, ${tile}px)`, width: px, overflow: 'hidden', touchAction: 'manipulation' }}>
+          {tiles.map((t, pos) => {
+            if (t === N * N - 1 && !won) {
+              // el hueco: se ve el fondo de la bandeja
+              return <div key={pos} style={{ width: tile, height: tile }} />;
+            }
+            const row = Math.floor(t / N), col = t % N;
+            return (
+              <button
+                key={pos} onClick={() => tapTile(pos)} aria-label={`Pieza ${t + 1}`}
+                style={{
+                  width: tile, height: tile, padding: 0, cursor: 'pointer', border: 'none',
+                  backgroundColor: C.paperDeep,
+                  backgroundImage: url ? `url(${url})` : 'none',
+                  backgroundSize: `${px}px ${px}px`,
+                  backgroundPosition: `-${col * tile}px -${row * tile}px`,
+                  // canto de la pieza: luz arriba a la izquierda, sombra abajo
+                  boxShadow: won ? 'none' : 'inset 2px 2px 0 rgba(255,255,255,0.45), inset -2px -2px 0 rgba(42,28,36,0.35), 0 0 0 1px rgba(42,28,36,0.4)',
+                  transition: 'box-shadow 0.3s',
+                }}
+              />
+            );
+          })}
+          {peek && url && <img src={url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.95 }} />}
+        </div>
       </div>
       {won && <p className="pg-anim-pop" style={{ marginTop: 12, fontSize: 13, color: C.sage, fontWeight: 700, fontFamily: FONT.display }}>¡Quedó perfecta!</p>}
     </Screen>

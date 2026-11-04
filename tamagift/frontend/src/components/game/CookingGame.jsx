@@ -10,7 +10,7 @@ import {
 } from '../../cooking';
 import {
   counterSvg, boardSvg, bowlSvg, potSvg, panSvg, stoveSvg, flameSvg, ovenSvg, knifeSvg, spoonSvg,
-  cookItemSvg, doughSvg, dishBaseSvg, clocheSvg, sparkleSvg, ingredientSvg, INGREDIENTS,
+  cookItemSvg, doughSvg, dishBaseSvg, clocheSvg, sparkleSvg, ingredientSvg, toppingSvg, INGREDIENTS,
 } from '../../art/kitchen';
 import { PetSprite, FoodSprite } from './common';
 import { useFinish } from './meta';
@@ -254,6 +254,33 @@ function Container({ into, fill, W, cx, cy }) {
   );
 }
 
+// Lo que se echa en un recipiente queda ADENTRO: se recorta con la boca
+// del tazón, la olla o la sartén (todo lo de arriba de la boca y, abajo,
+// solo la mitad de la elipse: el borde de adelante tapa el resto). Sobre
+// la tabla, en cambio, se apoya encima. Medidas de art/kitchen.js.
+const MOUTHS = {
+  bowl: { k: 0.56, ratio: 136 / 200, cx: 0.5, cy: 54 / 136, rx: 76 / 200, ry: 17 / 136 },
+  pot: { k: 0.56, ratio: 166 / 200, cx: 0.5, cy: 54 / 166, rx: 66 / 200, ry: 15 / 166 },
+  pan: { k: 0.62, ratio: 110 / 240, cx: 96 / 240, cy: 60 / 110, rx: 74 / 240, ry: 15 / 110 },
+  board: { k: 0.74, ratio: 112 / 200, cx: 89 / 200, cy: 52 / 112, rx: 70 / 200, ry: 22 / 112 },
+};
+function Inside({ into, W, cx, cy, children }) {
+  const M = MOUTHS[into] || MOUTHS.bowl;
+  const w = W * M.k, h = w * M.ratio;
+  const x0 = cx - w / 2, y0 = cy - h / 2;
+  const mx = x0 + w * M.cx, my = y0 + h * M.cy, rx = w * M.rx, ry = h * M.ry;
+  const board = into === 'board';
+  const top = W * 0.3;                 // lo que puede asomar por arriba de la boca
+  const pts = [];
+  for (let k = 0; k <= 12; k++) { const t = (k / 12) * Math.PI; pts.push(`${(rx + rx * Math.cos(t)).toFixed(1)}px ${(top + ry * Math.sin(t)).toFixed(1)}px`); }
+  const clip = board ? undefined : `polygon(0 0, 100% 0, 100% ${top}px, ${pts.join(', ')}, 0 ${top}px)`;
+  return (
+    <div style={{ position: 'absolute', left: mx - rx, top: my - top, width: rx * 2, height: top + ry * 2, clipPath: clip, pointerEvents: 'none' }}>
+      {children({ rx, ry, top, board })}
+    </div>
+  );
+}
+
 // ── Agregar ───────────────────────────────────────────────────────
 function AddStep({ step, W, H, onDone }) {
   const ref = useRef(null);
@@ -297,11 +324,17 @@ function AddStep({ step, W, H, onDone }) {
   return (
     <div ref={ref} data-step="agregar" data-need={step.items.join(',')} onPointerMove={move} onPointerUp={end} style={{ position: 'absolute', inset: 0 }}>
       <Container into={step.into} fill={fill} W={W} cx={cx} cy={cy} />
-      {added.map((id, k) => (
-        <div key={id} className="pg-anim-pop" style={{ position: 'absolute', left: cx - chip * 0.4 + (k - (added.length - 1) / 2) * chip * 0.55, top: cy - chip * 0.55, pointerEvents: 'none' }}>
-          <Sprite markup={ingredientSvg(id)} cacheKey={`ck-ing-${id}`} w={Math.round(chip * 0.8)} h={Math.round(chip * 0.8)} />
-        </div>
-      ))}
+      <Inside into={step.into} W={W} cx={cx} cy={cy}>
+        {(m) => added.map((id, k) => {
+          const sz = Math.round(chip * 0.78);
+          const spread = Math.min(sz * 0.62, (m.rx * 1.5) / Math.max(1, added.length));
+          return (
+            <div key={id} className="pg-anim-pop" style={{ position: 'absolute', left: m.rx - sz / 2 + (k - (added.length - 1) / 2) * spread, top: m.top + m.ry * (m.board ? 0 : 1.55) - sz + (k % 2) * 3, pointerEvents: 'none' }}>
+              <Sprite markup={ingredientSvg(id)} cacheKey={`ck-ing-${id}`} w={sz} h={sz} />
+            </div>
+          );
+        })}
+      </Inside>
       <div style={{ position: 'absolute', left: 6, right: 6, bottom: 8, display: 'flex', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
         {shelf.map((id) => (
           <div
@@ -601,7 +634,7 @@ function DecorateStep({ step, W, H, onDone }) {
       </div>
       {placed.map((pp) => (
         <div key={pp.id} className="pg-anim-pop" style={{ position: 'absolute', left: pp.x - chip / 2, top: pp.y - chip / 2, pointerEvents: 'none' }}>
-          <Sprite markup={ingredientSvg(step.item)} cacheKey={`ck-ing-${step.item}`} w={chip} h={chip} />
+          <Sprite markup={toppingSvg(step.item)} cacheKey={`ck-top-${step.item}`} w={chip} h={chip} />
         </div>
       ))}
       <div style={{ position: 'absolute', left: '50%', bottom: 10, transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 6, background: C.glass, borderRadius: 999, padding: '4px 12px 4px 6px', pointerEvents: 'none' }}>

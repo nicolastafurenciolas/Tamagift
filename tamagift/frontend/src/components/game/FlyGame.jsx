@@ -3,7 +3,7 @@ import { C, FONT } from '../../theme';
 import { Screen, ScreenHeader, HeaderTag, Board } from '../ui';
 import { play } from '../../sound';
 import Sprite from '../Sprite';
-import { Pipe } from '../../gameArt';
+import { flySkySvg, flyCloudsSvg, flyCitySvg, flyHillsSvg, flyGroundSvg, pillarSvg, PILLAR_FLAVORS } from '../../art/minigames';
 import { FLY, createFlyState, flapState, stepFly } from '../../flyPhysics';
 import { PetSprite, UISprite, useElementWidth } from './common';
 import { useFinish } from './meta';
@@ -11,8 +11,27 @@ import { useFinish } from './meta';
 // ── Salta y vuela ─────────────────────────────────────────────────
 // Un toque, muerte rápida, reinicio instantáneo. La física vive en
 // flyPhysics.js (con pruebas); aquí solo el bucle y el dibujo.
+//
+// El fondo va en capas (art/minigames.js): cielo quieto, nubes, ciudad
+// lejana, colinas y pasto, cada una corriendo a su velocidad (el pasto,
+// igual que los pilares). Los pilares son de golosina y miden siempre lo
+// mismo: el tablero los recorta, así no hay que redibujarlos cuando los
+// que suben y bajan cambian de alto.
 
-const q = (v, step) => Math.max(step, Math.round(v / step) * step);
+const PILLAR_H = 440;           // alto fijo del dibujo del pilar (unidades)
+const PILLAR_PAD = 10;          // lo que sobresale la cereza por arriba
+
+// Una tira que se repite a lo ancho, corrida `offset` píxeles.
+function Strip({ markup, cacheKey, w, h, offset }) {
+  const x = -Math.round(((offset % w) + w) % w);
+  return (
+    <div style={{ position: 'absolute', left: 0, top: 0, width: w * 2, height: h, display: 'flex', transform: `translateX(${x}px)`, pointerEvents: 'none' }}>
+      <Sprite markup={markup} cacheKey={cacheKey} w={w} h={h} kind="surface" />
+      <Sprite markup={markup} cacheKey={cacheKey} w={w} h={h} kind="surface" />
+    </div>
+  );
+}
+const flavorOf = (p) => Math.floor(Math.abs(p.baseY ?? p.gapY)) % PILLAR_FLAVORS.length;
 
 export default function FlyGame({ look, onBack, onComplete, rank = 1 }) {
   const [, setTick] = useState(0);
@@ -21,6 +40,7 @@ export default function FlyGame({ look, onBack, onComplete, rank = 1 }) {
   const [score, setScore] = useState(0);
   const [stars, setStars] = useState(0);
   const world = useRef(createFlyState(rank));
+  const scroll = useRef(0);         // cuánto avanzó el mundo (para las capas)
   const { finish } = useFinish(onComplete);
   const [boardRef, boardW] = useElementWidth(FLY.W);
 
@@ -41,7 +61,11 @@ export default function FlyGame({ look, onBack, onComplete, rank = 1 }) {
       const before = w.score;
       const starsBefore = w.stars;
       const wasDead = w.dead;
+      // lo que corre el pasto: lo mismo que corrió el primer pilar
+      const ref = w.pipes[0];
+      const x0 = ref ? ref.x : 0;
       stepFly(w, dt);
+      if (w.started && !w.dead) scroll.current += ref && w.pipes.includes(ref) ? x0 - ref.x : FLY.BASE_SPEED * dt;
       if (w.score !== before) { play('good'); setScore(w.score); }
       if (w.stars !== starsBefore) { play('coin'); setStars(w.stars); }
       if (w.dead && !wasDead) { play('bad'); setOver(true); }
@@ -58,10 +82,13 @@ export default function FlyGame({ look, onBack, onComplete, rank = 1 }) {
 
   const { petY, vel, pipes } = world.current;
   const k = boardW / FLY.W;
-  const boardH = boardW * FLY.H / FLY.W;
-  const pipeW = q(FLY.PIPE_W * k, 2);
+  const boardH = Math.round(boardW * FLY.H / FLY.W);
+  const pipeW = Math.round(FLY.PIPE_W * k);
+  const pillarPx = Math.round(PILLAR_H * k);
   const petPx = Math.round((FLY.PET_R * 2 + 4) * k);
   const starPx = Math.round(26 * k);
+  const go = scroll.current * k;
+  const drift = (performance.now() / 1000) * 5 * k;
 
   return (
     <Screen>
@@ -73,10 +100,16 @@ export default function FlyGame({ look, onBack, onComplete, rank = 1 }) {
         onPointerDown={flap}
         style={{
           width: '100%', maxWidth: `min(${FLY.W + 40}px, ${(FLY.W / FLY.H) * 62}vh)`, aspectRatio: `${FLY.W} / ${FLY.H}`,
-          borderRadius: 20, cursor: 'pointer', background: `linear-gradient(180deg, ${C.sky1} 0%, ${C.sky2} 85%)`,
+          borderRadius: 20, cursor: 'pointer', background: C.sky2,
         }}
       >
         <div ref={boardRef} style={{ position: 'absolute', inset: 0 }} />
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          <Sprite markup={flySkySvg()} cacheKey="fl-sky" w={boardW} h={boardH} kind="surface" />
+        </div>
+        <Strip markup={flyCloudsSvg()} cacheKey="fl-clouds" w={boardW} h={boardH} offset={drift + go * 0.04} />
+        <Strip markup={flyCitySvg()} cacheKey="fl-city" w={boardW} h={boardH} offset={go * 0.1} />
+        <Strip markup={flyHillsSvg()} cacheKey="fl-hills" w={boardW} h={boardH} offset={go * 0.3} />
         {/* el cielo cambia mientras más lejos vuelas: atardecer y noche */}
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'linear-gradient(180deg, rgba(255,140,120,0.55), rgba(255,200,130,0.35))', opacity: Math.min(1, Math.max(0, (score - 8) / 6)) * (score >= 20 ? 0 : 1), transition: 'opacity 1.5s' }} />
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'linear-gradient(180deg, rgba(40,30,90,0.75), rgba(90,60,140,0.45))', opacity: Math.min(1, Math.max(0, (score - 18) / 4)), transition: 'opacity 1.5s' }}>
@@ -84,20 +117,21 @@ export default function FlyGame({ look, onBack, onComplete, rank = 1 }) {
             <span key={i} className="pg-keep-round" style={{ position: 'absolute', left: `${l}%`, top: `${t}%`, width: 3, height: 3, borderRadius: '50%', background: '#FFF6C8', animation: `pg-breathe ${1.2 + (i % 3) * 0.4}s ease-in-out infinite` }} />
           ))}
         </div>
-        {[18, 55, 82].map((l, i) => (
-          <div key={i} className="pg-keep-round" style={{ position: 'absolute', left: `${l}%`, top: `${12 + i * 22}%`, width: 46, height: 18, borderRadius: 999, background: C.glass, opacity: 0.7 }} />
-        ))}
         {pipes.map((p, i) => {
-          const topH = q(p.gapY * k, 8);
+          const f = flavorOf(p);
+          const gapTop = p.gapY * k;
           const botTop = (p.gapY + (p.gap || FLY.GAP)) * k;
-          const botH = q(boardH - botTop, 8);
           return (
             <React.Fragment key={i}>
-              <div style={{ position: 'absolute', left: p.x * k, top: p.gapY * k - topH, width: pipeW, height: topH, transform: 'scaleY(-1)' }}>
-                <Sprite art={<Pipe side="bottom" color="#7FA894" />} cacheKey="pipe" w={pipeW} h={topH} kind="surface" />
+              {/* pilar que cuelga: el glaseado abajo, junto al hueco */}
+              <div style={{ position: 'absolute', left: Math.round(p.x * k), top: 0, width: pipeW, height: Math.max(0, gapTop), overflow: 'hidden', pointerEvents: 'none' }}>
+                <div style={{ position: 'absolute', left: 0, bottom: 0 }}>
+                  <Sprite markup={pillarSvg(PILLAR_H, 'top', f)} cacheKey={`fl-pt-${f}`} w={pipeW} h={pillarPx} pixel={2} />
+                </div>
               </div>
-              <div style={{ position: 'absolute', left: p.x * k, top: botTop, width: pipeW, height: botH }}>
-                <Sprite art={<Pipe side="bottom" color="#7FA894" />} cacheKey="pipe" w={pipeW} h={botH} kind="surface" />
+              {/* pilar que sube desde el pasto, con su cereza */}
+              <div style={{ position: 'absolute', left: Math.round(p.x * k), top: botTop - PILLAR_PAD * k, width: pipeW, height: Math.max(0, boardH - botTop + PILLAR_PAD * k), overflow: 'hidden', pointerEvents: 'none' }}>
+                <Sprite markup={pillarSvg(PILLAR_H, 'bottom', f)} cacheKey={`fl-pb-${f}`} w={pipeW} h={Math.round((PILLAR_H + PILLAR_PAD) * k)} pixel={2} />
               </div>
               {p.star && !p.star.taken && (
                 <div style={{ position: 'absolute', left: (p.x + FLY.PIPE_W / 2) * k - starPx / 2, top: (p.gapY + p.star.dy) * k - starPx / 2, width: starPx, height: starPx, animation: 'pg-breathe 1s ease-in-out infinite' }}>
@@ -107,7 +141,7 @@ export default function FlyGame({ look, onBack, onComplete, rank = 1 }) {
             </React.Fragment>
           );
         })}
-        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '7%', background: `linear-gradient(180deg, ${C.ground1}, ${C.ground2})`, borderTop: `2.5px solid ${C.ink}` }} />
+        <Strip markup={flyGroundSvg()} cacheKey="fl-ground" w={boardW} h={boardH} offset={go} />
         <div style={{
           position: 'absolute', left: FLY.PET_X * k - petPx / 2, top: petY * k - petPx / 2, width: petPx, height: petPx,
           transform: `rotate(${Math.max(-25, Math.min(55, vel * 0.06))}deg)`,

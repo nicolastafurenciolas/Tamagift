@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { C, FONT, SHADOW, soft, alpha } from '../../theme';
+import { C, FONT, SHADOW, soft } from '../../theme';
 import { Screen, ScreenHeader, HeaderTag, Modal } from '../ui';
 import { IconTrophy } from '../icons';
 import { play } from '../../sound';
@@ -8,7 +8,7 @@ import {
   ROWS, COLS, LEVELS, levelBoard, playSwap, hasAnyMove, shuffleBoard, findHint, areAdjacent, goalStatus,
   starsFor, LEFTOVER_MOVE_POINTS,
 } from '../../match3';
-import { candySvg, colorBombSvg, specialOverlaySvg, jellySvg, CANDY_NAMES } from '../../art/minigames';
+import { candySvg, colorBombSvg, specialOverlaySvg, jellySvg, candyBoxSvg, CANDY_BOX, CANDY_NAMES } from '../../art/minigames';
 import { useFinish } from './meta';
 import { StarRow, LevelMap } from './levelUi';
 
@@ -120,8 +120,8 @@ function Match3Level({ level, tiles, intro, onIntroDone, onExit, onComplete, bes
   const [cell, setCell] = useState(44);
   useEffect(() => {
     const calc = () => {
-      const byW = (Math.min(window.innerWidth, 380) - 30) / COLS;
-      const byH = (window.innerHeight - 300) / ROWS;
+      const byW = (Math.min(window.innerWidth, 380) - 30 - CANDY_BOX.B * 2) / COLS;
+      const byH = (window.innerHeight - 300 - CANDY_BOX.B * 2 - CANDY_BOX.FRONT) / ROWS;
       setCell(Math.max(34, Math.floor(Math.min(byW, byH, 52))));
     };
     calc();
@@ -284,21 +284,24 @@ function Match3Level({ level, tiles, intro, onIntroDone, onExit, onComplete, bes
         <ScoreBar score={score} stars={L0.stars} />
       </div>
       <div
-        style={{ position: 'relative', width: boardW, height: boardH, touchAction: 'none', userSelect: 'none' }}
+        style={{ position: 'relative', width: boardW, height: boardH, touchAction: 'none', userSelect: 'none', margin: `${CANDY_BOX.B}px ${CANDY_BOX.B}px ${CANDY_BOX.B + CANDY_BOX.FRONT}px` }}
         onPointerMove={onMove}
       >
-        {/* casillas */}
-        {Array.from({ length: ROWS * COLS }, (_, i) => {
-          if (L0.mask && !L0.mask[i]) return null;
+        {/* la caja de bombones con un pirotín por casilla (art/minigames.js) */}
+        <div style={{ position: 'absolute', left: -CANDY_BOX.B, top: -CANDY_BOX.B, pointerEvents: 'none' }}>
+          <Sprite
+            markup={candyBoxSvg(COLS, ROWS, size, L0.mask)} cacheKey={`m3-box-${level}-${size}`}
+            w={boardW + CANDY_BOX.B * 2} h={boardH + CANDY_BOX.B * 2 + CANDY_BOX.FRONT} kind="surface" pixel={2}
+          />
+        </div>
+        {/* gelatina y hielo sobre los pirotines */}
+        {board.jelly && Array.from({ length: ROWS * COLS }, (_, i) => {
+          const j = board.jelly[i];
+          if (!j || (L0.mask && !L0.mask[i])) return null;
           const r = Math.floor(i / COLS), c = i % COLS;
-          const j = board.jelly ? board.jelly[i] : 0;
           return (
-            <div key={`bg-${i}`} style={{
-              position: 'absolute', left: c * size + 1, top: r * size + 1, width: size - 2, height: size - 2,
-              borderRadius: Math.round(size * 0.22), background: (r + c) % 2 ? alpha(C.surface, 0.85) : alpha(C.surfaceAlt, 0.85),
-              boxShadow: `inset 0 0 0 1.5px ${alpha(C.line, 0.6)}`,
-            }}>
-              {j > 0 && <Sprite markup={jellySvg(j)} cacheKey={`m3-jelly-${j}`} w={size - 2} h={size - 2} />}
+            <div key={`bg-${i}`} style={{ position: 'absolute', left: c * size + 1, top: r * size + 1, width: size - 2, height: size - 2, pointerEvents: 'none' }}>
+              <Sprite markup={jellySvg(j)} cacheKey={`m3-jelly-${j}`} w={size - 2} h={size - 2} />
             </div>
           );
         })}

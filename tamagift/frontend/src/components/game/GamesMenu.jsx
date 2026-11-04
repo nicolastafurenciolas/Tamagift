@@ -10,10 +10,13 @@ import { IconTarget } from './gameIcons';
 import Sprite from '../Sprite';
 import { BUGS } from '../../worldEvents';
 import { BUG_ART } from '../../art/room/world';
+import { gameThumbSvg, THUMB } from '../../art/minigames';
 
 // ── Menú de minijuegos ────────────────────────────────────────────
-// En dos columnas. Cada tarjeta dice cómo vas (nivel y estrellas, o
-// rango) y el reto de hoy: siempre hay algo que ir a buscar.
+// En dos columnas. Cada tarjeta lleva una viñeta de su juego (la misma
+// escena, en chiquito: art/minigames.js gameThumbSvg), dice cómo vas
+// (nivel y estrellas, o rango) y el reto de hoy: siempre hay algo que ir
+// a buscar.
 
 function Progress({ id, game }) {
   if (isLevelGame(id)) {
@@ -35,7 +38,7 @@ function Progress({ id, game }) {
   );
 }
 
-function GameCard({ id, title, desc, icon: Icon, color, onClick, game }) {
+function GameCard({ id, title, desc, onClick, game }) {
   const ch = dailyChallenge(id);
   const chDone = isChallengeDone(game, id);
   const isNew = NEW_GAMES.has(id) && !(game.seenGames || []).includes(id);
@@ -45,9 +48,13 @@ function GameCard({ id, title, desc, icon: Icon, color, onClick, game }) {
       data-game-id={id} onClick={onClick} className="pg-card pg-focus"
       style={{ position: 'relative', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, padding: '9px 10px 8px', textAlign: 'left', cursor: 'pointer', borderRadius: 18, minWidth: 0 }}
     >
-      <span style={{ width: 34, height: 34, borderRadius: 12, background: soft(color, 0.72), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Icon size={20} color={color} stroke={2.2} />
-      </span>
+      <div style={{ position: 'relative', width: '100%', aspectRatio: `${THUMB.W} / ${THUMB.H}`, borderRadius: 12, overflow: 'hidden', boxShadow: `0 0 0 2px ${C.line}` }}>
+        <Sprite
+          markup={gameThumbSvg(id)} cacheKey={`thumb-${id}`} w={THUMB.W} h={THUMB.H} kind="surface"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+          imgStyle={{ width: '100%', height: '100%' }}
+        />
+      </div>
       <div style={{ minWidth: 0, width: '100%' }}>
         <div style={{ fontFamily: FONT.display, fontSize: 13.5, fontWeight: 700, color: C.ink, lineHeight: 1.15 }}>{title}</div>
         <div style={{ fontSize: 11.5, color: C.inkSoft, lineHeight: 1.2, marginTop: 1, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{desc}</div>
@@ -103,7 +110,7 @@ export function GamesMenu({ game, onBack, onPlay, daily, onOpenDaily, onOpenAlbu
       </div>
       <div style={{ width: '100%', maxWidth: 340, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, paddingBottom: 12 }}>
         {GAME_LIST.map((g) => (
-          <GameCard key={g.id} id={g.id} title={GAME_META[g.id].title} desc={g.desc} icon={g.icon} color={g.color} game={game} onClick={() => onPlay(g.id)} />
+          <GameCard key={g.id} id={g.id} title={GAME_META[g.id].title} desc={g.desc} game={game} onClick={() => onPlay(g.id)} />
         ))}
       </div>
       <BugAlbum bugs={game.bugs || {}} />

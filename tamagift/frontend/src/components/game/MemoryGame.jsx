@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { C, FONT, SHADOW, soft } from '../../theme';
+import { C, FONT } from '../../theme';
 import { Screen, ScreenHeader, HeaderTag } from '../ui';
 import { play } from '../../sound';
 import { FOOD_SPRITES, MEMORY_FALLBACK, UI_SPRITES, foodSpriteFor } from '../../sprites';
 import { UISprite, FoodSprite } from './common';
 import { useFinish } from './meta';
 import { LevelMap, StarRow } from './levelUi';
+import Sprite from '../Sprite';
+import { cardBackSvg, cardFaceSvg, cardTableSvg } from '../../art/minigames';
 
 // ── Encuentra las parejas ─────────────────────────────────────────
 // Nueve niveles: 6, 8 y 10 parejas. Las estrellas salen de cuántos
@@ -24,6 +26,8 @@ export function memoryStars(pairs, moves) {
   if (moves <= Math.round(pairs * 2.1)) return 2;
   return 1;
 }
+
+const TABLE_PAD = 20;    // borde de la mesa alrededor de las cartas
 
 function shuffle(arr) {
   const a = [...arr];
@@ -71,6 +75,8 @@ function CardFace({ content, size }) {
   return <UISprite name={content.name} size={Math.round(size * 0.66)} />;
 }
 
+// Una carta: reverso ilustrado o frente de cartulina con su contenido
+// (art/minigames.js). Al juntar la pareja, el filete se pone verde.
 function MemoryCard({ card, isFlipped, onClick, size, disabled }) {
   return (
     <button
@@ -79,17 +85,21 @@ function MemoryCard({ card, isFlipped, onClick, size, disabled }) {
       className="pg-focus"
       aria-label={isFlipped ? 'Carta descubierta' : 'Carta tapada'}
       style={{
-        width: size, height: size, borderRadius: 14, padding: 3,
-        border: `2.5px solid ${card.matched ? C.sage : C.line}`,
-        background: isFlipped ? C.surface : `linear-gradient(160deg, ${soft(C.lavender, 0.35)}, ${soft(C.rose, 0.4)})`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        overflow: 'hidden', cursor: isFlipped ? 'default' : 'pointer',
-        boxShadow: isFlipped ? 'none' : SHADOW.soft,
-        transition: 'transform 0.15s, background 0.15s',
+        position: 'relative', width: size, height: size, padding: 0, border: 'none', background: 'none',
+        cursor: isFlipped ? 'default' : 'pointer',
         animation: card.matched ? 'pg-jelly 0.5s ease' : 'none',
       }}
     >
-      {isFlipped ? <CardFace content={card.content} size={size} /> : <UISprite name="corazon" size={Math.round(size * 0.42)} />}
+      <Sprite
+        markup={isFlipped ? cardFaceSvg(card.matched) : cardBackSvg()}
+        cacheKey={isFlipped ? `mem-face-${card.matched ? 1 : 0}` : 'mem-back'}
+        w={size} h={size} kind="surface" style={{ position: 'absolute', inset: 0 }}
+      />
+      {isFlipped && (
+        <div style={{ position: 'absolute', left: size * 0.1, top: size * 0.1, width: size * 0.78, height: size * 0.78, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: 8 }}>
+          <CardFace content={card.content} size={size * 0.8} />
+        </div>
+      )}
     </button>
   );
 }
@@ -131,8 +141,8 @@ function MemoryLevel({ level, pet, onExit, onComplete }) {
   const [size, setSize] = useState(90);
   useEffect(() => {
     const calc = () => {
-      const byW = (Math.min(window.innerWidth, 380) - 28 - (L0.cols - 1) * 8) / L0.cols;
-      const byH = (window.innerHeight - 200) / rows - 8;
+      const byW = (Math.min(window.innerWidth, 380) - 28 - TABLE_PAD * 2 - (L0.cols - 1) * 8) / L0.cols;
+      const byH = (window.innerHeight - 236 - TABLE_PAD * 2) / rows - 8;
       setSize(Math.max(54, Math.floor(Math.min(byW, byH, 100))));
     };
     calc();
@@ -185,6 +195,8 @@ function MemoryLevel({ level, pet, onExit, onComplete }) {
   }, [cards, moves, won, lost, finish, level, L0.pairs]);
 
   const stars = memoryStars(L0.pairs, Math.max(moves, 1));
+  const tableW = L0.cols * size + (L0.cols - 1) * 8 + TABLE_PAD * 2;
+  const tableH = rows * size + (rows - 1) * 8 + TABLE_PAD * 2 + 6;
   return (
     <Screen>
       <ScreenHeader
@@ -201,10 +213,15 @@ function MemoryLevel({ level, pet, onExit, onComplete }) {
           </>
         )}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${L0.cols}, ${size}px)`, gap: 8, opacity: won || lost ? 0.65 : 1, transition: 'opacity 0.3s' }}>
-        {cards.map((card) => (
-          <MemoryCard key={card.id} card={card} size={size} disabled={peeking} isFlipped={peeking || flippedIds.includes(card.id) || card.matched} onClick={() => handleCardClick(card)} />
-        ))}
+      <div style={{ position: 'relative', width: tableW, height: tableH }}>
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          <Sprite markup={cardTableSvg(tableW, tableH)} cacheKey={`mem-table-${tableW}x${tableH}`} w={tableW} h={tableH} kind="surface" pixel={2} />
+        </div>
+        <div style={{ position: 'absolute', left: TABLE_PAD, top: TABLE_PAD, display: 'grid', gridTemplateColumns: `repeat(${L0.cols}, ${size}px)`, gap: 8, opacity: won || lost ? 0.65 : 1, transition: 'opacity 0.3s' }}>
+          {cards.map((card) => (
+            <MemoryCard key={card.id} card={card} size={size} disabled={peeking} isFlipped={peeking || flippedIds.includes(card.id) || card.matched} onClick={() => handleCardClick(card)} />
+          ))}
+        </div>
       </div>
       <p style={{ fontFamily: FONT.display, fontSize: 12, color: lost ? C.rose : C.inkSoft, marginTop: 10 }}>{lost ? '¡Se acabó el tiempo!' : 'Voltea dos cartas iguales'}</p>
     </Screen>

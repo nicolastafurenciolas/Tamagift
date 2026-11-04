@@ -3,13 +3,14 @@ import { C, FONT } from '../../theme';
 import { Screen, ScreenHeader, Badge, Hearts, Board } from '../ui';
 import { play } from '../../sound';
 import Sprite from '../Sprite';
-import { Car } from '../../gameArt';
-import { truckSvg } from '../../art/minigames';
+import { truckSvg, carSvg, streetSvg, CAR_KINDS } from '../../art/minigames';
 import { PetSprite, UISprite, useElementWidth } from './common';
 import { useFinish } from './meta';
 
 // ── Cruzar la calle ───────────────────────────────────────────────
 // Corto, se falla rápido y siempre se puede llegar un carril más lejos.
+// El escenario (veredas, carriles, cebra, alcantarillas) es un solo
+// dibujo de fondo (art/minigames.js: streetSvg) alineado a la grilla.
 
 const LANES = 7;
 const COLS = 7;
@@ -153,10 +154,11 @@ export default function CrossingGame({ look, onBack, onComplete, rank = 1 }) {
   const laneH = 100 / (LANES + 1);
   const cellW = 100 / COLS;
   const cellPx = boardW / COLS;
+  const boardH = Math.round(boardW * (LANES + 1) / COLS);
   const carW = Math.round(cellPx * 1.5);
-  const carH = Math.round(carW * 30 / 64);
+  const carH = Math.round(carW * 34 / 64);
   const truckW = Math.round(cellPx * 2.6);
-  const truckH = Math.round(truckW * 40 / 110);
+  const truckH = Math.round(truckW * 44 / 110);
 
   return (
     <Screen>
@@ -170,49 +172,37 @@ export default function CrossingGame({ look, onBack, onComplete, rank = 1 }) {
         onTouchStart={onStart} onTouchEnd={onEnd}
         onPointerDown={(e) => { if (e.pointerType === 'mouse') onStart(e); }}
         onPointerUp={(e) => { if (e.pointerType === 'mouse') onEnd(e); }}
-        style={{ width: '100%', maxWidth: 330, aspectRatio: '7 / 8', maxHeight: '58vh', borderRadius: 18, background: C.ground1 }}
+        style={{ width: '100%', maxWidth: 330, aspectRatio: '7 / 8', maxHeight: '58vh', borderRadius: 18, background: C.road1 }}
       >
         <div ref={boardRef} style={{ position: 'absolute', inset: 0 }} />
-        {Array.from({ length: LANES + 1 }, (_, i) => {
-          const isRoad = i > 0 && i < LANES;
-          return (
-            <div key={i} style={{
-              position: 'absolute', left: 0, right: 0, top: `${(i / (LANES + 1)) * 100}%`, height: `${laneH}%`,
-              background: isRoad ? `linear-gradient(180deg, ${C.road1}, ${C.road2})` : `linear-gradient(180deg, ${C.ground1}, ${C.ground2})`,
-            }}>
-              {isRoad && (
-                <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 3, transform: 'translateY(-50%)', background: `repeating-linear-gradient(90deg, ${C.amberSoft} 0 16px, transparent 16px 34px)`, opacity: 0.8 }} />
-              )}
-              {!isRoad && i !== 0 && [8, 30, 54, 76, 92].map((l, k) => (
-                <div key={k} style={{ position: 'absolute', left: `${l}%`, top: '10%', opacity: 0.85 }}>
-                  <UISprite name={k % 2 ? 'pasto' : 'flor'} size={Math.max(12, Math.round(cellPx * 0.36))} />
-                </div>
-              ))}
-              {i === 0 && (
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <UISprite name="bandera" size={Math.max(16, Math.round(cellPx * 0.5))} />
-                  <span style={{ fontFamily: FONT.display, fontSize: 13, fontWeight: 800, color: C.onAccent, letterSpacing: '0.08em', textShadow: `0 1px 0 ${C.ink}` }}>META</span>
-                  <UISprite name="bandera" size={Math.max(16, Math.round(cellPx * 0.5))} />
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {/* la calle entera, estirada al tablero (los carriles van en %) */}
+        <Sprite
+          markup={streetSvg()} cacheKey="cr-street" w={boardW} h={boardH} kind="surface"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+          imgStyle={{ width: '100%', height: '100%' }}
+        />
+        <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: `${laneH}%`, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+          <span style={{ fontFamily: FONT.display, fontSize: 12, fontWeight: 800, color: C.ink, letterSpacing: '0.1em', background: C.surface, border: `2px solid ${C.ink}`, borderRadius: 7, padding: '0 8px', transform: 'translateY(-4px)' }}>META</span>
+        </div>
         {coins.map((c) => (
           <div key={`${c.lane}-${c.col}`} style={{ position: 'absolute', left: `${(c.col / COLS) * 100}%`, top: `${(c.lane / (LANES + 1)) * 100}%`, width: `${cellW}%`, height: `${laneH}%`, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'pg-breathe 1s ease-in-out infinite' }}>
             <UISprite name="moneda" size={Math.round(cellPx * 0.5)} />
           </div>
         ))}
-        {cars.map((c, i) => (
-          <div key={i} style={{
-            position: 'absolute', left: `${(c.pos / COLS) * 100}%`, top: `${(c.lane / (LANES + 1)) * 100 + laneH * (c.len > 1 ? 0.04 : 0.12)}%`,
-            width: c.len > 1 ? truckW : carW, height: c.len > 1 ? truckH : carH, transform: c.dir < 0 ? 'scaleX(-1)' : undefined,
-          }}>
-            {c.len > 1
-              ? <Sprite markup={truckSvg(CAR_COLORS[(c.lane + 2) % CAR_COLORS.length])} cacheKey={`truck-${(c.lane + 2) % CAR_COLORS.length}`} w={truckW} h={truckH} />
-              : <Sprite art={<Car color={CAR_COLORS[c.lane % CAR_COLORS.length]} />} cacheKey={`car-${c.lane % CAR_COLORS.length}`} w={carW} h={carH} />}
-          </div>
-        ))}
+        {cars.map((c, i) => {
+          const colorK = c.len > 1 ? (c.lane + 2) % CAR_COLORS.length : c.lane % CAR_COLORS.length;
+          const kind = (c.lane * 2 + i) % CAR_KINDS;
+          return (
+            <div key={i} style={{
+              position: 'absolute', left: `${(c.pos / COLS) * 100}%`, top: `${(c.lane / (LANES + 1)) * 100 + laneH * (c.len > 1 ? -0.04 : 0.1)}%`,
+              width: c.len > 1 ? truckW : carW, height: c.len > 1 ? truckH : carH, transform: c.dir < 0 ? 'scaleX(-1)' : undefined,
+            }}>
+              {c.len > 1
+                ? <Sprite markup={truckSvg(CAR_COLORS[colorK])} cacheKey={`truck2-${colorK}`} w={truckW} h={truckH} pixel={2} />
+                : <Sprite markup={carSvg(CAR_COLORS[colorK], kind)} cacheKey={`car2-${colorK}-${kind}`} w={carW} h={carH} pixel={2} />}
+            </div>
+          );
+        })}
         <div style={{
           position: 'absolute', left: `${(col / COLS) * 100}%`, top: `${(row / (LANES + 1)) * 100}%`,
           width: `${cellW}%`, height: `${laneH}%`, transition: 'left 0.11s, top 0.11s',

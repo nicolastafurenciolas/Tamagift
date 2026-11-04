@@ -1,40 +1,59 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { C, FONT, SHADOW, tint } from '../../theme';
+import { C, FONT } from '../../theme';
 import { Screen, ScreenHeader, Badge, Board, Toast } from '../ui';
 import { IconFlame } from '../icons';
 import { play } from '../../sound';
 import { TOWER, resolveDrop } from '../../towerLogic';
 import { useFinish } from './meta';
+import Sprite, { useStyledUrl } from '../Sprite';
+import { cakeLayerSvg, cakeStandSvg, towerBgSvg, TOWER_BG, TOWER_CHUNKS } from '../../art/minigames';
 
 // ── Torre de pastel ───────────────────────────────────────────────
 // Un toque suelta el piso de pastel. Clavarlo justo encima devuelve
 // ancho; clavar varios seguidos da puntos extra (×2 desde el segundo).
+//
+// El pastel se arma sobre una bandeja en medio de una plaza; al crecer,
+// el fondo (art/minigames.js: towerBgSvg) baja más lento que la torre:
+// pasan los techos, las nubes, el atardecer y llega la noche.
 
 const W = 300;
 const BLOCK_H = 22;
-// Sabores: bizcocho y glaseado (colores del pastel, no de la interfaz).
-const FLAVORS = [
-  { cake: '#F6D9A6', icing: '#FFFFFF' },  // vainilla
-  { cake: '#F4A7B9', icing: '#FFF4F7' },  // fresa
-  { cake: '#7E4E3A', icing: '#FFD3E2' },  // chocolate
-  { cake: '#B9D89A', icing: '#FFF8E8' },  // matcha
-  { cake: '#B8B2EC', icing: '#FFFFFF' },  // arándano
-];
+const BASE = 34;          // alto de la bandeja: ahí apoya el primer piso
+const PARALLAX = 0.8;
 
-function Block({ x, w, flavor, perfect, moving }) {
-  const f = FLAVORS[flavor % FLAVORS.length];
+// Un piso de pastel dibujado a su ancho. Mientras se dibuja el ancho
+// nuevo se sigue viendo el anterior (estirado un instante), así el piso
+// no parpadea al soltarlo.
+function Block({ x, w, flavor, perfect, moving, boardW }) {
+  const px = Math.max(8, Math.round(((w / W) * boardW) / 2) * 2);
+  const r = useStyledUrl({ markup: cakeLayerSvg(px, flavor), w: px, h: BLOCK_H, pixel: 2, sourceKey: `cake-${flavor}-${px}` });
+  const last = useRef(null);
+  if (r) last.current = r;
+  const img = r || last.current;
   return (
     <div style={{
-      position: 'absolute', left: `${(x / W) * 100}%`, width: `${(w / W) * 100}%`, height: BLOCK_H - 1, borderRadius: 5,
-      background: `linear-gradient(180deg, ${f.icing} 0 6px, ${f.cake} 6px calc(100% - 7px), ${tint(f.cake, 0.25)} calc(100% - 7px) calc(100% - 5px), ${f.cake} calc(100% - 5px) 100%)`,
-      border: `2px solid ${perfect ? C.amber : C.ink}`,
-      boxShadow: moving ? `${SHADOW.lifted}` : perfect ? `0 0 10px ${C.amberSoft}` : 'none',
+      position: 'absolute', left: `${(x / W) * 100}%`, width: `${(w / W) * 100}%`, height: BLOCK_H,
+      filter: perfect ? `drop-shadow(0 0 4px ${C.amber})` : moving ? 'drop-shadow(0 4px 3px rgba(42,28,36,0.28))' : undefined,
     }}>
-      {/* chorreado del glaseado */}
-      <div style={{ position: 'absolute', left: 2, right: 2, top: 5, height: 6, backgroundImage: `radial-gradient(circle at 5px 0, ${f.icing} 3.6px, transparent 4px)`, backgroundSize: '13px 6px', backgroundRepeat: 'repeat-x' }} />
-      <div style={{ position: 'absolute', left: 5, right: 5, top: 1.5, height: 2, background: 'rgba(255,255,255,0.8)', borderRadius: 2 }} />
+      {img && <img src={img.url} alt="" draggable="false" className={`pg-sprite${img.pixelated ? ' pg-pixelated' : ''}`} style={{ width: '100%', height: '100%' }} />}
     </div>
   );
+}
+
+function useBoxSize(fallback) {
+  const ref = useRef(null);
+  const [box, setBox] = useState(fallback);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const update = () => setBox({ w: Math.round(el.clientWidth) || fallback.w, h: Math.round(el.clientHeight) || fallback.h });
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return [ref, box];
 }
 
 export default function TowerGame({ onBack, onComplete, rank = 1 }) {
@@ -102,6 +121,12 @@ export default function TowerGame({ onBack, onComplete, rank = 1 }) {
 
   const floors = blocks.length - 1;
   const score = floors + bonus;
+  const [boxRef, box] = useBoxSize({ w: 330, h: 330 });
+  const lift = Math.max(0, blocks.length * BLOCK_H - 200);
+  // el fondo, en px de pantalla
+  const sc = box.w / TOWER_BG.W;
+  const chunkPx = Math.round(TOWER_BG.CHUNK * sc);
+  const bgShift = Math.min(lift * PARALLAX, Math.max(0, TOWER_CHUNKS * chunkPx - box.h));
 
   return (
     <Screen>
@@ -118,26 +143,36 @@ export default function TowerGame({ onBack, onComplete, rank = 1 }) {
       </div>
       <Board
         onPointerDown={drop}
-        style={{ width: '100%', maxWidth: 330, height: 'min(330px, 52vh)', borderRadius: 18, background: `linear-gradient(180deg, ${C.sky1}, ${C.sky2})`, cursor: over ? 'default' : 'pointer', touchAction: 'manipulation' }}
+        style={{ width: '100%', maxWidth: 330, height: 'min(330px, 52vh)', borderRadius: 18, background: C.sky2, cursor: over ? 'default' : 'pointer', touchAction: 'manipulation' }}
       >
+        <div ref={boxRef} style={{ position: 'absolute', inset: 0 }} />
+        {Array.from({ length: TOWER_CHUNKS }, (_, k) => {
+          const bottom = k * chunkPx - bgShift;
+          if (bottom > box.h || bottom + chunkPx < 0) return null;
+          return (
+            <div key={k} style={{ position: 'absolute', left: 0, bottom, width: box.w, height: chunkPx, transition: 'bottom 0.18s', pointerEvents: 'none' }}>
+              <Sprite markup={towerBgSvg(k)} cacheKey={`tw-bg-${k}`} w={box.w} h={chunkPx} kind="surface" />
+            </div>
+          );
+        })}
         {perfectFlash && (
           <div key={perfectFlash.key} style={{ position: 'absolute', left: '50%', top: 16, transform: 'translateX(-50%)', zIndex: 5 }}>
             <Toast color={C.sage}>¡PERFECTO!{perfectFlash.streak > 1 ? ` ×${perfectFlash.streak} · +${perfectFlash.streak - 1}` : ' +ancho'}</Toast>
           </div>
         )}
-        {/* mientras más alta la torre, más arriba en el cielo: llega la noche */}
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'linear-gradient(180deg, rgba(40,30,90,0.7), rgba(120,80,160,0.25))', opacity: Math.min(1, Math.max(0, (floors - 12) / 14)), transition: 'opacity 1s' }} />
-        {/* plato del pastel */}
-        <div style={{ position: 'absolute', left: '18%', right: '18%', bottom: 2, height: 10, borderRadius: '50%', background: '#FFFFFF', border: `2px solid ${C.ink}`, transform: `translateY(${Math.max(0, blocks.length * BLOCK_H - 200)}px)`, transition: 'transform 0.18s' }} />
-        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 10, transform: `translateY(${Math.max(0, blocks.length * BLOCK_H - 200)}px)`, transition: 'transform 0.18s' }}>
+        {/* bandeja del pastel */}
+        <div style={{ position: 'absolute', left: '50%', bottom: 0, transform: `translate(-50%, ${lift}px)`, transition: 'transform 0.18s', pointerEvents: 'none' }}>
+          <Sprite markup={cakeStandSvg()} cacheKey="tw-stand" w={Math.round(box.w * 0.62)} h={Math.round(box.w * 0.62 * 36 / 160)} pixel={2} />
+        </div>
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: BASE, transform: `translateY(${lift}px)`, transition: 'transform 0.18s' }}>
           {blocks.map((b, i) => (
             <div key={i} style={{ position: 'absolute', left: 0, right: 0, bottom: i * BLOCK_H, height: BLOCK_H }}>
-              <Block x={b.x} w={b.w} flavor={i} perfect={b.perfect} />
+              <Block x={b.x} w={b.w} flavor={i} perfect={b.perfect} boardW={box.w} />
             </div>
           ))}
           {!over && (
             <div style={{ position: 'absolute', left: 0, right: 0, bottom: blocks.length * BLOCK_H, height: BLOCK_H }}>
-              <Block x={cur.x} w={cur.w} flavor={blocks.length} moving />
+              <Block x={cur.x} w={cur.w} flavor={blocks.length} moving boardW={box.w} />
             </div>
           )}
         </div>

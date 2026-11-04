@@ -4,10 +4,12 @@ import { Screen, ScreenHeader, HeaderTag } from '../ui';
 import { play } from '../../sound';
 import Sprite from '../Sprite';
 import { SimonPad, SIMON_PADS } from '../../gameArt';
+import { simonConsoleSvg, SIMON_BOX } from '../../art/minigames';
 import { useFinish } from './meta';
 
 // ── Simón dice ────────────────────────────────────────────────────
-// La secuencia crece de a uno.
+// La secuencia crece de a uno. Los cuatro botones son gomitas hundidas en
+// la tapa de una cajita de música de madera (art/minigames.js).
 
 // Nota de cada botón (do, mi, sol, do agudo): así la secuencia también
 // se puede recordar de oído.
@@ -26,13 +28,16 @@ export default function SimonGame({ onBack, onComplete, rank = 1 }) {
   const [padPx, setPadPx] = useState(130);
 
   useEffect(() => {
-    const calc = () => setPadPx(Math.floor(Math.min((Math.min(window.innerWidth, 330) - 56) / 2, (window.innerHeight - 330) / 2, 138)));
+    const calc = () => setPadPx(Math.floor(Math.min((Math.min(window.innerWidth, 340) - 70) / 2, (window.innerHeight - 400) / 2, 132)));
     calc();
     window.addEventListener('resize', calc);
     return () => window.removeEventListener('resize', calc);
   }, []);
 
   const setPhaseBoth = (p) => { phaseRef.current = p; setPhase(p); };
+  const GAP = 12;
+  const boxW = padPx * 2 + GAP + SIMON_BOX.pad * 2;
+  const boxH = padPx * 2 + GAP + SIMON_BOX.pad * 2 + SIMON_BOX.front - 8;
 
   function showSequence(seq) {
     setPhaseBoth('showing');
@@ -91,26 +96,30 @@ export default function SimonGame({ onBack, onComplete, rank = 1 }) {
           }} />
         ))}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(2, ${padPx}px)`, gap: 14, marginBottom: 16, touchAction: 'manipulation' }}>
-        {SIMON_PADS.map((p) => {
-          const isLit = active === p.id;
-          const dim = phase === 'showing' && !isLit;
-          return (
-            <button
-              key={p.id} onClick={() => tapPad(p.id)} disabled={phase !== 'input'} className="pg-focus"
-              aria-label={`Botón ${p.shape}`}
-              style={{
-                position: 'relative', width: padPx, height: padPx, border: 'none', background: 'none', padding: 0,
-                cursor: phase === 'input' ? 'pointer' : 'default',
-                transform: isLit ? 'scale(0.93)' : 'scale(1)',
-                filter: isLit ? `drop-shadow(0 0 16px ${p.color}) brightness(1.15)` : 'none',
-                transition: 'transform 0.11s, filter 0.16s',
-              }}
-            >
-              <Sprite art={<SimonPad shape={p.shape} color={p.color} lit={isLit} dim={dim} />} cacheKey={`pad-${p.id}-${isLit ? 1 : 0}-${dim ? 1 : 0}`} w={padPx} h={padPx} />
-            </button>
-          );
-        })}
+      <div style={{ position: 'relative', width: boxW, height: boxH, marginBottom: 14 }}>
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          <Sprite markup={simonConsoleSvg(boxW, boxH)} cacheKey={`simon-box-${boxW}x${boxH}`} w={boxW} h={boxH} pixel={2} />
+        </div>
+        <div style={{ position: 'absolute', left: SIMON_BOX.pad, top: SIMON_BOX.pad - 4, display: 'grid', gridTemplateColumns: `repeat(2, ${padPx}px)`, gap: GAP, touchAction: 'manipulation' }}>
+          {SIMON_PADS.map((p) => {
+            const isLit = active === p.id;
+            const dim = phase === 'showing' && !isLit;
+            return (
+              <button
+                key={p.id} onClick={() => tapPad(p.id)} disabled={phase !== 'input'} className="pg-focus"
+                aria-label={`Botón ${p.shape}`}
+                style={{
+                  position: 'relative', width: padPx, height: padPx, border: 'none', background: 'none', padding: 0,
+                  cursor: phase === 'input' ? 'pointer' : 'default',
+                  filter: isLit ? `drop-shadow(0 0 14px ${p.color}) brightness(1.08)` : 'none',
+                  transition: 'filter 0.16s',
+                }}
+              >
+                <Sprite art={<SimonPad shape={p.shape} color={p.color} lit={isLit} dim={dim} />} cacheKey={`pad2-${p.id}-${isLit ? 1 : 0}-${dim ? 1 : 0}`} w={padPx} h={padPx} pixel={2} />
+              </button>
+            );
+          })}
+        </div>
       </div>
       {phase === 'idle' && (
         <>

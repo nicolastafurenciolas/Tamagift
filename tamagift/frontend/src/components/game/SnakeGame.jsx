@@ -2,12 +2,20 @@ import React, { useEffect, useRef, useState } from 'react';
 import { C } from '../../theme';
 import { Screen, ScreenHeader, HeaderTag, Board } from '../ui';
 import { play } from '../../sound';
+import Sprite from '../Sprite';
 import { PetSprite, FoodSprite, UISprite } from './common';
 import { useFinish } from './meta';
+import { picnicSvg, snakeBallSvg, picnicPlateSvg } from '../../art/minigames';
 
 // ── Serpiente golosa ──────────────────────────────────────────────
 // La cabeza es SU mascota. Acelera con cada comida. Se juega
 // deslizando el dedo (o con las flechas).
+//
+// Se juega sobre un mantel de pícnic a cuadros (cada cuadro, una
+// casilla) tendido en el pasto; el margen de pasto no es jugable. El
+// cuerpo son bolitas mullidas y la comida espera en su platito.
+const MARGIN = 0.45;                 // margen de pasto, en casillas
+const BODY = ['#8FD6A8', '#74C895'];
 
 const COLS = 11;
 const ROWS = 11;
@@ -49,8 +57,8 @@ export default function SnakeGame({ onBack, onComplete, treat, look, rank = 1 })
   const [cell, setCell] = useState(24);
   useEffect(() => {
     const calc = () => {
-      const byW = (Math.min(window.innerWidth, 420) - 32) / COLS;
-      const byH = (window.innerHeight - 300) / ROWS;
+      const byW = (Math.min(window.innerWidth, 420) - 32) / (COLS + MARGIN * 2);
+      const byH = (window.innerHeight - 300) / (ROWS + MARGIN * 2);
       setCell(Math.max(18, Math.floor(Math.min(byW, byH, 32))));
     };
     calc();
@@ -67,6 +75,8 @@ export default function SnakeGame({ onBack, onComplete, treat, look, rank = 1 })
 
   const tickMs = Math.max(100, TICK_MS - (rank - 1) * 8 - eatenRef.current * 7);
   const headPad = Math.round(cell * 0.32);
+  const m = Math.round(cell * MARGIN);
+  const side = COLS * cell + m * 2;
 
   useEffect(() => {
     if (gameOver || !started) return undefined;
@@ -159,53 +169,51 @@ export default function SnakeGame({ onBack, onComplete, treat, look, rank = 1 })
         onTouchStart={onStart} onTouchEnd={onEnd}
         onPointerDown={(e) => { if (e.pointerType === 'mouse') onStart(e); }}
         onPointerUp={(e) => { if (e.pointerType === 'mouse') onEnd(e); }}
-        style={{
-          width: COLS * cell, height: ROWS * cell, borderRadius: 16, marginBottom: 12,
-          backgroundImage: `repeating-linear-gradient(90deg, ${C.grid} 0 1px, transparent 1px ${cell}px),
-            repeating-linear-gradient(180deg, ${C.grid} 0 1px, transparent 1px ${cell}px),
-            linear-gradient(180deg, ${C.ground1}, ${C.ground2})`,
-        }}
+        style={{ width: side, height: side, borderRadius: 16, marginBottom: 12, background: C.ground1 }}
       >
-        <div style={{
-          position: 'absolute', left: food.x * cell, top: food.y * cell, width: cell, height: cell,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'pg-breathe 1.1s ease-in-out infinite',
-        }}>
-          <FoodSprite food={treat} size={cell} />
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          <Sprite markup={picnicSvg(COLS, m / cell)} cacheKey={`sn-picnic-${COLS}-${m}-${cell}`} w={side} h={side} kind="surface" />
         </div>
-        {golden && (
-          <div style={{
-            position: 'absolute', left: golden.x * cell, top: golden.y * cell, width: cell, height: cell, zIndex: 2,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'pg-breathe 0.6s ease-in-out infinite',
-            filter: `drop-shadow(0 0 5px ${C.amber}) drop-shadow(0 0 2px #fff)`,
-          }}>
-            <UISprite name="estrella" size={cell} />
+        <div style={{ position: 'absolute', left: m, top: m, width: COLS * cell, height: ROWS * cell }}>
+          <div style={{ position: 'absolute', left: food.x * cell, top: food.y * cell, width: cell, height: cell, pointerEvents: 'none' }}>
+            <Sprite markup={picnicPlateSvg()} cacheKey="sn-plate" w={Math.round(cell * 1.3)} h={Math.round(cell * 1.3)} pixel={2} style={{ position: 'absolute', left: -cell * 0.15, top: -cell * 0.05 }} />
+            <div style={{ position: 'absolute', left: 0, top: -cell * 0.14, width: cell, height: cell, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'pg-breathe 1.1s ease-in-out infinite' }}>
+              <FoodSprite food={treat} size={Math.round(cell * 0.8)} />
+            </div>
           </div>
-        )}
+          {golden && (
+            <div style={{
+              position: 'absolute', left: golden.x * cell, top: golden.y * cell, width: cell, height: cell, zIndex: 2,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'pg-breathe 0.6s ease-in-out infinite',
+              filter: `drop-shadow(0 0 5px ${C.amber}) drop-shadow(0 0 2px #fff)`,
+            }}>
+              <UISprite name="estrella" size={cell} />
+            </div>
+          )}
+          {snake.map((sg, i) => {
+            if (i === 0) {
+              return (
+                // La cabeza sobresale de su casilla: del tamaño exacto la
+                // mochi era una manchita.
+                <div key="head" style={{ position: 'absolute', left: sg.x * cell - headPad, top: sg.y * cell - headPad, width: cell + headPad * 2, height: cell + headPad * 2, zIndex: 3, transition: 'left 0.08s linear, top 0.08s linear' }}>
+                  <PetSprite look={look} mood="feliz" size={cell + headPad * 2} flip={dir.x < 0} />
+                </div>
+              );
+            }
+            const isTail = i === snake.length - 1;
+            const col = BODY[i % 2];
+            return (
+              <div key={i} style={{ position: 'absolute', left: sg.x * cell, top: sg.y * cell, width: cell, height: cell, zIndex: 1, pointerEvents: 'none' }}>
+                <Sprite markup={snakeBallSvg(col, isTail)} cacheKey={`sn-ball-${i % 2}-${isTail ? 1 : 0}`} w={cell} h={cell} pixel={2} />
+              </div>
+            );
+          })}
+        </div>
         {!started && (
           <div style={{ position: 'absolute', left: 0, right: 0, top: '72%', display: 'flex', justifyContent: 'center', zIndex: 4, pointerEvents: 'none' }}>
             <span style={{ fontFamily: 'var(--pg-font-display)', fontSize: 14, fontWeight: 700, color: C.ink, background: C.glass, padding: '7px 14px', borderRadius: 999 }}>Desliza para empezar</span>
           </div>
         )}
-        {snake.map((s, i) => {
-          if (i === 0) {
-            return (
-              // La cabeza sobresale de su casilla: del tamaño exacto la
-              // mochi era una manchita.
-              <div key="head" style={{ position: 'absolute', left: s.x * cell - headPad, top: s.y * cell - headPad, width: cell + headPad * 2, height: cell + headPad * 2, zIndex: 3, transition: 'left 0.08s linear, top 0.08s linear' }}>
-                <PetSprite look={look} mood="feliz" size={cell + headPad * 2} flip={dir.x < 0} />
-              </div>
-            );
-          }
-          const isTail = i === snake.length - 1;
-          const shrink = isTail ? 6 : 3;
-          return (
-            <div key={i} className={isTail ? 'pg-keep-round' : undefined} style={{
-              position: 'absolute', left: s.x * cell + shrink / 2, top: s.y * cell + shrink / 2,
-              width: cell - shrink, height: cell - shrink, borderRadius: isTail ? '50%' : 7,
-              background: i % 2 ? C.sageDeep : C.sage, border: `2px solid ${C.ink}`, zIndex: 1,
-            }} />
-          );
-        })}
       </Board>
       {!gameOver && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 50px)', gridTemplateRows: 'repeat(2, 40px)', gap: 6, justifyContent: 'center', touchAction: 'manipulation' }}>

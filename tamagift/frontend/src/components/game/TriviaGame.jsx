@@ -3,12 +3,16 @@ import { C, FONT, SHADOW } from '../../theme';
 import { Screen, ScreenHeader, HeaderTag } from '../ui';
 import { play } from '../../sound';
 import { useFinish } from './meta';
+import Sprite from '../Sprite';
+import { buntingSvg, letterCardSvg } from '../../art/minigames';
 
 // ── Trivia del corazón ────────────────────────────────────────────
 // Las preguntas salen de lo que configuró quien regaló. Acertar una
-// comida muestra la reacción que él/ella escribió.
+// comida muestra la reacción que él/ella escribió. Arriba, una guirnalda
+// de banderines; la pregunta va en una carta con su sello (art/minigames).
 
 const ROUNDS = 6;
+const CARD_W = 336;
 const FAKE_FOODS = ['Sushi', 'Tacos', 'Lasaña', 'Panqueques', 'Ceviche', 'Ramen', 'Empanadas', 'Waffles', 'Arepas', 'Croissant'];
 const FAKE_NAMES = ['Luna', 'Mochi', 'Pelusa', 'Coco', 'Nube', 'Simba', 'Kiwi', 'Bruno'];
 const FAKE_PHRASES = [
@@ -115,13 +119,15 @@ export default function TriviaGame({ pet, onBack, onComplete }) {
     <Screen>
       <ScreenHeader title="Trivia del corazón" onBack={onBack} right={<HeaderTag>{idx + 1}/{questions.length}</HeaderTag>} />
       <div style={{ width: '100%', maxWidth: 340 }}>
+        <Sprite markup={buntingSvg(CARD_W)} cacheKey={`tv-bunting-${CARD_W}`} w={CARD_W} h={34} kind="surface" style={{ margin: '-4px auto 6px', pointerEvents: 'none' }} />
         <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
           {questions.map((_, i) => (
             <div key={i} style={{ flex: 1, height: 6, borderRadius: 999, background: i < idx ? C.sage : i === idx ? C.rose : C.track }} />
           ))}
         </div>
-        <div className="pg-card" style={{ padding: 16, marginBottom: 12, textAlign: 'center' }}>
-          <p style={{ fontFamily: FONT.display, fontSize: 16, fontWeight: 800, color: C.ink, margin: 0, lineHeight: 1.3 }}>{current.q}</p>
+        <div style={{ position: 'relative', height: 96, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px 34px 14px 26px' }}>
+          <Sprite markup={letterCardSvg(CARD_W, 96)} cacheKey={`tv-card2-${CARD_W}`} w={CARD_W} h={96} kind="surface" style={{ position: 'absolute', left: '50%', top: 0, transform: 'translateX(-50%)', pointerEvents: 'none' }} />
+          <p style={{ position: 'relative', fontFamily: FONT.display, fontSize: 16, fontWeight: 800, color: C.ink, margin: 0, lineHeight: 1.3, textAlign: 'center' }}>{current.q}</p>
         </div>
         <div className="flex flex-col gap-2.5">
           {current.options.map((opt) => {
