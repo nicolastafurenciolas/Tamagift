@@ -97,7 +97,7 @@ export const SITUATIONS = [
   },
   {
     id: 'lluvia', label: 'Cuando llueve', when: 'Los días de lluvia', quick: true, cada: 2,
-    examples: ['Me dijo que si llovía te recordara llevar paraguas ☔', 'Un día de lluvia es perfecto para pensar en ti, dice', 'Dice que la lluvia le recuerda a cuando se refugiaron de la lluvia'],
+    examples: ['Me dijo que si llovía te recordara llevar paraguas ☔', 'Un día de lluvia es perfecto para pensar en ti, dice', 'Dice que la lluvia le recuerda a cuando esperaron abrazados bajo un techito'],
   },
   {
     id: 'buenosdias', label: 'Al despertar', when: 'La primera vez del día, de mañana', cada: 1,
