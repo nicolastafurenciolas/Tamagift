@@ -752,6 +752,32 @@ export function ingredientSvg(id) {
   return piece(64, 64, ing ? ing.draw() : '');
 }
 
+
+// ── La receta de quien regala ─────────────────────────────────────
+// Una ficha de receta escrita a mano (cartulina con renglones, una
+// esquina doblada, un corazón y una cinta que la sostiene), 96×80.
+export function recipeCardSvg(accent = '#F25C7A') {
+  const paper = '#FFF8EC', pm = mat(paper);
+  let s = G({ transform: 'translate(3 4)' }, shade('M10 14L84 8L88 70L14 76Z', SH, 0.16));
+  // la cartulina apenas girada, con la esquina de abajo doblada
+  s += face('M10 14L84 8L88 70L28 74.6L14 76Z', paper, { w: 2 });
+  s += part('M72 71L88 70L86 56Z', pm.side, { w: 1.6 });
+  // renglón rojo de arriba y los demás celestes
+  s += line('M16 26.4L80 21.4', '#F2A3B3', 1.6);
+  s += line('M17 36L81 31M18 45.6L82 40.6M18.6 55L74 50.6', '#B8D8EE', 1.3, { opacity: 0.9 });
+  // la letra a mano (bloquecitos en pixel, ondas en los demás)
+  const words = [[20, 33.6, 18], [41, 32, 22], [66, 30.2, 10], [21, 43.2, 26], [50, 41, 16], [22, 52.6, 20], [45, 50.8, 14]];
+  s += line(words.map(([x, y, w]) => `M${x} ${y}q${f1(w / 6)} -2.2 ${f1(w / 3)} 0t${f1(w / 3)} 0t${f1(w / 3)} 0`).join(''), '#7A5A8C', 1.4, { opacity: 0.75, 'data-skip': 'pixel' });
+  s += flat(words.map(([x, y, w]) => `M${x} ${y - 1.2}h${w}v2.4h${-w}Z`).join(''), '#7A5A8C', { opacity: 0.6, 'data-only': 'pixel' });
+  // el título y un corazón
+  s += flat('M20 19.4L44 17.6L44.2 21.4L20.2 23.2Z', accent, { opacity: 0.85 });
+  s += part('M70.6 21.4C66.6 18.4 67.6 13.4 70.8 14C72.2 14.2 72.8 15.4 72.8 15.4C73 14.2 74 13.2 75.6 13.6C78.6 14.6 77.6 19.6 70.6 21.4Z', accent, { w: 1.3 });
+  // cinta adhesiva arriba
+  s += part('M38 4.6L58 3.2L58.6 11.4L38.6 12.8Z', '#FFE08A', { w: 1.2 });
+  s += shine('M40 6H48V7.6H40Z', { opacity: 0.6 });
+  return piece(96, 80, s);
+}
+
 // Para el laboratorio (/arte?set=cocina).
 export function KITCHEN_ART_SET() {
   const c = (name, markup, w, h, kind) => ({ name, markup, w, h, kind });
@@ -772,6 +798,7 @@ export function KITCHEN_ART_SET() {
     c('Panqueque quemado', pancakeSvg(1), 120, 60),
     c('Masa', doughSvg(), 120, 92),
     c('Plato tapado', clocheSvg(), 120, 92),
+    c('Receta de quien regala', recipeCardSvg(), 96, 80),
     ...Object.entries(INGREDIENTS).map(([id, ing]) => c(ing.name, ingredientSvg(id), 64, 64)),
     ...['huevo', 'carne', 'galleta', 'pastel'].flatMap((k) => [0.1, 0.5, 0.95].map((d) => c(`${k} ${d}`, cookItemSvg(k, d), 120, 60))),
     ...['panqueque', 'arepa', 'huevo', 'onigiri', 'pasta', 'tortilla', 'ramen', 'torta'].map((k) => c(`base ${k}`, dishBaseSvg(k), 160, 104)),

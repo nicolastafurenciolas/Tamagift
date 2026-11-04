@@ -9,6 +9,10 @@
 // `banner`: las dos decoraciones que se ven en su pestaña de la tienda.
 // ─────────────────────────────────────────────────────────────────
 
+import { personalSeasonNow, fakePersonalSeason } from './personal/dates.js';
+
+export { personalSeasonNow };
+
 export const SEASONS = [
   {
     id: 'halloween', name: 'Halloween',
@@ -59,6 +63,33 @@ export function seasonCountdown(season, date = new Date()) {
 
 // ¿Se puede comprar hoy? Lo que no es de temporada, siempre.
 export const onSale = (item, date = new Date()) => !item.season || (activeSeason(date) || {}).id === item.season;
+
+// ── Las fechas de la pareja ──────────────────────────────────────
+// Además de Halloween y Navidad, cada fecha de la ficha (cumpleaños,
+// aniversario…) es una temporada propia de 1 a 3 días (personal/dates.js).
+// Ese día gana la propia en el cuarto (decoración, frase, "nuestra
+// canción"); la tienda sigue vendiendo lo de Halloween o Navidad.
+//
+// roomSeason(profile, date, opts) →
+//   { personal, fixed, top }   top: 'personal' | 'fixed' | null
+// opts: { names: { nombre, yo }, songs: n.º de canciones }
+export function roomSeason(profile, date = new Date(), opts = {}) {
+  const personal = personalNow(profile, date, opts);
+  const fixed = seasonNow(date);
+  return { personal, fixed, top: personal ? 'personal' : fixed ? 'fixed' : null };
+}
+
+// Solo en desarrollo: ?fiesta=cumple (aniversario, conocimos,
+// primeracita, primerbeso, otra) arma una temporada propia para hoy y
+// ?fiesta=ninguna la apaga.
+function personalNow(profile, date, opts) {
+  if (import.meta.env && import.meta.env.DEV && typeof window !== 'undefined') {
+    const forced = new URLSearchParams(window.location.search).get('fiesta');
+    if (forced === 'ninguna') return null;
+    if (forced) return fakePersonalSeason(forced, date, opts);
+  }
+  return personalSeasonNow(profile, date, opts);
+}
 
 // Solo en desarrollo: ?temporada=navidad fuerza una temporada y
 // ?temporada=ninguna la apaga, para revisar las dos caras de la tienda.

@@ -2,14 +2,54 @@ import React, { useEffect, useState } from 'react';
 import { C, FONT, soft } from '../../theme';
 import { IconFrame, IconHeart, IconCookie } from '../icons';
 import { play } from '../../sound';
-import { DATE_KINDS, pid } from '../../personal/catalog';
+import { DATE_KINDS, PHOTO_OBJECTS, pid } from '../../personal/catalog';
 import { dayKey, nextDate, futureLabel } from '../../personal/suggest';
-import { Sheet, Section, Fold, Soon, Chip, ChipRow, TextField, MainButton, SmallButton, RemoveBtn } from './kit';
+import { loadPet } from '../../api';
+import { RECIPES } from '../../cooking';
+import { baseRecipeFor } from '../../personal/recipes';
+import PhotoObject from '../game/personal/PhotoObject';
+import { Sheet, Section, Fold, Chip, ChipRow, TextField, MainButton, SmallButton, RemoveBtn } from './kit';
 
 // ─────────────────────────────────────────────────────────────────
-// Recordar: sus fechas, nuestros lugares y recetas de quien regala.
-// Los objetos con foto llegan en la etapa 4.
+// Recordar: sus fechas, nuestros lugares, recetas de quien regala y
+// objetos con sus fotos (un portarretrato, una taza… con una de las
+// fotos que ya subió al regalo).
 // ─────────────────────────────────────────────────────────────────
+
+// Las fotos que ya subió quien regala (el rincón no las trae: se piden
+// aparte, una vez).
+function usePhotos(slug) {
+  const [photos, setPhotos] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    loadPet(slug).then(({ pet }) => { if (alive) setPhotos(((pet && pet.photos) || []).map((p, i) => ({ ...p, i })).filter((p) => p.url)); }).catch(() => alive && setPhotos([]));
+    return () => { alive = false; };
+  }, [slug]);
+  return photos;
+}
+
+const thumb = { width: 56, height: 56, objectFit: 'cover', borderRadius: 10, display: 'block' };
+
+// Una tira de fotos para elegir una (o ninguna, si `none`).
+function PhotoStrip({ photos, value, onPick, none }) {
+  if (!photos) return <p style={{ fontSize: 12, color: C.inkFaint, margin: 0 }}>Buscando tus fotos…</p>;
+  if (!photos.length) return <p style={{ fontSize: 12, color: C.inkSoft, margin: 0 }}>Este regalo todavía no tiene fotos.</p>;
+  return (
+    <div className="pg-scroll-x" style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 3 }}>
+      {none && (
+        <button onClick={() => { play('pop'); onPick(null); }} className="pg-focus" aria-label="Sin foto" style={{ ...thumb, flexShrink: 0, padding: 0, border: `2.5px ${value == null ? 'solid' : 'dashed'} ${value == null ? C.rose : C.line}`, background: C.surface, color: C.inkSoft, fontFamily: FONT.display, fontSize: 11, cursor: 'pointer' }}>Sin foto</button>
+      )}
+      {photos.map((p) => (
+        <button
+          key={p.i} onClick={() => { play('pop'); onPick(p.i); }} aria-label={`Foto ${p.i + 1}`} aria-pressed={value === p.i} className="pg-focus"
+          style={{ flexShrink: 0, padding: 0, borderRadius: 12, border: `2.5px solid ${value === p.i ? C.rose : 'transparent'}`, background: 'none', cursor: 'pointer', boxShadow: value === p.i ? `0 0 0 3px ${soft(C.rose, 0.6)}` : 'none' }}
+        >
+          <img src={p.url} alt="" style={thumb} draggable="false" />
+        </button>
+      ))}
+    </div>
+  );
+}
 
 const PLACE_IDEAS = ['El café donde nos conocimos', 'Nuestra primera cita', 'La playa de ese viaje', 'Donde nos dimos el primer beso', 'Nuestro restaurante favorito', 'El parque de siempre'];
 const RECIPE_IDEAS = ['La pasta de nuestra primera cita', 'El desayuno de los domingos', 'Mi famoso arroz', 'Las galletas de tu abuela', 'Lo que cocinamos juntos la primera vez'];
@@ -81,8 +121,119 @@ function Dates({ ctx }) {
   );
 }
 
+// La foto de un lugar (opcional): plegada hasta que se toca.
+function ItemPhoto({ photos, value, onPick }) {
+  const [open, setOpen] = useState(false);
+  const cur = photos && value != null ? photos.find((p) => p.i === Number(value)) : null;
+  if (photos && !photos.length) return null;
+  return (
+    <div style={{ marginTop: 7 }}>
+      {!open ? (
+        <button onClick={() => { play('pop'); setOpen(true); }} className="pg-focus" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: C.inkSoft, fontFamily: FONT.display, fontSize: 12.5, fontWeight: 700 }}>
+          {cur ? <img src={cur.url} alt="" style={{ ...thumb, width: 34, height: 34, borderRadius: 8 }} /> : null}
+          {cur ? 'Cambiar la foto' : '+ Sumar una foto (opcional)'}
+        </button>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <span style={{ fontSize: 11.5, color: C.inkSoft }}>Se abre cuando pase esta zona del mapa:</span>
+          <PhotoStrip photos={photos} value={cur ? cur.i : null} none onPick={(v) => { onPick(v); setOpen(false); }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// El plato con el que se cocina una receta en el juego.
+function DishPick({ value, onPick, name }) {
+  const [open, setOpen] = useState(false);
+  const base = baseRecipeFor({ dish: value, name });
+  return (
+    <div style={{ marginTop: 7 }}>
+      {!open ? (
+        <button onClick={() => { play('pop'); setOpen(true); }} className="pg-focus" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: C.inkSoft, fontFamily: FONT.display, fontSize: 12.5, fontWeight: 700, textAlign: 'left' }}>
+          En el juego se cocina como: <span style={{ color: C.ink }}>{base.name}</span> · Cambiar
+        </button>
+      ) : (
+        <ChipRow>
+          {RECIPES.map((r) => (
+            <Chip key={r.id} active={base.id === r.id} color={C.peach} onClick={() => { play('pop'); onPick(r.id); setOpen(false); }} style={{ fontSize: 12, padding: '5px 10px' }}>{r.name}</Chip>
+          ))}
+        </ChipRow>
+      )}
+    </div>
+  );
+}
+
+// ── Objetos con sus fotos ────────────────────────────────────────
+function PhotoObjects({ ctx, photos }) {
+  const { profile, setProfile, names } = ctx;
+  const list = profile.photoObjects || [];
+  const setList = (fn) => setProfile((p) => ({ ...p, photoObjects: fn(p.photoObjects || []) }));
+  const [kind, setKind] = useState(null);
+  const [photo, setPhoto] = useState(null);
+  const url = (i) => { const p = photos && photos.find((x) => x.i === Number(i)); return p ? p.url : null; };
+  const firstUrl = photos && photos.length ? photos[0].url : null;
+  const adding = kind != null;
+
+  function save() {
+    if (kind == null || photo == null) return;
+    play('coin');
+    setList((l) => [...l, { id: pid('o'), kind, photo }]);
+    setKind(null); setPhoto(null);
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+      {list.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {list.map((o) => {
+            const def = PHOTO_OBJECTS.find((k) => k.id === o.kind);
+            return (
+              <div key={o.id} style={{ position: 'relative', padding: '8px 8px 6px', borderRadius: 14, background: soft(C.amber, 0.88), display: 'flex', flexDirection: 'column', alignItems: 'center', width: 96, boxSizing: 'border-box' }}>
+                <PhotoObject kind={o.kind} url={url(o.photo)} w={70} />
+                <span style={{ fontSize: 11, color: C.inkSoft, textAlign: 'center', lineHeight: 1.2, marginTop: 3 }}>{def ? def.label : ''}</span>
+                <span style={{ position: 'absolute', top: 2, right: 2 }}><RemoveBtn onClick={() => setList((l) => l.filter((x) => x.id !== o.id))} label={`Quitar ${def ? def.label : 'objeto'}`} /></span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {photos && photos.length === 0 ? (
+        <p style={{ fontSize: 12.5, color: C.inkSoft, margin: 0 }}>Cuando el regalo tenga fotos, vas a poder ponerlas en un portarretrato, una taza o un cojín.</p>
+      ) : !adding ? (
+        <>
+          {list.length === 0 && <p style={{ fontSize: 12.5, color: C.inkSoft, margin: 0 }}>Aparecen en su cuarto como decoración, con una foto de ustedes.</p>}
+          <SmallButton onClick={() => { play('pop'); setKind(PHOTO_OBJECTS[0].id); setPhoto(photos && photos.length ? photos[0].i : null); }} style={{ alignSelf: 'flex-start' }}>+ Sumar un objeto con foto</SmallButton>
+        </>
+      ) : (
+        <div style={{ padding: 10, borderRadius: 14, border: `1.5px dashed ${C.line}`, display: 'flex', flexDirection: 'column', gap: 9 }}>
+          <span style={{ fontFamily: FONT.display, fontSize: 13, fontWeight: 800, color: C.ink }}>1. El objeto</span>
+          <div className="pg-scroll-x" style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 3 }}>
+            {PHOTO_OBJECTS.map((k) => (
+              <button
+                key={k.id} onClick={() => { play('pop'); setKind(k.id); }} aria-pressed={kind === k.id} className="pg-focus"
+                style={{ flexShrink: 0, width: 84, padding: '6px 4px', borderRadius: 14, cursor: 'pointer', background: kind === k.id ? soft(C.amber, 0.75) : C.surface, border: `2px solid ${kind === k.id ? C.amber : C.lineSoft}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}
+              >
+                <PhotoObject kind={k.id} url={url(photo) || firstUrl} w={56} />
+                <span style={{ fontSize: 10.5, color: C.ink, lineHeight: 1.15, fontFamily: FONT.display, fontWeight: 700 }}>{k.label}</span>
+              </button>
+            ))}
+          </div>
+          <span style={{ fontFamily: FONT.display, fontSize: 13, fontWeight: 800, color: C.ink }}>2. La foto</span>
+          <PhotoStrip photos={photos} value={photo} onPick={setPhoto} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <SmallButton onClick={() => { setKind(null); setPhoto(null); }} style={{ flexShrink: 0 }}>Cancelar</SmallButton>
+            <MainButton onClick={save} disabled={photo == null} style={{ padding: 9, fontSize: 14 }}>Ponerlo en su cuarto</MainButton>
+          </div>
+          <p style={{ fontSize: 11.5, color: C.inkFaint, margin: 0 }}>{names.pet} lo va a tener en su cuarto para acomodarlo donde quiera.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Una lista de cosas con nombre e historia (lugares, recetas).
-function StoryList({ ctx, field, ideas, namePh, storyPh, storyKey, addLabel, emptyText }) {
+function StoryList({ ctx, field, ideas, namePh, storyPh, storyKey, addLabel, emptyText, photos, withDish }) {
   const { profile, setProfile } = ctx;
   const list = profile[field] || [];
   const setList = (fn) => setProfile((p) => ({ ...p, [field]: fn(p[field] || []) }));
@@ -110,6 +261,8 @@ function StoryList({ ctx, field, ideas, namePh, storyPh, storyKey, addLabel, emp
               onChange={(e) => setList((l) => l.map((y) => (y.id === x.id ? { ...y, [storyKey]: e.target.value.slice(0, 300) } : y)))}
               style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', marginTop: 6, fontFamily: FONT.hand || FONT.body, fontSize: 16, lineHeight: 1.3, padding: '6px 9px', borderRadius: 12, border: `1.5px solid ${C.line}`, background: C.surface, color: C.ink }}
             />
+            {photos && <ItemPhoto photos={photos} value={x.photo} onPick={(v) => setList((l) => l.map((y) => (y.id === x.id ? { ...y, photo: v } : y)))} />}
+            {withDish && <DishPick value={x.dish} name={x.name} onPick={(v) => setList((l) => l.map((y) => (y.id === x.id ? { ...y, dish: v } : y)))} />}
           </div>
           <RemoveBtn onClick={() => setList((l) => l.filter((y) => y.id !== x.id))} label={`Quitar ${x.name}`} />
         </div>
@@ -140,6 +293,7 @@ function StoryList({ ctx, field, ideas, namePh, storyPh, storyKey, addLabel, emp
 
 export default function RememberSheet({ ctx, focus, onClose }) {
   const { names, profile } = ctx;
+  const photos = usePhotos(ctx.slug);
   useEffect(() => {
     if (!focus) return undefined;
     const t = setTimeout(() => { const el = document.getElementById(`rc-${focus}`); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 120);
@@ -156,7 +310,7 @@ export default function RememberSheet({ ctx, focus, onClose }) {
         open={focus === 'lugares' ? true : undefined}
       >
         <StoryList
-          ctx={ctx} field="places" storyKey="note" ideas={PLACE_IDEAS} addLabel="+ Sumar un lugar"
+          ctx={ctx} field="places" storyKey="note" ideas={PLACE_IDEAS} addLabel="+ Sumar un lugar" photos={photos}
           namePh="Nombre del lugar" storyPh="¿Qué pasó ahí? (opcional)" emptyText="Los lugares que son de ustedes."
         />
       </Fold>
@@ -166,11 +320,17 @@ export default function RememberSheet({ ctx, focus, onClose }) {
         open={focus === 'recetas' ? true : undefined}
       >
         <StoryList
-          ctx={ctx} field="recipes" storyKey="story" ideas={RECIPE_IDEAS} addLabel="+ Sumar una receta"
+          ctx={ctx} field="recipes" storyKey="story" ideas={RECIPE_IDEAS} addLabel="+ Sumar una receta" withDish
           namePh="Nombre de la receta" storyPh="Su historia: cuándo la hiciste, por qué es especial…" emptyText="La comida que tiene una historia."
         />
       </Fold>
-      <Soon title="Objetos con sus fotos" text="Un portarretrato, una taza o un cojín con una foto de los dos." />
+      <Fold
+        id="rc-objetos" title="Objetos con sus fotos" icon={IconFrame} color={C.amber} badge={(profile.photoObjects || []).length || null}
+        hint="Un portarretrato, una postal, una taza o un cojín con una foto de los dos."
+        open={focus === 'objetos' ? true : undefined}
+      >
+        <PhotoObjects ctx={ctx} photos={photos} />
+      </Fold>
     </Sheet>
   );
 }

@@ -1,9 +1,13 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { C, FONT, SHADOW, soft } from '../../theme';
 import { useStyle } from '../../styles/StyleContext';
 import Sprite from '../Sprite';
 import { PetSprite } from './common';
-import { MAP_W, MAP_STEP, mapPoints, mapScene, mapFrame, CHUNK_PAD, labelLines } from '../../art/levelMaps';
+import { MAP_W, MAP_STEP, mapPoints, mapScene, mapFrame, CHUNK_PAD, labelLines, placesFor, zoneLevels, signLines } from '../../art/levelMaps';
+import { useStory, storySeen, markStorySeen, photoAt } from '../../personal/story';
+import { Modal } from '../ui';
+import { play } from '../../sound';
 import { mix, isDark } from '../../art/room/draw';
 
 // ─────────────────────────────────────────────────────────────────
@@ -16,6 +20,11 @@ import { mix, isDark } from '../../art/room/draw';
 // lugar, y encima la interfaz: el avance por el camino, el cartel de
 // cada zona, las paradas, sus etiquetas y la mascota en el nivel que toca.
 // Solo se dibuja lo que está cerca de la vista (y lo ya dibujado queda).
+//
+// Nuestro mapa: si quien regala sumó lugares (profile.places, ver
+// personal/story.js), las zonas llevan esos nombres en su cartel (con un
+// corazón) y al pasar la zona se abre el recuerdo: su nota y su foto.
+// Después, tocar el cartel lo vuelve a abrir.
 // ─────────────────────────────────────────────────────────────────
 
 export function StarRow({ n = 0, total = 3, size = 14, animate = false, gap = 1 }) {
@@ -57,22 +66,50 @@ const scenes = new Map();
 // El cartel de una zona: centrado donde lo pide la escena, pero sin salirse
 // de lo que muestra la tarjeta (mide su ancho real, que cambia con la letra
 // de cada estilo).
-function ZoneSign({ z, vis0, vis1 }) {
+function ZoneSign({ z, vis0, vis1, place, open, onOpen }) {
   const ref = useRef(null);
   const [w, setW] = useState(z.sign.w);
   useLayoutEffect(() => { if (ref.current) setW(ref.current.offsetWidth); }, [z.name]);
   const x = Math.max(vis0 + 8 + w / 2, Math.min(vis1 - 8 - w / 2, z.sign.x));
+  const lines = place ? signLines(z.name) : [z.name];
+  const Tag = place && open ? 'button' : 'div';
   return (
-    <div
-      ref={ref} className="pg-anim-pop"
+    <Tag
+      ref={ref} className={`pg-anim-pop${Tag === 'button' ? ' pg-focus' : ''}`}
+      onClick={Tag === 'button' ? onOpen : undefined}
+      aria-label={Tag === 'button' ? `Abrir el recuerdo: ${z.name}` : undefined}
       style={{
-        position: 'absolute', left: Math.round(x - w / 2), top: z.sign.y, transform: 'translateY(-50%)', pointerEvents: 'none', whiteSpace: 'nowrap',
-        background: C.surface, border: `2px solid ${C.ink}`, borderRadius: 8, padding: '3px 12px', boxShadow: SHADOW.soft,
-        fontFamily: FONT.display, fontSize: 12.5, fontWeight: 800, color: C.ink, zIndex: 1,
+        position: 'absolute', left: Math.round(x - w / 2), top: z.sign.y, transform: 'translateY(-50%)', pointerEvents: Tag === 'button' ? 'auto' : 'none', whiteSpace: 'nowrap',
+        background: place ? soft(C.rose, 0.82) : C.surface, border: `2px solid ${place ? C.roseDeep : C.ink}`, borderRadius: 8, padding: place ? '3px 10px' : '3px 12px', boxShadow: SHADOW.soft,
+        fontFamily: FONT.display, fontSize: 12.5, fontWeight: 800, color: C.ink, zIndex: 3, lineHeight: 1.15, textAlign: 'center',
+        display: 'flex', alignItems: 'center', gap: 6, cursor: Tag === 'button' ? 'pointer' : 'default',
       }}
     >
-      {z.name}
-    </div>
+      {place && <span aria-hidden="true" style={{ color: C.roseDeep, fontSize: 13, fontFamily: 'sans-serif' }}>{open ? '♥' : '♡'}</span>}
+      <span>{lines.map((l, i) => <React.Fragment key={i}>{i ? <br /> : null}{l}</React.Fragment>)}</span>
+    </Tag>
+  );
+}
+
+// El recuerdo de un lugar: su nombre, la nota de quien regala y la foto.
+export function PlaceMemory({ place, photo, from, onClose }) {
+  return (
+    <Modal onClose={onClose} maxWidth={320}>
+      <p style={{ fontFamily: FONT.display, fontSize: 12, fontWeight: 800, color: C.roseDeep, margin: 0, letterSpacing: 0.4 }}>Un lugar de ustedes</p>
+      <h2 style={{ fontFamily: FONT.display, fontSize: 19, fontWeight: 800, color: C.ink, margin: '4px 0 10px', lineHeight: 1.2 }}>{place.name}</h2>
+      {photo && (
+        <div style={{ display: 'inline-block', background: '#FFFDF8', padding: '8px 8px 22px', borderRadius: 4, boxShadow: SHADOW.lifted, transform: 'rotate(-2deg)', marginBottom: 12 }}>
+          <Sprite src={photo.url} w={216} h={162} kind="photo" fit="cover" />
+        </div>
+      )}
+      {place.note ? (
+        <p style={{ fontFamily: FONT.hand || FONT.body, fontSize: 17, color: C.ink, margin: '0 0 4px', lineHeight: 1.35, whiteSpace: 'pre-wrap' }}>{place.note}</p>
+      ) : (
+        <p style={{ fontSize: 13.5, color: C.inkSoft, margin: '0 0 4px' }}>{from ? `${from} quería que este lugar estuviera en tu mapa.` : 'Este lugar es de ustedes dos.'}</p>
+      )}
+      {from && place.note && <p style={{ fontSize: 12.5, color: C.inkSoft, margin: '0 0 12px' }}>— {from}</p>}
+      <button onClick={onClose} className="pg-btn pg-btn-rose pg-focus" style={{ padding: '10px 26px', fontSize: 14, marginTop: 8 }}>Guardarlo</button>
+    </Modal>
   );
 }
 
@@ -86,18 +123,24 @@ export function LevelMap({ count, unlocked, stars = {}, colors, onPick, labels, 
   // en lo-fi el suelo se apaga hacia la noche del estilo (neón ya lo hace su kit)
   const dim = kit === 'lofi' ? { paper, k: 0.42 } : null;
   const labelKey = labels ? labels.join('|') : '';
+  // nuestro mapa: los lugares de la pareja en las zonas de este mundo
+  const story = useStory();
+  const places = useMemo(() => (theme ? placesFor(theme, story.profile && story.profile.places) : []), [theme, story.profile]);
+  const zoneNames = places.map((p) => (p ? String(p.name).trim() : null));
+  const namesKey = zoneNames.join('|');
+  const [memory, setMemory] = useState(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const pts = useMemo(() => mapPoints(count, undefined, theme, labels), [count, theme, labelKey]);
   const frame = useMemo(() => (theme ? mapFrame(theme, count, pts) : null), [theme, count, pts]);
   // La escena se arma después de mostrar las paradas (en un celular tarda).
-  const sceneKey = theme ? `${theme}|${count}|${labelKey}|${dim ? dim.paper : ''}|${kit === 'papel' ? 'p' : ''}` : '';
+  const sceneKey = theme ? `${theme}|${count}|${labelKey}|${dim ? dim.paper : ''}|${kit === 'papel' ? 'p' : ''}|${namesKey}` : '';
   const [scene, setScene] = useState(() => (theme ? scenes.get(sceneKey) || null : null));
   useEffect(() => {
     if (!theme) return undefined;
     const hit = scenes.get(sceneKey);
     if (hit) { setScene(hit); return undefined; }
     const id = setTimeout(() => {
-      const sc = mapScene(theme, count, pts, { labels, dim, kit });
+      const sc = mapScene(theme, count, pts, { labels, dim, kit, zoneNames });
       scenes.set(sceneKey, sc);
       if (scenes.size > 12) scenes.delete(scenes.keys().next().value);
       setScene(sc);
@@ -153,6 +196,20 @@ export function LevelMap({ count, unlocked, stars = {}, colors, onPick, labels, 
   const left = Math.round((cardW - W) / 2);
   const vis0 = -left, vis1 = cardW - left;
 
+  // una zona con lugar se "pasa" al ganar su último nivel
+  const zoneDone = (z) => { const lv = zoneLevels(theme, count, z); return lv.length > 0 && (stars[lv[lv.length - 1]] || 0) > 0; };
+  const placeKey = (p) => `lugar-${p.id || p.name}`;
+  const openMemory = (p) => { play('unbox'); markStorySeen(placeKey(p)); setMemory(p); };
+  // al volver al mapa con una zona recién pasada, su recuerdo se abre solo (una vez)
+  useEffect(() => {
+    if (!scene || memory) return undefined;
+    const z = places.findIndex((p, i) => p && zoneDone(i) && !storySeen(placeKey(p)));
+    if (z < 0) return undefined;
+    const id = setTimeout(() => openMemory(places[z]), 700);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene, namesKey, stars]);
+
   return (
     <div ref={ref} className="pg-card" style={{ width: '100%', maxWidth: 340, height: 'min(560px, calc(100vh - 200px))', overflowY: 'auto', overflowX: 'hidden', padding: 0, position: 'relative', background: frame ? C.surface : bg }}>
       <div style={{ position: 'relative', width: W, height: H, marginLeft: frame ? left : 'auto', marginRight: frame ? 0 : 'auto', background: frame ? bg : undefined }}>
@@ -176,7 +233,9 @@ export function LevelMap({ count, unlocked, stars = {}, colors, onPick, labels, 
             ? <rect key={i} x={Math.round(t.x / 2) * 2 - 2} y={Math.round(t.y / 2) * 2 - 2} width="4" height="4" fill={scene.path.done} stroke={scene.path.ink} strokeWidth="1" strokeOpacity="0.55" shapeRendering="crispEdges" />
             : <circle key={i} cx={t.x} cy={t.y} r="2.6" fill={scene.path.done} stroke={scene.path.ink} strokeWidth="1" strokeOpacity="0.55" />))}
         </svg>
-        {scene && scene.zones.map((z) => <ZoneSign key={z.name} z={z} vis0={vis0} vis1={vis1} />)}
+        {scene && scene.zones.map((z, i) => (
+          <ZoneSign key={z.name} z={z} vis0={vis0} vis1={vis1} place={!!places[i]} open={!!places[i] && zoneDone(i)} onOpen={() => openMemory(places[i])} />
+        ))}
         {pts.map((p, k) => {
           const n = k + 1;
           const open = n <= unlocked;
@@ -232,6 +291,8 @@ export function LevelMap({ count, unlocked, stars = {}, colors, onPick, labels, 
           );
         })}
       </div>
+      {/* fuera de la tarjeta (que recorta lo que se sale): sobre toda la pantalla */}
+      {memory && createPortal(<PlaceMemory place={memory} photo={photoAt(story.pet, memory.photo)} from={story.names && story.names.yo} onClose={() => { play('pop'); setMemory(null); }} />, document.body)}
     </div>
   );
 }

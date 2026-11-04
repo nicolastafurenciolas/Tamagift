@@ -10,8 +10,10 @@ import {
 } from '../../cooking';
 import {
   counterSvg, boardSvg, bowlSvg, potSvg, panSvg, stoveSvg, flameSvg, ovenSvg, knifeSvg, spoonSvg,
-  cookItemSvg, doughSvg, dishBaseSvg, clocheSvg, sparkleSvg, ingredientSvg, toppingSvg, sliceFaceSvg, SLICE_PROFILE, INGREDIENTS,
+  cookItemSvg, doughSvg, dishBaseSvg, clocheSvg, sparkleSvg, ingredientSvg, toppingSvg, sliceFaceSvg, SLICE_PROFILE, INGREDIENTS, recipeCardSvg,
 } from '../../art/kitchen';
+import { useStory } from '../../personal/story';
+import { giverRecipes } from '../../personal/recipes';
 import { PetSprite, FoodSprite } from './common';
 import { useFinish } from './meta';
 import { LevelMap, StarRow } from './levelUi';
@@ -21,6 +23,12 @@ import { LevelMap, StarRow } from './levelUi';
 // arrastrar ingredientes, revolver en círculos, voltear en su punto,
 // cuidar el fuego, amasar a toques y decorar. Lo que se cocina va a la
 // nevera de la mochi (comida casera: la mantiene sana).
+//
+// Recetas de quien regala (profile.recipes, ver personal/recipes.js):
+// arriba del mapa, "Recetas de {quien regala}". Se cocinan con los pasos
+// de un plato del catálogo y cuentan su historia al empezar y al
+// terminar. No son niveles: están siempre abiertas y no cambian el mapa
+// (el juego recibe `extra.special` al terminar).
 
 const shuffle = (a) => { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
 const nameOf = (id) => (INGREDIENTS[id] ? INGREDIENTS[id].name.toLowerCase() : id);
@@ -29,10 +37,18 @@ const RATING = (q) => (q >= 0.95 ? '¡Perfecto!' : q >= 0.7 ? '¡Bien!' : 'Mmm, 
 export default function CookingGame({ look, progress, startLevel, onBack, onComplete }) {
   const unlocked = (progress && progress.unlocked) || 1;
   const [level, setLevel] = useState(startLevel && startLevel <= unlocked ? startLevel : null);
+  const [special, setSpecial] = useState(null);
+  const story = useStory();
+  const specials = useMemo(() => giverRecipes(story.profile), [story.profile]);
+  const from = (story.names && story.names.yo) || '';
+  if (special) {
+    return <RecipeRun key={special.id} level={null} recipe={special} special={special} from={from} look={look} onExit={() => setSpecial(null)} onComplete={onComplete} />;
+  }
   if (level == null) {
     return (
       <Screen>
         <ScreenHeader title="Cocina" subtitle="Cocina y llena su nevera" onBack={onBack} />
+        {specials.length > 0 && <GiverRecipes list={specials} from={from} onPick={(r) => { play('unbox'); setSpecial(r); }} />}
         <LevelMap
           count={RECIPES.length} unlocked={unlocked} stars={(progress && progress.stars) || {}} theme="cocina" look={look}
           colors={[C.peach, C.rose, C.amber, C.sage]}
@@ -43,6 +59,34 @@ export default function CookingGame({ look, progress, startLevel, onBack, onComp
     );
   }
   return <RecipeRun key={level} level={level} recipe={RECIPES[level - 1]} look={look} onExit={() => setLevel(null)} onComplete={onComplete} />;
+}
+
+// Las recetas de quien regala: una tarjeta arriba del mapa.
+function GiverRecipes({ list, from, onPick }) {
+  return (
+    <div className="pg-card" style={{ width: '100%', maxWidth: 340, boxSizing: 'border-box', padding: '8px 10px', marginBottom: 8, background: soft(C.rose, 0.85) }}>
+      <div style={{ fontFamily: FONT.display, fontSize: 12.5, fontWeight: 800, color: C.roseDeep, marginBottom: 4 }}>
+        {from ? `Recetas de ${from}` : 'Recetas con historia'}
+      </div>
+      <div className="pg-scroll-x" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
+        {list.map((r) => (
+          <button
+            key={r.id} onClick={() => onPick(r)} className="pg-focus"
+            style={{ flex: list.length === 1 ? '1 1 auto' : '0 0 auto', maxWidth: list.length === 1 ? 'none' : 220, display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px 5px 5px', borderRadius: 14, border: `2px solid ${C.ink}`, background: C.surface, cursor: 'pointer', textAlign: 'left', boxShadow: SHADOW.soft }}
+          >
+            <span style={{ position: 'relative', flexShrink: 0, width: 46, height: 40 }}>
+              <Sprite markup={recipeCardSvg()} cacheKey="ck-recipe-card" w={46} h={38} />
+              <span style={{ position: 'absolute', right: -6, bottom: -4 }}><DishArt id={r.food} size={24} /></span>
+            </span>
+            <span style={{ minWidth: 0 }}>
+              <span style={{ display: 'block', fontFamily: FONT.display, fontSize: 13, fontWeight: 800, color: C.ink, lineHeight: 1.15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: list.length === 1 ? 'normal' : 'nowrap' }}>{r.name}</span>
+              <span style={{ display: 'block', fontSize: 11, color: C.inkSoft, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Como {r.base.name.toLowerCase()}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function DishArt({ id, size }) {
@@ -62,7 +106,7 @@ function useStageSize() {
   return [W, Math.round(W * 0.95)];
 }
 
-function RecipeRun({ level, recipe, look, onExit, onComplete }) {
+function RecipeRun({ level, recipe, look, onExit, onComplete, special = null, from = '' }) {
   const [phase, setPhase] = useState('intro');
   const [idx, setIdx] = useState(0);
   const [qs, setQs] = useState([]);
@@ -85,7 +129,11 @@ function RecipeRun({ level, recipe, look, onExit, onComplete }) {
       const stars = starsForCooking(score);
       setPhase('done');
       play('ding');
-      finish(score, 2600, { level, won: true, stars, dishes: [{ id: recipe.food, n: portionsFor(stars), name: food ? food.name : recipe.name }] });
+      const dishes = [{ id: recipe.food, n: portionsFor(stars), name: food ? food.name : recipe.name }];
+      // la receta de quien regala no es un nivel: el juego lo sabe por `special`
+      // (sin `level`, el juego de siempre la cuenta en el nivel 1, que ya está abierto)
+      if (special) finish(score, 4200, { level: 1, won: true, stars, dishes, special: { id: special.giftId, name: special.name, from } });
+      else finish(score, 2600, { level, won: true, stars, dishes });
     }, 950);
   }
 
@@ -125,9 +173,20 @@ function RecipeRun({ level, recipe, look, onExit, onComplete }) {
                 </div>
               ))}
             </div>
-            <p style={{ fontFamily: FONT.display, fontSize: 18, fontWeight: 800, color: C.ink, margin: 0 }}>¡{food ? food.name : recipe.name} listo!</p>
+            <p style={{ fontFamily: FONT.display, fontSize: 18, fontWeight: 800, color: C.ink, margin: 0, textAlign: 'center', padding: '0 12px' }}>{special ? `¡${special.name} listo!` : `¡${food ? food.name : recipe.name} listo!`}</p>
             <StarRow n={stars} size={30} animate gap={4} />
-            <p style={{ fontSize: 12.5, color: C.inkSoft, margin: 0 }}>{portionsFor(stars)} {portionsFor(stars) > 1 ? 'porciones' : 'porción'} para su nevera</p>
+            {special ? (
+              <p style={{ fontFamily: FONT.hand || FONT.body, fontSize: 15.5, color: C.ink, margin: '2px 18px 0', textAlign: 'center', lineHeight: 1.3 }}>
+                {from ? `Te salió igualito al de ${from}` : 'Te salió igualito'} 💗
+                {special.story && (
+                  <span style={{ display: 'block', fontSize: 13, color: C.inkSoft, marginTop: 4 }}>
+                    “{special.story.length > 110 ? `${special.story.slice(0, 108).trim()}…` : special.story}”
+                  </span>
+                )}
+              </p>
+            ) : (
+              <p style={{ fontSize: 12.5, color: C.inkSoft, margin: 0 }}>{portionsFor(stars)} {portionsFor(stars) > 1 ? 'porciones' : 'porción'} para su nevera</p>
+            )}
           </div>
         )}
         {toast && (
@@ -138,8 +197,18 @@ function RecipeRun({ level, recipe, look, onExit, onComplete }) {
       </div>
       {phase === 'intro' && (
         <Modal>
-          <DishArt id={recipe.food} size={86} />
+          {special && (
+            <div style={{ position: 'relative', margin: '0 auto 8px', width: 96, height: 80 }}>
+              <Sprite markup={recipeCardSvg()} cacheKey="ck-recipe-card-big" w={96} h={80} />
+              <span style={{ position: 'absolute', right: -14, bottom: -8 }}><DishArt id={recipe.food} size={50} /></span>
+            </div>
+          )}
+          {!special && <DishArt id={recipe.food} size={86} />}
+          {special && <p style={{ fontFamily: FONT.display, fontSize: 12, fontWeight: 800, color: C.roseDeep, margin: '4px 0 0' }}>{from ? `La receta de ${from}` : 'Una receta con historia'}</p>}
           <h2 style={{ fontFamily: FONT.display, fontSize: 19, fontWeight: 800, color: C.ink, margin: '6px 0 4px' }}>{recipe.name}</h2>
+          {special && special.story && (
+            <p style={{ fontFamily: FONT.hand || FONT.body, fontSize: 16, color: C.ink, margin: '2px 0 10px', lineHeight: 1.35, whiteSpace: 'pre-wrap' }}>“{special.story}”</p>
+          )}
           <ol style={{ textAlign: 'left', fontSize: 12.5, color: C.inkSoft, margin: '0 0 12px', paddingLeft: 20, lineHeight: 1.55 }}>
             {recipe.steps.map((s, k) => <li key={k}>{STEP_TEXT[s.type]({ ...s, itemName: s.item ? nameOf(s.item) : null })}</li>)}
           </ol>

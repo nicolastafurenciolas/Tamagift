@@ -385,8 +385,9 @@ function makeScene(theme, count, pts, opts) {
     }
   });
   // los carteles de zona (se calculan aquí para dejarles aire)
-  S.signs = T.zones.map((Z, z) => signSpot(S, z, Z.name));
-  S.signs.forEach((s) => mark(S.block, s.x - s.w / 2 - 6, s.y - 16, s.x + s.w / 2 + 6, s.y + 16));
+  S.names = T.zones.map((Z, z) => (opts.zoneNames && opts.zoneNames[z]) || Z.name);
+  S.signs = S.names.map((name, z) => signSpot(S, z, name));
+  S.signs.forEach((s) => mark(S.block, s.x - s.w / 2 - 6, s.y - s.h / 2 - 4, s.x + s.w / 2 + 6, s.y + s.h / 2 + 4));
   S.blockedAt = (x, y) => { const c = Math.floor(x / CELL), r = Math.floor(y / CELL); return c < 0 || r < 0 || c >= S.cols || r >= S.rows ? 0 : S.block[r * S.cols + c]; };
   S.onRoad = (x, y, m = 0) => { for (const [dx, dy] of [[0, 0], [m, 0], [-m, 0], [0, m], [0, -m]]) { const c = Math.floor((x + dx) / CELL), r = Math.floor((y + dy) / CELL); if (c >= 0 && r >= 0 && c < S.cols && r < S.rows && S.road[r * S.cols + c]) return true; } return false; };
   S.zoneAt = (y) => { let z = 0; while (z < nz - 1 && y >= zy[z + 1]) z++; return z; };
@@ -395,16 +396,27 @@ function makeScene(theme, count, pts, opts) {
 
 // Dónde va el cartel de una zona: la primera, arriba; las demás, en el
 // hueco de la transición, del lado contrario a donde cruza el camino.
+// Los nombres largos (los lugares de la pareja) van en dos renglones.
+export const SIGN_PER_LINE = 24;
+export function signLines(name) {
+  const words = String(name).split(' ');
+  if (name.length <= SIGN_PER_LINE) return [name];
+  const lines = [''];
+  words.forEach((w) => { const k = lines.length - 1; const t = lines[k] ? `${lines[k]} ${w}` : w; if (t.length > SIGN_PER_LINE && lines[k] && lines.length < 2) lines.push(w); else lines[k] = t; });
+  return lines;
+}
 function signSpot(S, z, name) {
-  const w = Math.round(name.length * 7.6 + 30);
-  if (!z) return { x: S.W / 2, y: 30, w };
+  const lines = signLines(name);
+  const w = Math.round(Math.max(...lines.map((l) => l.length)) * 7.6 + 30 + (lines.length > 1 || S.T.zones[z].name !== name ? 16 : 0));
+  const h = lines.length > 1 ? 44 : 32;
+  if (!z) return { x: S.W / 2, y: 30, w, h };
   const a = S.P[S.zk[z][0] - 1], b = S.P[S.zk[z][0]];
   const y = ev(a.y + 50);
   // x del camino a esa altura
   const near = S.samp.reduce((best, p) => (Math.abs(p.y - y) < Math.abs(best.y - y) ? p : best), S.samp[0]);
   const left = near.x > S.W / 2;
   const x = left ? Math.max(14 + w / 2, near.x - 26 - w / 2) : Math.min(S.W - 14 - w / 2, near.x + 26 + w / 2);
-  return { x: Math.round(x), y, w };
+  return { x: Math.round(x), y, w, h };
 }
 
 // Suelo: una forma con su capa, su papel y su color. Se juntan al armar
@@ -3311,9 +3323,45 @@ export function mapScene(theme, count, pts, opts = {}) {
     W: S.W, OX: SCENE_OX, H: S.H,
     path: S.T.path,
     road: roadPathD(S.segs),
-    zones: S.T.zones.map((Z, z) => ({ name: Z.name, y: S.zy[z], dark: !!Z.dark, bg: Z.bg, sign: S.signs[z] })),
+    zones: S.T.zones.map((Z, z) => ({ name: S.names[z], place: S.names[z] !== Z.name, y: S.zy[z], dark: !!Z.dark, bg: Z.bg, sign: S.signs[z] })),
     chunks, pieces,
     trail: S.samp.filter((p, i) => i % 4 === 2).map((p) => ({ x: f1(p.x), y: f1(p.y), k: p.k })),
   };
 }
 
+
+// ═════════════════════════════════════════════════════════════════
+// Nuestro mapa (PLAN_REGALO_VIVO.md, etapa 4): los lugares de la pareja
+// (profile.places) les ponen nombre a las zonas de los mundos. Se
+// reparten primero la primera zona de cada mundo, después la segunda…
+// así con pocos lugares cada mundo tiene el suyo al empezar.
+// ═════════════════════════════════════════════════════════════════
+export const PLACE_ORDER = ['golosinas', 'cocina', 'memoria', 'rompecabezas'];
+
+/** Las casillas para lugares: [{ theme, zone }] en el orden en que se llenan. */
+export function placeSlots() {
+  const out = [];
+  const most = Math.max(...PLACE_ORDER.map((t) => MAP_THEMES[t].zones.length));
+  for (let z = 0; z < most; z++) PLACE_ORDER.forEach((t) => { if (MAP_THEMES[t].zones[z]) out.push({ theme: t, zone: z }); });
+  return out;
+}
+
+/**
+ * El lugar de cada zona de un mundo: un arreglo del largo de sus zonas
+ * con el lugar ({ id, name, note, photo }) o null. Sin lugares, todo null.
+ */
+export function placesFor(theme, places) {
+  const T = MAP_THEMES[theme];
+  if (!T) return [];
+  const list = (Array.isArray(places) ? places : []).filter((p) => p && String(p.name || '').trim());
+  const out = T.zones.map(() => null);
+  placeSlots().forEach((slot, i) => { if (slot.theme === theme && list[i]) out[slot.zone] = list[i]; });
+  return out;
+}
+
+/** Los niveles (desde 1) de una zona. */
+export function zoneLevels(theme, count, z) {
+  const out = [];
+  for (let k = 0; k < count; k++) if (zoneOf(theme, count, k) === z) out.push(k + 1);
+  return out;
+}
