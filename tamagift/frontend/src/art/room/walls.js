@@ -106,8 +106,23 @@ export const WALLS = [
       T('limon', 'Limón', ['#F7EDBC']), T('salvia', 'Salvia', ['#CBD9C0']), T('gris', 'Gris perla', ['#DCD8DF']),
       T('carbon', 'Carbón', ['#3E3A45']), T('noche', 'Azul noche', ['#273153']), T('vino', 'Vino', ['#5A2733']),
     ],
-    // pintura mate: solo la luz del cuarto (ver wallSvg)
-    draw: () => '',
+    // Pintura mate en dos tonos: arriba el color, abajo un pelín más
+    // hondo, y entre los dos un listón pintado (con su canto de luz y su
+    // sombra) a la altura de una silla: la pared lisa queda pensada, no
+    // vacía.
+    draw: (w, h, c) => {
+      const b = brush();
+      const top = Math.round(h * 0.6);
+      const dark = isDark(c[0]);
+      const rail = dark ? tone(c[0], -0.7) : mix('#FFFFFF', c[0], 0.35);
+      b.fill(rect(0, top, w, h - top), tone(c[0], dark ? -0.12 : -0.07));
+      b.tone(rect(0, top + 7, w, 5), '#2A1C24', 0.1, 1);
+      b.fill(rect(0, top - 4, w, 11), rail, 1, 2);
+      b.fill(rect(0, top - 4, w, 2.4), tone(rail, -0.7), 1, 3);
+      b.fill(rect(0, top - 1.6, w, 2.4), tone(rail, 0.6), 1, 3);
+      b.fill(rect(0, top + 4.6, w, 2.4), tone(rail, -0.45), 1, 3);
+      return b.out();
+    },
   },
   {
     id: 'rayas', name: 'Papel de rayas', price: 90, tags: ['dulce', 'elegante'],

@@ -37,7 +37,7 @@ const DOOR_VISITS = {
   intercambio: { si: 'Darle un regalo', no: 'Darle un abrazo', border: 'rose' },
 };
 
-export default function WorldEvents({ event, onResolve, onLetter, onHip, onDoorChoice }) {
+export default function WorldEvents({ event, onResolve, onLetter, onHip, onDoorChoice, pixel }) {
   const [gone, setGone] = useState(() => new Set());
   useEffect(() => { setGone(new Set()); }, [event && event.id]);
 
@@ -59,7 +59,7 @@ export default function WorldEvents({ event, onResolve, onLetter, onHip, onDoorC
           <Tap x={0} y={0} w={56} h={56} label={`Atrapar ${bugName(d.bug)}`} className="pg-flutter"
             onTap={() => { play('good'); onResolve({ bug: d.bug, coins: 12, reason: `${bugName(d.bug).toLowerCase()} al álbum`, bubble: `¡Atrapaste una ${bugName(d.bug).toLowerCase()}!`, react: 'happy' }); }}
           >
-            <div style={{ transform: dir < 0 ? 'scaleX(-1)' : undefined }}><Sprite markup={art} cacheKey={`bug-${d.bug}`} w={56} h={56} /></div>
+            <div style={{ transform: dir < 0 ? 'scaleX(-1)' : undefined }}><Sprite markup={art} cacheKey={`bug-${d.bug}`} w={56} h={56} pixel={pixel} /></div>
           </Tap>
         </div>
       );
@@ -70,7 +70,7 @@ export default function WorldEvents({ event, onResolve, onLetter, onHip, onDoorC
         <Tap x={d.x - 22} y={ROOM.H - 58} w={44} h={44} label="Recoger la moneda" className="pg-glint"
           onTap={() => onResolve({ coins: d.amount || 10, reason: 'moneda encontrada', bubble: '¡Una moneda escondida!' })}
         >
-          <Sprite art={sp()} cacheKey="ui-moneda" w={44} h={44} />
+          <Sprite art={sp()} cacheKey="ui-moneda" w={44} h={44} pixel={pixel} />
         </Tap>
       );
     }
@@ -84,14 +84,14 @@ export default function WorldEvents({ event, onResolve, onLetter, onHip, onDoorC
             if (next.size >= d.crumbs.length) onResolve({ coins: d.crumbs.length * 2, reason: 'cuarto limpio', vitals: { clean: 6 }, bubble: '¡Qué limpiecito todo!' });
           }}
         >
-          <Sprite markup={crumbSvg(c.i)} cacheKey={`crumb-${c.i % 3}`} w={26} h={26} />
+          <Sprite markup={crumbSvg(c.i)} cacheKey={`crumb-${c.i % 3}`} w={26} h={26} pixel={pixel} />
         </Tap>
       ));
     }
     case 'carta':
       return (
         <Tap x={200} y={ROOM.H - 66} w={64} h={54} label="Abrir la carta" className="pg-parcel" onTap={() => onLetter(d)}>
-          <Sprite markup={envelopeSvg()} cacheKey="envelope" w={60} h={50} />
+          <Sprite markup={envelopeSvg()} cacheKey="envelope" w={60} h={50} pixel={pixel} />
         </Tap>
       );
     case 'visita': {
@@ -116,7 +116,7 @@ export default function WorldEvents({ event, onResolve, onLetter, onHip, onDoorC
           >
             <PetArt recipe={d.friend} mood="feliz" size={170} />
             <div className="pg-parcel" style={{ position: 'absolute', right: -6, bottom: 18, width: 46, height: 46, borderRadius: 14, background: C.surface, border: `2px solid ${C.line}`, display: 'grid', placeItems: 'center', boxShadow: SHADOW.soft }}>
-              {fd ? <Sprite art={foodSpriteFor(fd.id).render()} cacheKey={`food-${foodSpriteFor(fd.id).id}`} w={34} h={34} /> : <Sprite art={UI_SPRITES.moneda()} cacheKey="ui-moneda" w={30} h={30} />}
+              {fd ? <Sprite art={foodSpriteFor(fd.id).render()} cacheKey={`food-${foodSpriteFor(fd.id).id}`} w={34} h={34} pixel={pixel} /> : <Sprite art={UI_SPRITES.moneda()} cacheKey="ui-moneda" w={30} h={30} pixel={pixel} />}
             </div>
           </Tap>
         </>
@@ -155,7 +155,7 @@ export default function WorldEvents({ event, onResolve, onLetter, onHip, onDoorC
             if (next.size >= d.flakes.length) onResolve({ coins: d.flakes.length * 4 + 10, reason: 'copitos atrapados', bubble: '¡Atrapaste todos los copitos!', react: 'happy' });
           }}
         >
-          <Sprite markup={flakeSvg(fl.i)} cacheKey={`flake-${fl.i % 3}`} w={48} h={48} />
+          <Sprite markup={flakeSvg(fl.i)} cacheKey={`flake-${fl.i % 3}`} w={48} h={48} pixel={pixel} />
         </Tap>
       ));
     }
@@ -169,7 +169,7 @@ export default function WorldEvents({ event, onResolve, onLetter, onHip, onDoorC
             if (next.size >= d.ghosts.length) onResolve({ coins: d.ghosts.length * 4 + 10, reason: 'fantasmitas atrapados', bubble: '¡Atrapaste a todos los fantasmitas!', react: 'happy' });
           }}
         >
-          <Sprite markup={ghostSvg(gh.i)} cacheKey={`ghost-${gh.i % 3}`} w={54} h={62} />
+          <Sprite markup={ghostSvg(gh.i)} cacheKey={`ghost-${gh.i % 3}`} w={54} h={62} pixel={pixel} />
         </Tap>
       ));
     }

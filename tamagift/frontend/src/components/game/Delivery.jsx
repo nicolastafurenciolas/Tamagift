@@ -19,14 +19,14 @@ import { envelopeSvg } from '../../art/room/world';
 // ─────────────────────────────────────────────────────────────────
 
 function ItemArt({ d, posters, baseRecipe, game }) {
-  if (d.kind === 'mueble') { const f = findFurniture(d.refId); return f ? <Sprite markup={f.svg(d.paint || 'natural')} cacheKey={`furn-${f.id}-${d.paint || 'natural'}`} w={70} h={70} /> : null; }
-  if (d.kind === 'decor') { const x = findDecor(d.refId); return x ? <Sprite markup={x.svg(d.paint || 'natural')} cacheKey={`decor-${x.id}-${d.paint || 'natural'}`} w={66} h={66} /> : null; }
+  if (d.kind === 'mueble') { const f = findFurniture(d.refId); return f ? <Sprite markup={f.svg(d.paint || 'natural')} cacheKey={`furn-${f.id}-${d.paint || 'natural'}`} w={70} h={70} pixel={2} /> : null; }
+  if (d.kind === 'decor') { const x = findDecor(d.refId); return x ? <Sprite markup={x.svg(d.paint || 'natural')} cacheKey={`decor-${x.id}-${d.paint || 'natural'}`} w={66} h={66} pixel={2} /> : null; }
   if (d.kind === 'poster') { const p = (posters || []).find((x) => String(x.id) === String(d.refId)); return p ? <FramedPoster poster={p} paint={d.paint || 'natural'} h={70} /> : null; }
   if (d.kind === 'pared') return <Sprite markup={wallSwatchSvg(d.value, 120)} cacheKey={`swatch-pared-${d.value}`} w={64} h={64} kind="surface" fit="cover" />;
   if (d.kind === 'piso') return <Sprite markup={floorSwatchSvg(d.value, 120)} cacheKey={`swatch-piso-${d.value}`} w={64} h={64} kind="surface" fit="cover" />;
-  if (d.kind === 'monedas') return <Sprite art={UI_SPRITES.moneda()} cacheKey="ui-moneda" w={52} h={52} />;
-  if (d.kind === 'comida') { const sp = foodSpriteFor(d.refId); return <Sprite art={sp.render()} cacheKey={`food-${sp.id}`} w={56} h={56} />; }
-  if (d.kind === 'carta') return <Sprite markup={envelopeSvg()} cacheKey="envelope" w={62} h={52} />;
+  if (d.kind === 'monedas') return <Sprite art={UI_SPRITES.moneda()} cacheKey="ui-moneda" w={52} h={52} pixel={2} />;
+  if (d.kind === 'comida') { const sp = foodSpriteFor(d.refId); return <Sprite art={sp.render()} cacheKey={`food-${sp.id}`} w={56} h={56} pixel={2} />; }
+  if (d.kind === 'carta') return <Sprite markup={envelopeSvg()} cacheKey="envelope" w={62} h={52} pixel={2} />;
   if (d.kind === 'ropa' && baseRecipe) {
     const [slot] = d.refId.split(':');
     const r = applyLook(baseRecipe, { ...game, wear: { ...(game.wear || {}), [slot]: d.wear } });

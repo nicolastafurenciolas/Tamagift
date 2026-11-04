@@ -98,12 +98,17 @@ function vgrad(top, bot, pixel) {
 // que cubre todo el cuarto). En pixel, anillos escalonados.
 function pool(x, y, r, c, a, pixel) {
   const at = `circle ${Math.round(r)}px at ${Math.round(x)}px ${Math.round(y)}px`;
-  if (pixel) return `radial-gradient(${at}, ${rgba(c, a)} 0 30%, ${rgba(c, a * 0.68)} 30% 54%, ${rgba(c, a * 0.36)} 54% 78%, ${rgba(c, a * 0.14)} 78% 100%, transparent 100%)`;
+  // (seis anillos con saltos chicos de tono: se lee como luz pintada a
+  // mano, sin aros marcados)
+  if (pixel) {
+    const k = [1, 0.85, 0.68, 0.5, 0.32, 0.15];
+    return `radial-gradient(${at}, ${k.map((v, i) => `${rgba(c, a * v)} ${Math.round(i * 16.6)}% ${Math.round((i + 1) * 16.6)}%`).join(', ')}, transparent 100%)`;
+  }
   return `radial-gradient(${at}, ${rgba(c, a)} 0%, ${rgba(c, a * 0.6)} 35%, ${rgba(c, a * 0.22)} 68%, transparent 100%)`;
 }
 // Halo en su propia caja (el brillo de una lámpara o de un vidrio).
 function halo(c, a, pixel) {
-  if (pixel) return `radial-gradient(circle closest-side, ${rgba(c, a)} 0 34%, ${rgba(c, a * 0.5)} 34% 66%, ${rgba(c, a * 0.18)} 66% 100%, transparent 100%)`;
+  if (pixel) return `radial-gradient(circle closest-side, ${rgba(c, a)} 0 22%, ${rgba(c, a * 0.75)} 22% 42%, ${rgba(c, a * 0.5)} 42% 62%, ${rgba(c, a * 0.28)} 62% 82%, ${rgba(c, a * 0.1)} 82% 100%, transparent 100%)`;
   return `radial-gradient(circle closest-side, ${rgba(c, a)} 0%, ${rgba(c, a * 0.45)} 40%, transparent 100%)`;
 }
 const FULL = { position: 'absolute', inset: 0, pointerEvents: 'none' };
@@ -212,18 +217,26 @@ export function WeatherOnWindows({ weather, placed }) {
   if (weather === 'sol') return null;
   const pixel = st.art.kind === 'pixel';
   return placed.filter((it) => it.kind === 'mueble' && GLASS[it.refId]).map((it) => {
-    const gl = glassOf(it);
+    const g0 = glassOf(it);
+    // La ventana de dos hojas tiene las cortinas encima de los bordes del
+    // vidrio y una cruz de madera: el clima va solo en el vidrio que se ve
+    // (entre las cortinas) y la cruz se recorta con una máscara, así queda
+    // detrás del marco.
+    const kk = g0.w / 116;
+    const gl = g0.round ? g0 : { ...g0, x: g0.x + 11 * kk, w: 94 * kk, y: g0.y + 1 * kk, h: 100 * kk };
+    const cross = 'linear-gradient(to right, #000 0 47.5%, transparent 47.5% 54.8%, #000 54.8% 100%), linear-gradient(to bottom, #000 0 47%, transparent 47% 54%, #000 54% 100%)';
     const style = {
       position: 'absolute', left: gl.x, top: gl.y, width: gl.w, height: gl.h,
-      overflow: 'hidden', pointerEvents: 'none', borderRadius: gl.round ? '50%' : 2,
+      overflow: 'hidden', pointerEvents: 'none', borderRadius: gl.round ? '50%' : 0,
+      ...(gl.round ? {} : { WebkitMaskImage: cross, WebkitMaskComposite: 'source-in', maskImage: cross, maskComposite: 'intersect' }),
     };
     if (weather === 'nublado') {
       // cielo tapado: gris azulado y nubes gordas que pasan despacio (un
       // dibujo con su panza en sombra; en pixel, en escalones)
       return (
         <div key={it.key} className={gl.round ? 'pg-keep-round' : undefined} style={{ ...style, background: 'linear-gradient(to bottom, rgba(146,154,182,0.62), rgba(192,198,218,0.5))' }}>
-          <div style={{ position: 'absolute', inset: 0, backgroundImage: pixel ? CLOUDS_PX : CLOUDS, backgroundSize: `${Math.round(gl.w * 1.4)}px ${Math.round(gl.h)}px`, backgroundRepeat: 'repeat-x', imageRendering: pixel ? 'pixelated' : undefined, animation: 'tg-cloud-pass 40s linear infinite' }} />
-          <style>{`@keyframes tg-cloud-pass { from { background-position: 0 0; } to { background-position: ${Math.round(gl.w * 1.4)}px 0; } }`}</style>
+          <div style={{ position: 'absolute', left: 0, right: 0, top: '6%', height: '56%', backgroundImage: pixel ? CLOUDS_PX : CLOUDS, backgroundSize: `${Math.round(gl.w)}px 100%`, backgroundRepeat: 'repeat-x', imageRendering: pixel ? 'pixelated' : undefined, animation: `tg-cloud-pass-${Math.round(gl.w)} 40s linear infinite` }} />
+          <style>{`@keyframes tg-cloud-pass-${Math.round(gl.w)} { from { background-position: 0 0; } to { background-position: ${Math.round(gl.w)}px 0; } }`}</style>
         </div>
       );
     }

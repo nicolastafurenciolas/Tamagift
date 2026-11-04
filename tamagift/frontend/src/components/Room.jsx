@@ -547,7 +547,8 @@ export default function Room({
             <Dirt level={cleanLevel} />
             {asleep && <Zzz />}
           </div>
-          {eventLayer}
+          {/* los sucesos usan el mismo píxel que el cuarto */}
+          {eventLayer && React.isValidElement(eventLayer) ? React.cloneElement(eventLayer, { pixel }) : eventLayer}
           <Ambience styleId={style.id} layer="front" />
           {world && <NightLayer phase={world.phase} lightsOff={world.lightsOff} placed={placed} styleId={style.id} />}
           {paintJob && <PaintTool job={paintJob} at={toolAt} />}
