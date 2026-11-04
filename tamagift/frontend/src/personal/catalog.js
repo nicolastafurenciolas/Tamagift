@@ -68,6 +68,9 @@ export const LIKE_LINES = {
   mania: ['Te vi: {v} otra vez 😄', 'Lo de {v} es lo más tierno del mundo'],
 };
 
+// Ideas de apodo (paso "Sobre…" del asistente y rincón).
+export const NICKNAME_IDEAS = ['Amor', 'Mi vida', 'Cielo', 'Bebé', 'Corazón', 'Mi persona'];
+
 // ── Fechas de la pareja ──────────────────────────────────────────
 // Cada una se vuelve una temporada propia en el juego (etapa 4).
 export const DATE_KINDS = [
@@ -85,7 +88,7 @@ export const DATE_KINDS = [
 // `cada`: cuántos días tienen que pasar para repetir la situación.
 export const SITUATIONS = [
   {
-    id: 'triste', label: 'Si está triste', when: 'Cuando la mascota la nota decaída', quick: true, cada: 1,
+    id: 'triste', label: 'Si está triste', when: 'Cuando la mascota nota un día bajón', quick: true, cada: 1,
     examples: ['{nombre}, me dijo que te recuerde que eres lo mejor que le pasó', 'Me pidió un abrazo para ti cuando estuvieras triste. Aquí va 🫂', 'Dice que esto también pasa, y que está contigo'],
   },
   {
@@ -94,7 +97,7 @@ export const SITUATIONS = [
   },
   {
     id: 'lluvia', label: 'Cuando llueve', when: 'Los días de lluvia', quick: true, cada: 2,
-    examples: ['Me dijo que si llovía te recordara llevar paraguas ☔', 'Un día de lluvia es perfecto para pensar en ti, dice', 'Dice que la lluvia le recuerda a cuando se refugiaron juntos'],
+    examples: ['Me dijo que si llovía te recordara llevar paraguas ☔', 'Un día de lluvia es perfecto para pensar en ti, dice', 'Dice que la lluvia le recuerda a cuando se refugiaron de la lluvia'],
   },
   {
     id: 'buenosdias', label: 'Al despertar', when: 'La primera vez del día, de mañana', cada: 1,

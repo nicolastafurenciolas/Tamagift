@@ -1,7 +1,7 @@
 ﻿import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { C, FONT, SHADOW, DRAW_COLORS, soft } from '../theme';
-import { IconGift, IconSparkle, IconClose, IconBack, IconCamera, IconPencil } from './icons';
+import { IconGift, IconSparkle, IconClose, IconBack, IconCamera, IconPencil, IconEnvelope } from './icons';
 import { createPet, accessKeyRequired, checkAccessKey, AccessKeyError, CreatePetError } from '../api';
 import { toEmbedUrl, providerLabel } from '../embed';
 import { DEFAULT_RECIPE, recipeToPngDataUrl } from '../PetRecipe';
@@ -21,6 +21,9 @@ import { DEFAULT_STYLE, getStyle, isStyleId } from '../styles/registry';
 import { hashString } from '../styles/spriteEngine';
 import { loadDraft, saveDraft, clearDraft } from '../draftStore';
 import { play } from '../sound';
+import AboutStep from './wizard/AboutStep';
+import SituationsPart from './wizard/SituationsPart';
+import { emptyAbout, normalizeAbout, buildProfile, callNameOf, dateComplete, QUICK_LIKES, QUICK_DATES } from './wizard/profileDraft';
 
 const CANVAS_SIZE = 320;
 
@@ -33,6 +36,9 @@ const MOODS = [
 const STEP_META = [
   { id: 'bienvenida', label: 'Inicio' },
   { id: 'nombres', label: 'Nombres' },
+  // Lo personal va adelante (PLAN_REGALO_VIVO.md §4). La etiqueta en
+  // pantalla usa su nombre: "Sobre Sarah".
+  { id: 'sobre', label: 'Sobre tu pareja' },
   { id: 'dibujar', label: 'Dibujar' },
   { id: 'estilo', label: 'Estilo' },
   { id: 'comidas', label: 'Comidas' },
@@ -152,7 +158,7 @@ function WelcomeStep({ onTestKey, testState, keyRequired, accessKey, setAccessKe
         </div>
         <h2 style={{ fontFamily: FONT.display, fontSize: 23, fontWeight: 800, marginBottom: 12 }}>Vas a crear un regalo único</h2>
         <p style={{ fontSize: 14.5, color: C.ink, lineHeight: 1.6, marginBottom: 10 }}>
-          En los próximos pasos vas a <b>armar su mascota</b>, elegir el <b>estilo</b> del juego y darle sus comidas favoritas, frases, fotos y música.
+          Primero nos vas a <b>contar de tu pareja</b>. Después vas a <b>armar su mascota</b>, elegir el <b>estilo</b> del juego y darle sus comidas favoritas, frases, fotos y música.
         </p>
         <p style={{ fontFamily: FONT.hand, fontSize: 20, color: C.sage, lineHeight: 1.3 }}>Se guarda solo: puedes salir y volver cuando quieras.</p>
       </div>
@@ -185,7 +191,7 @@ function WelcomeStep({ onTestKey, testState, keyRequired, accessKey, setAccessKe
       )}
 
       {/* Atajo de pruebas: genera una mascota completa al azar y
-          entrega el link, sin pasar por los 10 pasos. Solo para quien
+          entrega el link, sin pasar por todos los pasos. Solo para quien
           desarrolla: quien compra no debe verlo. */}
       {SHOW_TEST_KEY && (
       <div className="pg-card" style={{ marginTop: 22, padding: 14, background: C.surfaceAlt }}>
@@ -323,7 +329,9 @@ function FoodsStep({ foods, setFoods }) {
 }
 
 // ── Paso: Frases ──────────────────────────────────────────────────
-function PhrasesStep({ phrases, setPhrases }) {
+// `lead` es la primera parte del paso: los mensajes de tu parte por
+// situación (wizard/SituationsPart.jsx).
+function PhrasesStep({ phrases, setPhrases, lead }) {
   const [cat, setCat] = useState('positiva');
   const [text, setText] = useState('');
   const catLabel = { positiva: 'Positivas', negativa: 'Negativas', casual: 'Casuales' };
@@ -337,7 +345,10 @@ function PhrasesStep({ phrases, setPhrases }) {
   }
 
   return (
-    <StepShell title="Sus frases" subtitle="Lo que dice según cómo la trates">
+    <StepShell title="Sus frases" subtitle="Tres mensajes tuyos, ya escritos, y lo que dice según cómo la trates">
+      {lead}
+      <p style={{ fontFamily: FONT.display, fontSize: 15, fontWeight: 800, margin: '0 0 3px', color: C.ink }}>Lo que dice según cómo la trates</p>
+      <p style={{ fontSize: 12.5, color: C.inkSoft, margin: '0 0 12px', lineHeight: 1.45 }}>Frases suyas para cuando la cuidan, la descuidan o están de charla.</p>
       <div className="flex gap-2 justify-center mb-4">
         {['positiva', 'negativa', 'casual'].map((c) => (
           <Chip key={c} active={cat === c} onClick={() => setCat(c)} color={catColor[c]}>{catLabel[c]}</Chip>
@@ -1228,8 +1239,10 @@ function SummaryRow({ label, value }) {
   );
 }
 
-// El link privado del buzón (para mandarle cartas después). Se copia
-// aparte: es solo para quien regala.
+// El link privado del rincón de quien regala (hoy /buzon/<slug>): desde
+// ahí sigue sumando sorpresas después. Se copia aparte: es solo suyo.
+// Sin listar funciones (PLAN_REGALO_VIVO.md §1, regla 1): se descubren
+// en el rincón.
 function MailboxLinkBox({ slug, token, partnerName }) {
   const [state, setState] = useState(null);
   const link = `${window.location.origin}/buzon/${slug}?t=${token}`;
@@ -1238,13 +1251,19 @@ function MailboxLinkBox({ slug, token, partnerName }) {
     setTimeout(() => setState((s) => (s === 'error' ? s : null)), 1800);
   }
   return (
-    <div className="pg-card pg-anim-pop" style={{ padding: 16, marginTop: 12, textAlign: 'left', borderColor: C.lavender }}>
-      <p style={{ fontFamily: FONT.display, fontSize: 14.5, fontWeight: 800, margin: '0 0 4px', color: C.ink }}>Tu buzón (solo para ti)</p>
-      <p style={{ fontSize: 12.5, color: C.inkSoft, margin: '0 0 10px', lineHeight: 1.45 }}>
-        Con este link le puedes mandar cartas y fotos a {partnerName || 'tu pareja'} cuando quieras: le llegan en una cajita a la puerta del cuarto. Guárdalo y no lo compartas.
+    <div className="pg-card pg-anim-pop" style={{ padding: '16px 16px 14px', marginTop: 12, textAlign: 'center', borderColor: C.lavender, background: C.lavenderSoft }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginBottom: 2 }}>
+        <IconEnvelope size={20} color={C.lavender} />
+        <p style={{ fontFamily: FONT.display, fontSize: 15.5, fontWeight: 800, margin: 0, color: C.ink }}>Esto recién empieza</p>
+      </div>
+      <p style={{ fontFamily: FONT.hand, fontSize: 21, color: C.lavender, margin: '2px 0 6px', lineHeight: 1.2 }}>
+        Después vas a poder seguir sumando sorpresas desde tu rincón
       </p>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: C.surfaceAlt, border: `1.5px solid ${C.line}`, borderRadius: 12, padding: '8px 10px' }}>
-        <input readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Link del buzón" style={{ flex: 1, minWidth: 0, fontSize: 12, color: C.ink, background: 'transparent', border: 'none', outline: 'none', fontFamily: FONT.body }} />
+      <p style={{ fontSize: 12.5, color: C.inkSoft, margin: '0 0 11px', lineHeight: 1.45 }}>
+        Le llegan a {partnerName || 'tu pareja'} poquito a poco, dentro de su mundo. Guarda este link: es solo para ti.
+      </p>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: C.surface, border: `1.5px solid ${C.line}`, borderRadius: 12, padding: '8px 10px' }}>
+        <input readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Link de tu rincón" style={{ flex: 1, minWidth: 0, fontSize: 12, color: C.ink, background: 'transparent', border: 'none', outline: 'none', fontFamily: FONT.body }} />
         <button onClick={copy} className="pg-btn pg-btn-ghost pg-focus" style={{ padding: '6px 12px', fontSize: 12, flexShrink: 0 }}>{state === 'ok' ? '¡Copiado!' : 'Copiar'}</button>
       </div>
       {state === 'error' && <p style={{ fontSize: 11.5, color: C.rose, margin: '6px 0 0' }}>No se pudo copiar solo: mantén presionado el link para copiarlo.</p>}
@@ -1252,7 +1271,18 @@ function MailboxLinkBox({ slug, token, partnerName }) {
   );
 }
 
-function SummaryStep({ petName, partnerName, previewRecipe, appStyle, foods, phrases, photos, songs, submitState, submitError, resultSlug, resultMode, resultToken, onFinalize, onCopyLink, copyState }) {
+// Una línea con lo personal: "apodo · 2 fechas · 3 gustos".
+function aboutSummary(about) {
+  const bits = [];
+  if ((about.nickname || '').trim()) bits.push('apodo');
+  const dates = QUICK_DATES.filter((k) => dateComplete(about.dates[k.id])).length;
+  if (dates) bits.push(`${dates} fecha${dates === 1 ? '' : 's'}`);
+  const likes = QUICK_LIKES.filter((l) => String(about.likes[l.id] || '').trim()).length;
+  if (likes) bits.push(`${likes} gusto${likes === 1 ? '' : 's'}`);
+  return bits.join(' · ') || '—';
+}
+
+function SummaryStep({ petName, partnerName, previewRecipe, appStyle, foods, phrases, photos, songs, about, situationCount, submitState, submitError, resultSlug, resultMode, resultToken, onFinalize, onCopyLink, copyState }) {
   const link = resultSlug ? `${window.location.origin}/p/${resultSlug}` : '';
   return (
     <StepShell title="Revisa y finaliza" subtitle="Así va a quedar el regalo">
@@ -1271,6 +1301,8 @@ function SummaryStep({ petName, partnerName, previewRecipe, appStyle, foods, phr
       <div className="pg-card" style={{ padding: 16, marginBottom: 16 }}>
         <SummaryRow label="Mascota" value={petName || '—'} />
         <SummaryRow label="Para" value={partnerName || '—'} />
+        <SummaryRow label={partnerName ? `Sobre ${partnerName}` : 'Sobre tu pareja'} value={aboutSummary(about)} />
+        <SummaryRow label="Mensajes tuyos" value={String(situationCount)} />
         <SummaryRow label="Estilo" value={getStyle(appStyle).name} />
         <SummaryRow label="Comidas" value={String(foods.length)} />
         <SummaryRow label="Frases" value={String(phrases.length)} />
@@ -1287,7 +1319,7 @@ function SummaryStep({ petName, partnerName, previewRecipe, appStyle, foods, phr
       {submitState === 'success' && (
         <div className="pg-card pg-anim-pop" style={{ padding: 18, textAlign: 'center', borderColor: C.sage }}>
           <IconSparkle size={40} color={C.amber} fill={C.amber} />
-          <p style={{ fontFamily: FONT.display, fontSize: 16, fontWeight: 800, margin: '6px 0 4px', color: C.ink }}>¡Tu regalo está listo!</p>
+          <p style={{ fontFamily: FONT.display, fontSize: 16, fontWeight: 800, margin: '6px 0 4px', color: C.ink }}>¡Listo para regalar!</p>
           <p style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: 14 }}>Comparte este link con {partnerName || 'tu pareja'} para que lo agregue a su celular.</p>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: C.surfaceAlt, border: `1.5px solid ${C.line}`, borderRadius: 12, padding: '8px 10px', marginBottom: 8 }}>
             <input readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Link del regalo" style={{ flex: 1, minWidth: 0, fontSize: 12, color: C.ink, background: 'transparent', border: 'none', outline: 'none', fontFamily: FONT.body }} />
@@ -1351,6 +1383,9 @@ export default function TamagiftWizard() {
   const [photos, setPhotos] = useState([]);
   const [songs, setSongs] = useState([]);
   const [outfits, setOutfits] = useState([]);
+  // Lo personal: apodo, fechas, gustos y mensajes por situación (se
+  // convierte en la ficha `profile` al finalizar; ver wizard/profileDraft).
+  const [about, setAbout] = useState(emptyAbout);
   const [appStyle, setAppStyle] = useState(() => styleFromUrl() || DEFAULT_STYLE);
   // Receta (piezas modulares) + retoques a mano, con el mismo hook que
   // usa el rediseño dentro del juego.
@@ -1386,9 +1421,13 @@ export default function TamagiftWizard() {
     setPetName(d.petName || ''); setPartnerName(d.partnerName || ''); setCreatorName(d.creatorName || '');
     setFoods(d.foods || []); setPhrases(d.phrases || []); setPhotos(d.photos || []); setSongs(d.songs || []);
     setOutfits(d.outfits || []); setDecorItems(d.decorItems || []); setWhackTargets(d.whackTargets || []);
+    setAbout(normalizeAbout(d.about));
     if (d.recipe) designer.setRecipe(d.recipe);
     if (isStyleId(d.appStyle)) setAppStyle(d.appStyle);
-    setStep(Math.min(Math.max(1, d.step || 1), STEP_META.length - 2));
+    // Se vuelve al paso por su id: si cambia la lista de pasos (como al
+    // sumar "Sobre…"), un borrador viejo no cae en otro paso.
+    const byId = STEP_META.findIndex((x) => x.id === d.stepId);
+    setStep(Math.min(Math.max(1, byId > 0 ? byId : (d.step || 1)), STEP_META.length - 2));
     setDraftOffer(null);
     setDraftReady(true);
   }
@@ -1401,10 +1440,10 @@ export default function TamagiftWizard() {
   useEffect(() => {
     if (!draftReady || submitState === 'success') return undefined;
     const t = setTimeout(() => {
-      saveDraft({ step, petName, partnerName, creatorName, foods, phrases, photos, songs, outfits, decorItems, whackTargets, recipe: designer.recipe, appStyle });
+      saveDraft({ step, stepId: STEP_META[step].id, petName, partnerName, creatorName, about, foods, phrases, photos, songs, outfits, decorItems, whackTargets, recipe: designer.recipe, appStyle });
     }, 800);
     return () => clearTimeout(t);
-  }, [draftReady, submitState, step, petName, partnerName, creatorName, foods, phrases, photos, songs, outfits, decorItems, whackTargets, designer.recipe, appStyle]);
+  }, [draftReady, submitState, step, petName, partnerName, creatorName, about, foods, phrases, photos, songs, outfits, decorItems, whackTargets, designer.recipe, appStyle]);
 
   // ¿Este despliegue cobra? Lo decide el servidor, no el navegador.
   useEffect(() => { accessKeyRequired().then(setKeyRequired); }, []);
@@ -1467,6 +1506,8 @@ export default function TamagiftWizard() {
       outfits: outfits.map((o) => ({ name: o.name, price: o.price, drawing_normal: o.drawing_normal, drawing_feliz: o.drawing_feliz, drawing_enojado: o.drawing_enojado, recipe: o.recipe || null })),
       decor_items: decorItems.map((d) => ({ name: d.name, description: d.description || null, price: d.price, image: d.image, ratio: d.ratio })),
       whack_targets: whackTargets.map((t) => ({ name: t.name, image: t.image })),
+      // La ficha de lo personal (ver personal/catalog.js).
+      profile: JSON.stringify(buildProfile(about, { partnerName, creatorName })),
       access_key: accessKey.trim() || null,
     };
     try {
@@ -1544,12 +1585,17 @@ export default function TamagiftWizard() {
   }
 
   const show = (id) => ({ width: '100%', display: sid === id ? 'block' : 'none' });
+  const who = partnerName.trim();
+  const stepLabel = (s) => (s.id === 'sobre' && who ? `Sobre ${who}` : s.label);
+  // Con quién hablan los mensajes: {nombre} = apodo o su nombre, {yo} = tú.
+  const msgNames = { nombre: callNameOf(about, partnerName), yo: creatorName.trim() };
+  const situationCount = Object.values(buildProfile(about, { partnerName, creatorName }).situations).length;
 
   return (
     <div className="w-full min-h-full flex flex-col items-center py-8 px-4 pg-screen" style={{ color: C.ink }}>
       <p className="eyebrow" style={{ marginBottom: 4 }}>Taller de mascotas</p>
       <h1 style={{ fontFamily: FONT.display, fontSize: 22, fontWeight: 800, marginBottom: 3, textAlign: 'center' }}>Crea su regalo</h1>
-      <p style={{ fontSize: 12, marginBottom: 18, textAlign: 'center', color: C.inkSoft }}>Paso {step + 1} de {STEP_META.length} · {STEP_META[step].label}</p>
+      <p style={{ fontSize: 12, marginBottom: 18, textAlign: 'center', color: C.inkSoft }}>Paso {step + 1} de {STEP_META.length} · {stepLabel(STEP_META[step])}</p>
 
       <ProgressDots step={step} setStep={setStep} />
 
@@ -1575,10 +1621,20 @@ export default function TamagiftWizard() {
       <div style={show('nombres')}>
         <NamesStep petName={petName} setPetName={setPetName} partnerName={partnerName} setPartnerName={setPartnerName} creatorName={creatorName} setCreatorName={setCreatorName} />
       </div>
+      <div style={show('sobre')}>
+        <StepShell title={who ? `Sobre ${who}` : 'Sobre tu pareja'} subtitle={`Cuéntanos un poquito de ${who || 'tu pareja'}: así su mascota le va a hablar como tú. Todo es opcional.`}>
+          <AboutStep about={about} setAbout={setAbout} partnerName={partnerName} />
+        </StepShell>
+      </div>
       <div style={show('dibujar')}><ModularPetStep {...designer} /></div>
       <div style={show('estilo')}>{sid === 'estilo' && <StyleStep recipe={designer.recipe} appStyle={appStyle} onChange={chooseStyle} />}</div>
       <div style={show('comidas')}><FoodsStep foods={foods} setFoods={setFoods} /></div>
-      <div style={show('frases')}><PhrasesStep phrases={phrases} setPhrases={setPhrases} /></div>
+      <div style={show('frases')}>
+        <PhrasesStep
+          phrases={phrases} setPhrases={setPhrases}
+          lead={<SituationsPart about={about} setAbout={setAbout} names={msgNames} petName={petName} partnerName={partnerName} />}
+        />
+      </div>
       <div style={show('fotos')}><PhotosStep photos={photos} setPhotos={setPhotos} /></div>
       <div style={show('musica')}><MusicStep songs={songs} setSongs={setSongs} /></div>
       <div style={show('ropa')}><OutfitsStep recipe={designer.recipe} outfits={outfits} setOutfits={setOutfits} /></div>
@@ -1587,7 +1643,7 @@ export default function TamagiftWizard() {
       <div style={show('resumen')}>
         <SummaryStep
           petName={petName} partnerName={partnerName} previewRecipe={previewRecipe} appStyle={appStyle}
-          foods={foods} phrases={phrases} photos={photos} songs={songs}
+          foods={foods} phrases={phrases} photos={photos} songs={songs} about={about} situationCount={situationCount}
           submitState={submitState} submitError={submitError} resultSlug={resultSlug} resultMode={resultMode} resultToken={resultToken}
           onFinalize={handleFinalize} onCopyLink={copyLink} copyState={copyState}
         />
