@@ -2,7 +2,7 @@
 // seasons.js). Lo comprado queda en el vestidor para siempre.
 
 import {
-  BOTTOM, Cir, G, GOLD, GOLD_D, OUT, T, bail, ball, bandD, clipBody, clipTo, dot, ellD, f, flat,
+  BOTTOM, G, GOLD, GOLD_D, OUT, P, T, bail, ball, bandD, clipBody, clipTo, dot, ellD, f, flat,
   furAlong, garment, headband, heartD, lightOf, line, neckGeo, neckLine, neckScale, neckShadow,
   neckYAt, onTop, part, rr, shade, shine, skipPx, skirt, smileYAt, starD, strip, tone,
 } from './kit.js';
@@ -65,13 +65,26 @@ const HEAD = [
     id: 'orejeras', label: 'Orejeras de peluche', price: 85, colors: ['#FFB6CC', '#FFFFFF'],
     draw: (g, k) => {
       const s = sc(g);
-      const side = (sx) => {
-        const x = 100 + sx * g.w * 0.46, y = g.topAt(x) + 14 * s;
-        let fluff = '';
-        for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; fluff += Cir(x + Math.cos(a) * 9 * s, y + Math.sin(a) * 9 * s, 4.6 * s, { fill: k.c1, stroke: shade(k.c1, -1.8), 'stroke-width': 1.3, 'data-r': 'part' }); }
-        return fluff + Cir(x, y, 9.5 * s, { fill: k.c1, 'data-r': 'flat' }) + Cir(x, y, 5 * s, { fill: k.c2, 'data-r': 'flat' }) + shine(x - 3 * s, y - 3 * s, 1.6 * s);
+      // dos almohadillas redondas de peluche (borde esponjoso, centro más
+      // claro, sombra abajo) unidas por una diadema sobre la cabeza
+      const yp = g.top + (g.ys - g.top) * 0.42, hw = g.chordAt(yp) / 2, r = 12.5 * s;
+      const pad = (sx) => {
+        const x = 100 + sx * (hw - 1), y = yp;
+        let d = '';
+        const n2 = 12;
+        for (let i = 0; i <= n2; i++) {
+          const a = (i / n2) * Math.PI * 2, am = ((i - 0.5) / n2) * Math.PI * 2;
+          const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+          d += i ? ` Q${f(x + Math.cos(am) * (r + 3))} ${f(y + Math.sin(am) * (r + 3))} ${f(px)} ${f(py)}` : `M${f(px)} ${f(py)}`;
+        }
+        d += 'Z';
+        return part(d, k.c1, { stroke: shade(k.c1, -2) }) + clipTo(d, tone(`M${f(x - r - 4)} ${f(y + 2)} Q${f(x)} ${f(y + r * 0.6)} ${f(x + r + 4)} ${f(y - 2)} V${f(y + r + 4)} H${f(x - r - 4)}Z`, '#5A2A40', 0.2))
+          + P(ellD(x, y + 0.5, r * 0.55, r * 0.55), { fill: k.c2, 'data-r': 'flat' })
+          + skipPx(line(`M${f(x - r * 0.75)} ${f(y - r * 0.2)} q2 -2 3 0 M${f(x + r * 0.35)} ${f(y - r * 0.7)} q2 -1 3 1 M${f(x + r * 0.5)} ${f(y + r * 0.6)} q2 0 2 2`, shade(k.c1, -1), 1.1))
+          + shine(x - r * 0.45, y - r * 0.45, r * 0.16);
       };
-      return { top: headband(g, g.w * 0.44, 0, 5, shade(k.c1, -0.6)) + side(-1) + side(1) };
+      const arcD = (dy) => `M${f(100 - hw + 2)} ${f(yp - 6 + dy)} C${f(100 - hw + 2)} ${f(g.top - 12 + dy)} ${f(100 + hw - 2)} ${f(g.top - 12 + dy)} ${f(100 + hw - 2)} ${f(yp - 6 + dy)}`;
+      return { top: line(arcD(0), OUT, 7.4) + line(arcD(0), shade(k.c1, -0.7), 4.4) + line(arcD(-1), lightOf(k.c1), 1.2, { opacity: 0.7 }) + pad(-1) + pad(1) };
     },
   },
 ];
@@ -101,7 +114,7 @@ const NECK = [
       // bufanda tejida a rayas que abraza el cuerpo; una punta cae por
       // delante con sus rayas y flecos
       let stripes = '';
-      for (let x = nk.L - 2; x < nk.R + 6; x += 12) stripes += `M${f(x)} ${f(nk.y - 14)} h6 V${f(nk.y + 30)} h-6Z`;
+      for (let x = nk.L; x < nk.R + 6; x += 19) stripes += `M${f(x)} ${f(nk.y - 14)} h8 V${f(nk.y + 30)} h-8Z`;
       let ribs = '';
       for (let x = nk.L; x < nk.R; x += 3.6) ribs += `M${f(x)} ${f(nk.yAt(x) - th / 2 + 2)} v${f(th - 4)}`;
       const tx = 100 + g.w * 0.17, t0 = nk.yAt(tx) + 3;

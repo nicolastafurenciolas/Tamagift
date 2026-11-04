@@ -10,8 +10,8 @@
 
 import {
   BOTTOM, Cir, E, G, GOLD, GOLD_D, OUT, P, SILVER, SILVER_D, ball, bandD, bow, button, clipBody,
-  clipTo, disc, dot, f, flat, flower, garment, heartD, lace, laceAlong, lightOf, line, lumOf, mixc,
-  moonD, neckBand, neckCurve, neckLine, neckRibs, neckShadow, neckYAt, nid, onlyPx, part,
+  clipTo, crescentD, disc, dot, f, flat, flower, garment, heartD, lace, laceAlong, lightOf, line,
+  lumOf, mixc, neckBand, neckCurve, neckLine, neckRibs, neckShadow, neckYAt, nid, onlyPx, part,
   puffStarD, roundShade, rr, seamOf, shade, shine, skipPx, skirt, skirtPath, smileD, smileYAt,
   sparkleD, stitch, strip, tone,
 } from './kit.js';
@@ -77,28 +77,34 @@ export const OUTFIT_ITEMS = [
     draw: (g, k) => {
       const nl = neckLine(g, { side: -3, center: 24 });
       const sm = seamOf(k.c1, 0.8);
-      // trenzas: una soga de eslabones en S que se montan uno sobre otro,
-      // con su canal hundido a cada lado
+      // LA SEÑA: cuello alto de elástico, un tubo grueso doblado que sube
+      // hasta debajo de la boca, con su doblez y su sombra
+      const up = 6, th = 13, L = g.l - 10, R = g.r + 10, cc = nl.yc + (nl.yc - nl.ys) * 0.95;
+      const band = (a, b) => `M${f(L)} ${f(nl.ys + a)} Q100 ${f(cc + a)} ${f(R)} ${f(nl.ys + a)} L${f(R)} ${f(nl.ys + b)} Q100 ${f(cc + b)} ${f(L)} ${f(nl.ys + b)}Z`;
+      const collarD = band(-up, -up + th);
+      let ribs = '';
+      for (let x = g.l - 4; x <= g.r + 4; x += 4.4) { const y = neckYAt(g, nl, x); ribs += `M${f(x - 1)} ${f(y - up - 1)} h2 V${f(y - up + th + 1)} h-2Z`; }
+      const collar = neckShadow(g, nl, -up + th, 5, 0.26)
+        + part(collarD, k.c2) + clipTo(collarD, flat(ribs, seamOf(k.c2, 0.6), { opacity: 0.9 })
+          + tone(band(-up + th * 0.5, -up + th * 0.5 + 2.4), '#2A1C30', 0.22) + flat(band(-up + 0.6, -up + 2.4), lightOf(k.c2, 0.8), { opacity: 0.9 }));
+      // trenzas gruesas a los costados (soga de eslabones en S)
       const cable = (x) => {
-        const y0 = neckYAt(g, nl, x) + 8, y1 = BOTTOM - 13;
+        const y0 = neckYAt(g, nl, x) - up + th + 4, y1 = BOTTOM - 13;
         let links = '';
-        for (let y = y0; y < y1; y += 4.6) links += part(`M${f(x - 3.8)} ${f(y - 2.2)} C${f(x - 1)} ${f(y - 5)} ${f(x + 4.4)} ${f(y - 0.4)} ${f(x + 3.8)} ${f(y + 2.6)} C${f(x + 1)} ${f(y + 4.4)} ${f(x - 4.4)} ${f(y + 0.4)} ${f(x - 3.8)} ${f(y - 2.2)}Z`, lightOf(k.c1, 0.5), { stroke: sm, 'stroke-width': 1.1 });
+        for (let y = y0; y < y1; y += 5.2) links += part(`M${f(x - 4.8)} ${f(y - 2.6)} C${f(x - 1.4)} ${f(y - 6)} ${f(x + 5.4)} ${f(y - 0.6)} ${f(x + 4.8)} ${f(y + 3)} C${f(x + 1.4)} ${f(y + 5.2)} ${f(x - 5.4)} ${f(y + 0.6)} ${f(x - 4.8)} ${f(y - 2.6)}Z`, lightOf(k.c1, 0.5), { stroke: sm, 'stroke-width': 1.1 });
         let px = '';
-        for (let y = y0 - 2; y < y1; y += 4.4) px += `M${f(x - 2.6)} ${f(y + 2.6)} L${f(x + 2.6)} ${f(y - 1)}`;
-        return skipPx(tone(`M${f(x - 6.5)} ${f(y0 - 4)} H${f(x + 6.5)} V${f(y1 + 2)} H${f(x - 6.5)}Z`, '#2A1C30', 0.12) + links)
-          + onlyPx(line(`M${f(x - 4.6)} ${f(y0 - 3)} V${f(y1 + 1)} M${f(x + 4.6)} ${f(y0 - 3)} V${f(y1 + 1)}`, sm, 1.6) + line(px, lightOf(k.c1, 0.8), 2.2));
+        for (let y = y0 - 2; y < y1; y += 4.6) px += `M${f(x - 3.4)} ${f(y + 3)} L${f(x + 3.4)} ${f(y - 1.2)}`;
+        return skipPx(tone(`M${f(x - 8)} ${f(y0 - 4)} H${f(x + 8)} V${f(y1 + 2)} H${f(x - 8)}Z`, '#2A1C30', 0.12) + links)
+          + onlyPx(line(`M${f(x - 6)} ${f(y0 - 3)} V${f(y1 + 1)} M${f(x + 6)} ${f(y0 - 3)} V${f(y1 + 1)}`, sm, 2) + line(px, lightOf(k.c1, 0.9), 2.8));
       };
-      // punto de arroz entre las trenzas (solo donde se ve fino)
       let moss = '';
       for (let y = nl.yc + 8, r = 0; y < BOTTOM - 12; y += 4, r++) for (let x = 100 - g.w * 0.11 + (r % 2) * 2.5; x < 100 + g.w * 0.11; x += 5) moss += `M${f(x)} ${f(y)} l1.4 1.4`;
-      const cx = g.w * 0.21;
+      const cx = g.w * 0.23;
       return {
         outfit: garment(g, k.c1, {
           side: -3, center: 24,
           pattern: skipPx(line(moss, sm, 1, { opacity: 0.55 })),
-          extra: cable(100 - cx) + cable(100 + cx)
-            + hemRib(g, 10, k.c2)
-            + neckShadow(g, nl, 6, 4, 0.22) + neckBand(g, nl, 6, k.c2) + neckRibs(g, nl, 1, 5.5, seamOf(k.c2, 0.8)),
+          extra: cable(100 - cx) + cable(100 + cx) + hemRib(g, 10, k.c2) + collar,
         }).svg,
       };
     },
@@ -108,23 +114,25 @@ export const OUTFIT_ITEMS = [
     draw: (g, k) => {
       const nl = neckLine(g, { side: -2, center: 24 });
       const sm = seamOf(k.c1);
-      // capucha caída: un rollo grueso alrededor del cuello con el forro a la vista
+      // LA SEÑA: la capucha caída (un rollo gordo con el forro claro a la
+      // vista) y dos cordones largos con sus puntas
       const cc = nl.yc + (nl.yc - nl.ys) * 0.95, L = g.l - 10, R = g.r + 10;
-      const hood = neckShadow(g, nl, 12, 5, 0.26) + neckBand(g, nl, 12, shade(k.c1, 0.15), { lit: false })
-        + flat(`M${f(L)} ${f(nl.ys - 1)} Q100 ${f(cc - 1)} ${f(R)} ${f(nl.ys - 1)} L${f(R)} ${f(nl.ys + 4.4)} Q100 ${f(cc + 4.4)} ${f(L)} ${f(nl.ys + 4.4)}Z`, mixc(k.c2, k.c1, 0.3))
-        + tone(`M${f(L)} ${f(nl.ys + 4.4)} Q100 ${f(cc + 4.4)} ${f(R)} ${f(nl.ys + 4.4)} L${f(R)} ${f(nl.ys + 6)} Q100 ${f(cc + 6)} ${f(L)} ${f(nl.ys + 6)}Z`, '#2A1C30', 0.22)
-        + line(neckCurve(g, nl, 9), lightOf(k.c1, 0.7), 1.4, { opacity: 0.8 });
-      // cordones con sus ojales y puntas
-      const yo = nl.yc + 11;
-      const cordD = (s) => `M${f(100 + s * 6)} ${f(yo)} Q${f(100 + s * 7.5)} ${f(yo + 9)} ${f(100 + s * 6.5)} ${f(yo + 17)}`;
-      const cord = (s) => line(cordD(s), shade(k.c1, -1.8), 4) + line(cordD(s), k.c2, 2.2)
-        + part(rr(100 + s * 6.5 - 1.8, yo + 16, 3.6, 5, 1), shade(k.c2, -0.6), { 'stroke-width': 1.2 })
-        + Cir(100 + s * 6, yo, 1.9, { fill: SILVER, stroke: SILVER_D, 'stroke-width': 1, 'data-r': 'part' });
-      // bolsillo canguro con sus aberturas
-      const yp = Math.max(nl.yc + 14, BOTTOM - 23), yb = BOTTOM - 8, pw = g.w * 0.26;
-      const pocket = part(`M${f(100 - pw)} ${f(yb)} L${f(100 - pw * 0.7)} ${f(yp)} Q100 ${f(yp - 2)} ${f(100 + pw * 0.7)} ${f(yp)} L${f(100 + pw)} ${f(yb)}Z`, k.c1)
-        + tone(`M${f(100 - pw)} ${f(yb)} L${f(100 - pw * 0.7)} ${f(yp)} L${f(100 - pw * 0.7 + 3)} ${f(yp + 1)} L${f(100 - pw + 3)} ${f(yb)}Z M${f(100 + pw)} ${f(yb)} L${f(100 + pw * 0.7)} ${f(yp)} L${f(100 + pw * 0.7 - 3)} ${f(yp + 1)} L${f(100 + pw - 3)} ${f(yb)}Z`, '#2A1C30', 0.22)
-        + stitch(`M${f(100 - pw * 0.7 + 2)} ${f(yp + 2.6)} Q100 ${f(yp + 0.6)} ${f(100 + pw * 0.7 - 2)} ${f(yp + 2.6)}`, sm);
+      const band = (a, b) => `M${f(L)} ${f(nl.ys + a)} Q100 ${f(cc + a)} ${f(R)} ${f(nl.ys + a)} L${f(R)} ${f(nl.ys + b)} Q100 ${f(cc + b)} ${f(L)} ${f(nl.ys + b)}Z`;
+      const hoodD = band(-3, 13);
+      const lining = lumOf(k.c2) > 0.85 && lumOf(k.c1) > 0.75 ? shade(k.c2, -0.5) : k.c2;
+      const hood = neckShadow(g, nl, 13, 6, 0.28)
+        + part(hoodD, shade(k.c1, 0.15)) + clipTo(hoodD, flat(band(-3, 4), lining) + tone(band(4, 6.4), '#2A1C30', 0.25) + line(neckCurve(g, nl, 9.5), lightOf(k.c1, 0.7), 1.6, { opacity: 0.8 }));
+      const yo = nl.yc + 10, ly = BOTTOM - 4;
+      const cordD = (s) => `M${f(100 + s * 6.5)} ${f(yo)} Q${f(100 + s * 8.5)} ${f((yo + ly) / 2)} ${f(100 + s * 7)} ${f(ly)}`;
+      const cord = (s) => line(cordD(s), shade(k.c1, -2), 4.8) + line(cordD(s), k.c2, 2.8)
+        + part(rr(100 + s * 7 - 2.2, ly - 1, 4.4, 6, 1.2), shade(k.c2, -0.8), { 'stroke-width': 1.3 })
+        + Cir(100 + s * 6.5, yo, 2.2, { fill: SILVER, stroke: SILVER_D, 'stroke-width': 1.1, 'data-r': 'part' });
+      // bolsillo canguro con sus aberturas en sombra
+      const yp = Math.max(nl.yc + 17, BOTTOM - 22), yb = BOTTOM - 7, pw = g.w * 0.27;
+      const pocketD = `M${f(100 - pw)} ${f(yb)} L${f(100 - pw * 0.7)} ${f(yp)} Q100 ${f(yp - 2)} ${f(100 + pw * 0.7)} ${f(yp)} L${f(100 + pw)} ${f(yb)}Z`;
+      const pocket = part(pocketD, shade(k.c1, 0.12))
+        + tone(`M${f(100 - pw)} ${f(yb)} L${f(100 - pw * 0.7)} ${f(yp)} L${f(100 - pw * 0.7 + 4)} ${f(yp + 1)} L${f(100 - pw + 4)} ${f(yb)}Z M${f(100 + pw)} ${f(yb)} L${f(100 + pw * 0.7)} ${f(yp)} L${f(100 + pw * 0.7 - 4)} ${f(yp + 1)} L${f(100 + pw - 4)} ${f(yb)}Z`, '#2A1C30', 0.34)
+        + skipPx(stitch(`M${f(100 - pw * 0.7 + 3)} ${f(yp + 2.6)} Q100 ${f(yp + 0.6)} ${f(100 + pw * 0.7 - 3)} ${f(yp + 2.6)}`, sm));
       return {
         outfit: garment(g, k.c1, {
           side: -2, center: 24,
@@ -137,17 +145,18 @@ export const OUTFIT_ITEMS = [
     id: 'camiseta', label: 'Camiseta de corazón', vibes: ['kawaii'], price: 90, colors: ['#FFFFFF', '#FF6F91'],
     draw: (g, k) => {
       const nl = neckLine(g, { side: 6, center: 25 });
-      const hx = 100, hy = nl.yc + Math.min(14, (BOTTOM - nl.yc) * 0.5);
-      const s = Math.min(11, (BOTTOM - nl.yc) * 0.4);
-      const print = part(heartD(hx, hy, s), k.c2, { stroke: shade(k.c2, -1.6), 'stroke-width': 1.6 })
-        + flat(heartD(hx - s * 0.18, hy - s * 0.12, s * 0.62), lightOf(k.c2, 0.7))
-        + shine(hx - s * 0.5, hy - s * 0.32, s * 0.18)
-        + skipPx(flat(sparkleD(hx - s * 2.1, hy - s * 0.6, 2.6), k.c2) + flat(sparkleD(hx + s * 2, hy + s * 0.2, 2.2), k.c2));
+      // LA SEÑA: un corazón grande estampado en el pecho
+      const s = Math.min(14, (BOTTOM - nl.yc) * 0.54);
+      const hx = 100, hy = nl.yc + s * 0.95 + 1.5;
+      const print = part(heartD(hx, hy, s), k.c2, { stroke: shade(k.c2, -1.8), 'stroke-width': 2 })
+        + flat(heartD(hx - s * 0.16, hy - s * 0.12, s * 0.6), lightOf(k.c2, 0.7))
+        + shine(hx - s * 0.5, hy - s * 0.3, s * 0.17) + shine(hx - s * 0.25, hy - s * 0.48, s * 0.08)
+        + skipPx(flat(sparkleD(hx - s * 1.9, hy - s * 0.5, 2.8), k.c2) + flat(sparkleD(hx + s * 1.85, hy + s * 0.1, 2.3), k.c2));
       return {
         outfit: garment(g, k.c1, {
           side: 6, center: 25,
           extra: print + hemStitch(g, 5, seamOf(k.c1, 0.7))
-            + neckShadow(g, nl, 4, 3.5, 0.18) + neckBand(g, nl, 4, k.c2) + neckRibs(g, nl, 0.8, 3.4, seamOf(k.c2, 0.7)),
+            + neckShadow(g, nl, 5, 3.5, 0.18) + neckBand(g, nl, 5, k.c2) + neckRibs(g, nl, 0.8, 4.4, seamOf(k.c2, 0.7)),
         }).svg,
       };
     },
@@ -369,20 +378,22 @@ export const OUTFIT_ITEMS = [
     id: 'pijama', label: 'Pijama de estrellitas', vibes: ['kawaii'], price: 130, colors: ['#BFD7FF', '#FFE07A'],
     draw: (g, k) => {
       const nl = neckLine(g, { side: -2, center: 24 });
-      const pipe = '#FFFFFF';
-      const prints = scatter(g, nl, [[-0.36, 0.25], [0.3, 0.2], [-0.22, 0.78], [0.18, 0.72], [0.4, 0.75], [-0.42, 0.75], [-0.08, 0.95]], (x, y, i) => (Math.abs(x - 100) < 9 ? '' : i % 3 === 1 ? flat(moonD(x, y, 3.4), k.c2) : flat(puffStarD(x, y, 3.6), k.c2)));
-      // cuello de solapas con vivo, tapeta con botones y bolsillo
+      const pipe = '#FFFFFF', pipeD = mixc(k.c1, '#5A6A9A', 0.5);
+      // LA SEÑA: estrellas y lunas grandes y regordetas + el cuello de
+      // solapas con vivo blanco y la tapeta de botones
+      const prints = scatter(g, nl, [[-0.37, 0.3], [0.33, 0.25], [-0.25, 0.85], [0.26, 0.82]], (x, y, i) => (i % 2 ? part(crescentD(x, y, 5.6), k.c2, { stroke: shade(k.c2, -2), 'stroke-width': 1.3 }) : part(puffStarD(x, y, 6.4, 0.56), k.c2, { stroke: shade(k.c2, -2), 'stroke-width': 1.3 })))
+        + skipPx(scatter(g, nl, [[-0.12, 0.95], [0.43, 0.6], [-0.44, 0.62]], (x, y) => flat(puffStarD(x, y, 2.4), k.c2)));
       const lap = (s) => {
-        const x0 = 100 + s * 1, xs = 100 + s * g.w * 0.24, ys = neckYAt(g, nl, xs);
-        return part(`M${f(x0)} ${f(nl.yc + 1)} L${f(xs)} ${f(ys - 1)} L${f(xs + s * 2)} ${f(ys + 7)} L${f(100 + s * 9)} ${f(nl.yc + 11)}Z`, k.c1, { stroke: OUT })
-          + line(`M${f(xs + s * 2)} ${f(ys + 7)} L${f(100 + s * 9)} ${f(nl.yc + 11)}`, pipe, 1.6);
+        const x0 = 100 + s * 1, xs = 100 + s * g.w * 0.27, ys = neckYAt(g, nl, xs);
+        return part(`M${f(x0)} ${f(nl.yc + 1)} L${f(xs)} ${f(ys - 1)} L${f(xs + s * 2)} ${f(ys + 9)} L${f(100 + s * 10)} ${f(nl.yc + 13)}Z`, shade(k.c1, 0.15), { stroke: OUT })
+          + line(`M${f(x0 + s * 1.5)} ${f(nl.yc + 1.5)} L${f(xs + s * 0.5)} ${f(ys + 1)} M${f(xs + s * 2)} ${f(ys + 9)} L${f(100 + s * 10)} ${f(nl.yc + 13)}`, pipe, 2.4);
       };
-      const buttons = [0, 1, 2].map((i) => { const y = nl.yc + 14 + i * 8; return y < BOTTOM - 4 ? button(100 - 2, y, 2, '#FFFFFF') : ''; }).join('');
+      const buttons = [0, 1, 2].map((i) => { const y = nl.yc + 16 + i * 7.5; return y < BOTTOM - 3 ? button(100 - 2.5, y, 2.6, '#FFFFFF', { stroke: pipeD }) : ''; }).join('');
       return {
         outfit: garment(g, k.c1, {
           side: -2, center: 24,
-          extra: prints + line(`M${f(100 + 2)} ${f(nl.yc + 10)} V${BOTTOM + 2}`, seamOf(k.c1, 0.8), 1.3) + buttons
-            + line(smileD(g.l - 10, g.r + 10, BOTTOM - 5, 3), pipe, 1.8)
+          extra: prints + line(`M${f(100 + 2)} ${f(nl.yc + 12)} V${BOTTOM + 2}`, seamOf(k.c1, 0.8), 1.6) + buttons
+            + line(smileD(g.l - 10, g.r + 10, BOTTOM - 5, 3), pipe, 2.4)
             + neckShadow(g, nl, 0, 4, 0.18) + lap(-1) + lap(1),
         }).svg,
       };
@@ -473,21 +484,26 @@ export const OUTFIT_ITEMS = [
     id: 'tweed', label: 'Chaleco de tweed', vibes: ['academia'], price: 170, colors: ['#9A7A5A', '#FFFFFF'],
     draw: (g, k) => {
       const nl = neckLine(g, { side: 6, center: 24 });
-      const L = g.l - 10, R = g.r + 10, vb = Math.min(nl.yc + 18, BOTTOM - 12);
-      const vestD = `M${f(L)} ${f(nl.ys + 3)} L${f(100 - 10)} ${f(neckYAt(g, nl, 90) + 1)} L100 ${f(vb)} L${f(100 + 10)} ${f(neckYAt(g, nl, 110) + 1)} L${f(R)} ${f(nl.ys + 3)} L${f(R)} 196 L${f(L)} 196Z`;
-      // espiga del tweed: rayitas en zigzag de dos tonos
-      let hb = '', hb2 = '';
-      for (let y = nl.ys + 4, r = 0; y < BOTTOM + 2; y += 4, r++) for (let x = g.l - 4; x < g.r + 4; x += 4) { if (r % 2) hb += `M${f(x)} ${f(y)} l2 2.6`; else hb2 += `M${f(x)} ${f(y)} l2 -2.6`; }
-      const collar = (s) => part(`M${f(100 + s * 1.5)} ${f(nl.yc - 1)} L${f(100 + s * 11)} ${f(nl.yc - 4)} L${f(100 + s * 9)} ${f(nl.yc + 6)}Z`, k.c2, { 'stroke-width': 1.6 });
-      const buttons = [0, 1].map((i) => { const y = vb + 3 + i * 7; return y < BOTTOM - 3 ? button(100, y, 2, shade(k.c1, -1.6), { stroke: shade(k.c1, -2.6) }) : ''; }).join('');
-      const welt = (s) => { const x = 100 + s * g.w * 0.25, y = Math.min(vb + 2, BOTTOM - 10); return part(rr(x - 7, y, 14, 2.8, 1), shade(k.c1, -0.4), { 'stroke-width': 1.2 }); };
+      const L = g.l - 10, R = g.r + 10, vb = Math.min(nl.yc + 17, BOTTOM - 12);
+      const xa = 100 - 11, xb = 100 + 11, ya = neckYAt(g, nl, xa) + 1, yb2 = neckYAt(g, nl, xb) + 1;
+      const vestD = `M${f(L)} ${f(nl.ys + 3)} L${f(xa)} ${f(ya)} L100 ${f(vb)} L${f(xb)} ${f(yb2)} L${f(R)} ${f(nl.ys + 3)} L${f(R)} 196 L${f(L)} 196Z`;
+      // espiga del tweed: solo donde hay resolución para verla; en pixel,
+      // masa de color lisa con su sombra (menos detalle, se lee mejor)
+      let hb = '';
+      for (let y = nl.ys + 4, r = 0; y < BOTTOM + 2; y += 4, r++) for (let x = g.l - 4; x < g.r + 4; x += 4) hb += r % 2 ? `M${f(x)} ${f(y)} l2 2.6` : `M${f(x)} ${f(y)} l2 -2.6`;
+      // LA SEÑA: cuello de camisa blanco en punta y corbata en la V
+      const tie = '#8E1F2C';
+      const collar = (s) => part(`M${f(100 + s * 1.2)} ${f(nl.yc - 2)} L${f(100 + s * 13)} ${f(nl.yc - 5)} L${f(100 + s * 10)} ${f(nl.yc + 8)}Z`, k.c2, { 'stroke-width': 1.7 });
+      const tieD = `M${f(100 - 3)} ${f(nl.yc + 1)} L${f(100 + 3)} ${f(nl.yc + 1)} L${f(100 + 4.4)} ${f(vb - 1)} L100 ${f(vb + 3)} L${f(100 - 4.4)} ${f(vb - 1)}Z`;
+      const buttons = [0, 1].map((i) => { const y = vb + 4 + i * 7; return y < BOTTOM - 3 ? button(100, y, 2.6, shade(k.c1, -1.6), { stroke: shade(k.c1, -2.6) }) : ''; }).join('');
+      const welt = (s) => { const x = 100 + s * g.w * 0.26, y = Math.min(vb + 3, BOTTOM - 10); return part(rr(x - 8, y, 16, 3.6, 1), shade(k.c1, -0.5), { 'stroke-width': 1.3 }); };
       return {
         outfit: garment(g, k.c2, {
           side: 6, center: 24,
-          extra: line(`M100 ${f(nl.yc + 3)} V${f(vb)}`, seamOf(k.c2, 0.6), 1.1)
-            + part(vestD, k.c1) + clipTo(vestD, line(hb, seamOf(k.c1, 0.9), 1.1, { opacity: 0.5 }) + line(hb2, lightOf(k.c1, 0.5), 1.1, { opacity: 0.45 }))
-            + tone(`M${f(100 - 10)} ${f(neckYAt(g, nl, 90) + 1)} L100 ${f(vb)} L${f(100 + 10)} ${f(neckYAt(g, nl, 110) + 1)} L${f(100 + 10)} ${f(neckYAt(g, nl, 110) + 4)} L100 ${f(vb + 3)} L${f(100 - 10)} ${f(neckYAt(g, nl, 90) + 4)}Z`, '#2A1C30', 0.16)
-            + stitch(`M${f(100 - 10 + 1.5)} ${f(neckYAt(g, nl, 90) + 3)} L100 ${f(vb - 2)} L${f(100 + 10 - 1.5)} ${f(neckYAt(g, nl, 110) + 3)}`, lightOf(k.c1, 0.6), 1)
+          extra: part(tieD, tie, { 'stroke-width': 1.5 }) + part(`M${f(100 - 3.4)} ${f(nl.yc - 1)} h6.8 l-1 4 h-4.8Z`, shade(tie, -0.4), { 'stroke-width': 1.3 })
+            + part(vestD, k.c1) + clipTo(vestD, skipPx(line(hb, seamOf(k.c1, 0.9), 1.1, { opacity: 0.45 })))
+            + tone(`M${f(xa)} ${f(ya)} L100 ${f(vb)} L${f(xb)} ${f(yb2)} L${f(xb)} ${f(yb2 + 4)} L100 ${f(vb + 4)} L${f(xa)} ${f(ya + 4)}Z`, '#2A1C30', 0.2)
+            + line(`M${f(xa + 1)} ${f(ya + 1.5)} L100 ${f(vb - 1.5)} L${f(xb - 1)} ${f(yb2 + 1.5)}`, lightOf(k.c1, 0.6), 1.4, { opacity: 0.8 })
             + welt(-1) + welt(1) + buttons,
         }).svg + collar(-1) + collar(1),
       };
@@ -498,26 +514,31 @@ export const OUTFIT_ITEMS = [
     draw: (g, k) => {
       const nl = neckLine(g, { side: 8, center: 26 });
       const yW = Math.min(nl.yc + 13, BOTTOM - 15);
-      // corsé con cordón cruzado
+      const y0 = nl.yc + 5;
+      // corsé: en los estilos vectoriales con su cordón cruzado y ojales; en
+      // pixel, dos cruces gruesas (el cordón fino se volvía ruido)
       let lacing = '';
-      const y0 = nl.yc + 4;
       for (let y = y0; y < yW - 2; y += 4) lacing += `M${f(100 - 4)} ${f(y)} L${f(100 + 4)} ${f(y + 4)} M${f(100 + 4)} ${f(y)} L${f(100 - 4)} ${f(y + 4)}`;
       const eyelets = [];
       for (let y = y0; y <= yW - 2; y += 4) eyelets.push(dot(100 - 4.5, y, 0.9, SILVER), dot(100 + 4.5, y, 0.9, SILVER));
       const hw = g.chordAt(yW) / 2 + 2;
+      const fl = 10;
       return {
         outfit: garment(g, k.c1, {
           side: 8, center: 26,
-          extra: part(rr(100 - 7, y0 - 2, 14, yW - y0 + 2, 2), shade(k.c1, 0.3), { 'stroke-width': 1.4 }) + line(lacing, k.c2, 1.3) + skipPx(eyelets.join(''))
+          extra: part(rr(100 - 7.5, y0 - 2, 15, yW - y0 + 2, 2), shade(k.c1, 0.35), { 'stroke-width': 1.4 })
+            + skipPx(line(lacing, k.c2, 1.3) + eyelets.join(''))
+            + onlyPx(line(`M${f(100 - 4)} ${f(y0)} L${f(100 + 4)} ${f(yW - 3)} M${f(100 + 4)} ${f(y0)} L${f(100 - 4)} ${f(yW - 3)}`, k.c2, 2.4))
             + neckShadow(g, nl, 0, 4, 0.2),
         }).svg
-          + collarLobes(g, nl, Math.min(28, g.w * 0.2), 6, '#FFFFFF')
-          + lace(g.l - 12, g.r + 12, BOTTOM + 5, 2, 3.2, '#FFFFFF')
-          + skirt(g, yW, k.c1, { flare: 11, scallop: 8, folds: 8 })
-          + clipTo(skirtPath(g, yW, { flare: 11, scallop: 8 }), lace(g.l - 12, g.r + 12, BOTTOM - 3, 2, 2.4, k.c2, { holes: false }))
-          + strip(bandD(100 - hw, 100 + hw, yW - 2.5, 4.5, 2), k.c2)
-          + bow(100, yW, 0, 0.6, k.c2)
-          + part(`M${f(100 - 1.4)} ${f(nl.yc + 2.5)} h2.8 v3.6 h3 v2.8 h-3 v5.6 h-2.8 v-5.6 h-3 v-2.8 h3Z`, SILVER, { stroke: SILVER_D, 'stroke-width': 1 }),
+          // LA SEÑA: cuello blanco grande, lazo rojo en la cintura y la
+          // enagua de puntilla blanca asomando bajo la falda
+          + collarLobes(g, nl, Math.min(30, g.w * 0.22), 8, '#FFFFFF')
+          + skirt(g, yW, k.c1, { flare: fl, folds: 5, trim: '#FFFFFF', trimR: 4 })
+          + skipPx(clipTo(skirtPath(g, yW, { flare: fl }), lace(g.l - fl, g.r + fl, BOTTOM - 4, 2, 2.4, k.c2, { holes: false })))
+          + strip(bandD(100 - hw, 100 + hw, yW - 3, 5.5, 2), k.c2)
+          + bow(100, yW - 0.5, 0, 0.8, k.c2)
+          + part(`M${f(100 - 1.6)} ${f(nl.yc + 2.5)} h3.2 v3.6 h3.4 v3.2 h-3.4 v6 h-3.2 v-6 h-3.4 v-3.2 h3.4Z`, SILVER, { stroke: SILVER_D, 'stroke-width': 1 }),
       };
     },
   },

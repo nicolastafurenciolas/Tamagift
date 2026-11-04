@@ -8,8 +8,8 @@
 
 import {
   Cir, G, GOLD, OUT, P, PEARL, SILVER, SILVER_D, T, ball, bow, brim, clipTo, crown, disc, dot,
-  ellD, f, flat, headScale, headband, heartD, lightOf, line, lumOf, mixc, moonD, onTop, onlyPx,
-  part, puffStarD, rr, seamOf, shade, shine, skipPx, sparkleD, stitch, tone,
+  ellD, f, flat, headScale, headband, heartD, laceAlong, lightOf, line, lumOf, mixc, moonD, onTop,
+  part, puffStarD, rr, seamOf, shade, shine, skipPx, smileYAt, sparkleD, stitch, tone,
 } from './kit.js';
 
 const sc = headScale;
@@ -370,16 +370,19 @@ export const HEAD_ITEMS = [
     draw: (g, k) => {
       const t = g.top;
       // tul que cae por detrás desde la coronilla, con sus pliegues y la puntilla del borde
-      const L = g.l - 18, R = g.r + 18, by = 184;
-      const d = `M${f(100 - g.w * 0.22)} ${f(t + 3)} C${f(g.l - 14)} ${f(t + 26)} ${f(L)} ${f(150)} ${f(L + 2)} ${f(by)} Q100 ${f(by + 6)} ${f(R - 2)} ${f(by)} C${f(R)} ${f(150)} ${f(g.r + 14)} ${f(t + 26)} ${f(100 + g.w * 0.22)} ${f(t + 3)}Z`;
-      const folds = line(`M${f(100 - g.w * 0.2)} ${f(t + 8)} C${f(g.l - 8)} ${f(t + 40)} ${f(L + 6)} 160 ${f(L + 8)} ${f(by - 2)} M${f(100 + g.w * 0.2)} ${f(t + 8)} C${f(g.r + 8)} ${f(t + 40)} ${f(R - 6)} 160 ${f(R - 8)} ${f(by - 2)}`, mixc(k.c1, '#8A84A8', 0.45), 1.3, { opacity: 0.8 });
-      const tulle = mixc(k.c1, '#E8ECFA', 0.4);
+      const L = g.l - 22, R = g.r + 22, by = 183;
+      const d = `M${f(100 - g.w * 0.22)} ${f(t + 3)} C${f(g.l - 16)} ${f(t + 24)} ${f(L)} ${f(146)} ${f(L + 2)} ${f(by)} Q100 ${f(by + 6)} ${f(R - 2)} ${f(by)} C${f(R)} ${f(146)} ${f(g.r + 16)} ${f(t + 24)} ${f(100 + g.w * 0.22)} ${f(t + 3)}Z`;
+      const ink = mixc(k.c1, '#7A74A0', 0.6);
+      const folds = line(`M${f(100 - g.w * 0.2)} ${f(t + 8)} C${f(g.l - 10)} ${f(t + 40)} ${f(L + 7)} 158 ${f(L + 9)} ${f(by - 2)} M${f(100 - g.w * 0.26)} ${f(t + 14)} C${f(g.l - 4)} ${f(t + 44)} ${f(L + 14)} 164 ${f(L + 16)} ${f(by)} M${f(100 + g.w * 0.2)} ${f(t + 8)} C${f(g.r + 10)} ${f(t + 40)} ${f(R - 7)} 158 ${f(R - 9)} ${f(by - 2)} M${f(100 + g.w * 0.26)} ${f(t + 14)} C${f(g.r + 4)} ${f(t + 44)} ${f(R - 14)} 164 ${f(R - 16)} ${f(by)}`, ink, 1.4, { opacity: 0.85 });
+      const tulle = mixc(k.c1, '#EEF0FB', 0.35);
+      // tul que cae desde la coronilla hasta el piso: bien visible a los
+      // costados, con pliegues y puntilla en el ruedo
+      const hemLace = laceAlong(L + 2, R - 2, (x) => smileYAt(L + 2, R - 2, by - 3, 3, x), 3.4, '#FFFFFF', { band: 0.5 });
       return {
-        back: P(d, { fill: tulle, opacity: 0.72, stroke: mixc(k.c1, '#8A84A8', 0.55), 'stroke-width': 1.6, 'data-r': 'part', 'data-skip': 'pixel' })
-          + onlyPx(part(d, tulle, { stroke: mixc(k.c1, '#8A84A8', 0.55) }))
-          + folds,
+        back: P(d, { fill: tulle, opacity: 0.9, stroke: ink, 'stroke-width': 1.8, 'data-r': 'part' })
+          + folds + hemLace,
         top: headband(g, g.w * 0.3, 1, 6, k.c2)
-          + G({ transform: T(100, t - 2, 0, headScale(g)) }, part('M-11 4 L-8 -6 L-4 0 L0 -11 L4 0 L8 -6 L11 4 Q0 7 -11 4Z', k.c2, { stroke: SILVER_D, 'stroke-width': 1.5 })
+          + G({ transform: T(100, t - 2, 0, headScale(g) * 1.3) }, part('M-11 4 L-8 -6 L-4 0 L0 -11 L4 0 L8 -6 L11 4 Q0 7 -11 4Z', k.c2, { stroke: SILVER_D, 'stroke-width': 1.5 })
             + Cir(0, -3, 2.6, { fill: '#DDF2FF', stroke: SILVER_D, 'stroke-width': 1, 'data-r': 'part' }) + shine(-0.8, -4, 0.8)
             + dot(-8, -6, 1.6, PEARL) + dot(8, -6, 1.6, PEARL) + dot(0, -11, 1.6, PEARL)),
       };

@@ -91,7 +91,7 @@ export const findWearable = (slot, id) => WARDROBE.find((w) => w.slot === slot &
 
 // Cuánto se sale de la silueta (para que la mochi se achique y entre).
 const OUT_MAP = {
-  alasHada: 42, alasAngel: 40, alasMurcielago: 38, alasMariposa: 42, mochila: 24, mochilaOso: 29, capaEstrellas: 20, caparazon: 12,
+  alasHada: 42, alasAngel: 40, alasMurcielago: 38, alasMariposa: 42, mochila: 24, mochilaOso: 29, capaEstrellas: 20, caparazon: 19,
   velo: 22, flotador: 15, vestido: 11, maid: 9, lolita: 11, princesa: 17, tutu: 19, seifuku: 7,
   capaVampiro: 18, disfrazFantasma: 13, vestidoBruja: 11,
   vestidoNoel: 11, sacoRegalos: 34, gorroNoel: 14,

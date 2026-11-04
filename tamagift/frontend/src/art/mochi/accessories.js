@@ -353,7 +353,7 @@ export function neck(id, g, c, clip) {
       const th = 15;
       // bufanda gruesa tejida a rayas: da la vuelta y una punta cae por delante con flecos
       let stripes = '';
-      for (let x = L - 4; x < R + 6; x += 10) stripes += `M${x} ${y - 14} h5 V${y + 30} h-5Z`;
+      for (let x = L - 2; x < R + 6; x += 19) stripes += `M${x} ${y - 14} h8 V${y + 30} h-8Z`;
       let ribs = '';
       for (let x = L; x < R; x += 3.6) ribs += `M${x} ${nk.yAt(x) - th / 2 + 2} v${th - 4}`;
       const wrap = nk.band(th, 1);

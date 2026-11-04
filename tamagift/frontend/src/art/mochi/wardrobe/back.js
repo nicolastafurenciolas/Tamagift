@@ -142,27 +142,30 @@ export const BACK_ITEMS = [
   {
     id: 'caparazon', label: 'Caparazón de tortuga', vibes: ['kawaii', 'playera'], price: 130, colors: ['#8ED07A', '#5A9A4A'],
     draw: (g, k) => {
-      // caparazón en cúpula que asoma por arriba y a los costados, con el
-      // borde de escamas y las placas hexagonales con su veta
-      const cx = 100, rx = g.w / 2 + 11, top = g.top - 18, cy = g.ys - 2, ry = cy - top;
-      const shell = `M${f(cx - rx)} ${f(cy)} A${f(rx)} ${f(ry)} 0 0 1 ${f(cx + rx)} ${f(cy)} L${f(cx + rx - 2)} ${f(BOTTOM - 6)} Q${f(cx)} ${f(BOTTOM + 6)} ${f(cx - rx + 2)} ${f(BOTTOM - 6)}Z`;
-      let rim = '';
-      const n = 12;
-      for (let i = 0; i < n; i++) {
-        const a0 = Math.PI + (i / n) * Math.PI, a1 = Math.PI + ((i + 1) / n) * Math.PI;
-        const p = (a, kk) => `${f(cx + Math.cos(a) * rx * kk)} ${f(cy + Math.sin(a) * ry * kk)}`;
-        rim += `M${p(a0, 1)} L${p(a1, 1)} L${p(a1, 0.86)} L${p(a0, 0.86)}Z`;
+      // caparazón ancho y abombado que asoma detrás: borde de escamas en
+      // festón todo alrededor (se ve a los costados) y la fila de placas
+      // hexagonales de arriba asomando sobre la cabeza
+      const cx = 100, rx = g.w / 2 + 17, top = g.top - 30, cy = g.ys + 4, ry = cy - top;
+      const rim = shade(k.c1, -0.45), n = 16;
+      const at = (t, kk = 1) => { const a = Math.PI + t * Math.PI; return [cx + Math.cos(a) * rx * kk, cy + Math.sin(a) * ry * kk]; };
+      let outer = '';
+      for (let i = 0; i <= n; i++) {
+        const [x, y] = at(i / n), [mx, my] = at((i - 0.5) / n, 1.07);
+        outer += i ? ` Q${f(mx)} ${f(my)} ${f(x)} ${f(y)}` : `M${f(x)} ${f(y)}`;
       }
-      const hex = (x, y, r) => { let d = ''; for (let i = 0; i < 6; i++) { const a = (i * 60 + 30) * Math.PI / 180; d += `${i ? 'L' : 'M'}${f(x + Math.cos(a) * r)} ${f(y + Math.sin(a) * r * 0.82)}`; } return `${d}Z`; };
-      const hr = rx * 0.19;
-      const plates = [[0, -0.78], [-0.4, -0.62], [0.4, -0.62], [-0.68, -0.3], [0.68, -0.3]].map(([fx, fy2]) => {
-        const x = cx + rx * fx, y = cy + ry * fy2;
-        return part(hex(x, y, hr), k.c2, { 'stroke-width': 1.6 }) + line(hex(x, y, hr * 0.55), lightOf(k.c2, 0.6), 1.1, { opacity: 0.85 });
-      }).join('');
+      const shellD = `${outer} L${f(cx + rx - 3)} ${f(BOTTOM - 4)} Q${f(cx)} ${f(BOTTOM + 8)} ${f(cx - rx + 3)} ${f(BOTTOM - 4)}Z`;
+      const innerD = ellD(cx, cy + 2, rx * 0.9, ry * 0.9);
+      let seams = '';
+      for (let i = 1; i < n; i++) { const [x1, y1] = at(i / n), [x2, y2] = at(i / n, 0.9); seams += `M${f(x1)} ${f(y1)} L${f(x2)} ${f(y2 + 2)}`; }
+      const hex = (x, y, r) => { let d = ''; for (let i = 0; i < 6; i++) { const a = (i * 60 + 30) * Math.PI / 180; d += `${i ? 'L' : 'M'}${f(x + Math.cos(a) * r)} ${f(y + Math.sin(a) * r * 0.8)}`; } return `${d}Z`; };
+      const hr = 10;
+      const plates = [[0, top + 23], [-rx * 0.4, top + 31], [rx * 0.4, top + 31], [-rx * 0.7, top + 52], [rx * 0.7, top + 52]].map(([dx, y]) =>
+        part(hex(cx + dx, y, hr), k.c2, { 'stroke-width': 1.7 }) + flat(hex(cx + dx - 1, y - 1, hr * 0.55), lightOf(k.c2, 0.5))).join('');
       return {
-        back: part(shell, k.c1) + clipTo(shell, P(rim, { fill: shade(k.c1, -0.3), stroke: shade(k.c1, -1.8), 'stroke-width': 1.2, 'data-r': 'flat' }) + plates
-          + tone(`M${f(cx + rx * 0.3)} ${f(top - 4)} C${f(cx + rx + 4)} ${f(top + 4)} ${f(cx + rx + 6)} ${f(cy)} ${f(cx + rx * 0.5)} ${f(BOTTOM)} L${f(cx + rx + 10)} ${f(BOTTOM)} L${f(cx + rx + 10)} ${f(top - 4)}Z`, '#1E3A1A', 0.2))
-          + line(`M${f(cx - rx * 0.82)} ${f(cy - ry * 0.45)} C${f(cx - rx * 0.62)} ${f(cy - ry * 0.88)} ${f(cx - rx * 0.25)} ${f(top + 2)} ${f(cx - rx * 0.05)} ${f(top + 1)}`, '#FFFFFF', 2, { opacity: 0.55 }),
+        back: part(shellD, rim) + clipTo(shellD, line(seams, shade(k.c1, -1.6), 1.4)
+          + P(innerD, { fill: k.c1, stroke: shade(k.c1, -1.8), 'stroke-width': 1.6, 'data-r': 'part' }) + clipTo(innerD, plates)
+          + tone(`M${f(cx + rx * 0.35)} ${f(top - 6)} C${f(cx + rx + 6)} ${f(top + 6)} ${f(cx + rx + 8)} ${f(cy)} ${f(cx + rx * 0.5)} ${f(BOTTOM)} L${f(cx + rx + 12)} ${f(BOTTOM)} L${f(cx + rx + 12)} ${f(top - 6)}Z`, '#1E3A1A', 0.22))
+          + line(`M${f(cx - rx * 0.78)} ${f(cy - ry * 0.5)} C${f(cx - rx * 0.6)} ${f(cy - ry * 0.85)} ${f(cx - rx * 0.3)} ${f(top + 6)} ${f(cx - rx * 0.08)} ${f(top + 4)}`, '#FFFFFF', 2, { opacity: 0.5 }),
       };
     },
   },
