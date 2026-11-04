@@ -10,7 +10,7 @@ import {
 } from '../../cooking';
 import {
   counterSvg, boardSvg, bowlSvg, potSvg, panSvg, stoveSvg, flameSvg, ovenSvg, knifeSvg, spoonSvg,
-  cookItemSvg, doughSvg, dishBaseSvg, clocheSvg, sparkleSvg, ingredientSvg, toppingSvg, INGREDIENTS,
+  cookItemSvg, doughSvg, dishBaseSvg, clocheSvg, sparkleSvg, ingredientSvg, toppingSvg, sliceFaceSvg, SLICE_PROFILE, INGREDIENTS,
 } from '../../art/kitchen';
 import { PetSprite, FoodSprite } from './common';
 import { useFinish } from './meta';
@@ -164,8 +164,14 @@ function StepWidget(props) {
 }
 
 // Coordenadas del puntero dentro del escenario.
+// Al terminar un paso su escenario se desmonta y el ref queda en null,
+// pero el dedo (con el puntero capturado) todavía puede mandar un
+// movimiento o un "soltar": entonces se mide contra el propio elemento
+// del evento, o se devuelve el punto tal cual.
 function local(e, el) {
-  const r = el.getBoundingClientRect();
+  const box = el || e.currentTarget;
+  if (!box || !box.getBoundingClientRect) return { x: e.clientX, y: e.clientY };
+  const r = box.getBoundingClientRect();
   return { x: e.clientX - r.left, y: e.clientY - r.top };
 }
 
@@ -215,6 +221,19 @@ function ChopStep({ step, W, H, onDone }) {
         return (
           <div key={i} style={{ position: 'absolute', left, top: top - size * 0.08, width: size, height: size, clipPath: `inset(0 ${(1 - b) * 100}% 0 ${a * 100}%)`, transform: `translateX(${off}px)`, transition: 'transform 0.18s', pointerEvents: 'none' }}>
             <Sprite markup={ingredientSvg(step.item)} cacheKey={`ck-ing-${step.item}`} w={size} h={size} />
+          </div>
+        );
+      })}
+      {/* la cara cortada de cada trozo (salvo el primero), en su borde izquierdo */}
+      {SLICE_PROFILE[step.item] && edges.slice(1, -1).map((a, j) => {
+        const i = j + 1;
+        const off = (i - (edges.length - 2) / 2) * 7;
+        const [pcy, half] = SLICE_PROFILE[step.item](a * 64);
+        if (half < 2) return null;
+        const ry = (half / 64) * size, rx = ry * 0.42;
+        return (
+          <div key={`f${i}`} className="pg-anim-pop" style={{ position: 'absolute', left: left + a * size + off - rx * 0.35, top: top - size * 0.08 + (pcy / 64) * size - ry, transition: 'left 0.18s', pointerEvents: 'none' }}>
+            <Sprite markup={sliceFaceSvg(step.item)} cacheKey={`ck-slice-${step.item}`} w={Math.max(4, Math.round(rx * 2))} h={Math.round(ry * 2)} />
           </div>
         );
       })}

@@ -1415,6 +1415,67 @@ function INGREDIENT_TOMATO() {
   return part('M10 36C10 25 19 18 32 18C45 18 54 25 54 36C54 48 45 56 32 56C19 56 10 48 10 36Z', '#E8505E', { w: 2.4 }) + part('M32 22L25 18L28 24L20 25L28 28L30 33L33 28L42 27L36 23L39 17Z', '#5FAE52', { w: 1.6 });
 }
 
+// La escena de la trivia: un rincón de escritorio. Pared empapelada con
+// la guirnalda, una ventana con cortinas y un corcho con notitas; abajo
+// el escritorio de madera con una taza humeante, un lapicero y, en el
+// medio, la carta donde va escrita la pregunta (TRIVIA_LETTER: dónde
+// cae el texto). El papel toma el color de "superficie" del estilo.
+export const TRIVIA_DESK = { W: 336, H: 214 };
+export const TRIVIA_LETTER = { x: 70, y: 126, w: 196, h: 72 };
+export function triviaDeskSvg() {
+  const { W, H } = TRIVIA_DESK;
+  const L = TRIVIA_LETTER;
+  const top = 118, edge = 198;
+  let s = flat(`M0 0H${W}V${top}H0Z`, '#F7E4D8');
+  for (let y = 14, r = 0; y < top; y += 22, r++) for (let x = r % 2 ? 22 : 8; x < W; x += 28) s += flat(HEART(x, y, 0.12), '#F2CDBF');
+  s += inner(buntingSvg(W));
+  // ventana con cortinas
+  s += face(rr(16, 32, 86, 70, 4), '#FFFFFF', { w: 2 });
+  s += flat(rr(21, 37, 76, 60, 2), '#BFE6F8');
+  s += flat('M21 80Q42 70 60 78T97 74V97H21Z', '#9ED37E');
+  s += cloud(30, 56, 22, '#FFFFFF', { flat: true, dim: 0.2 });
+  s += line('M59 38V96M22 66H96', '#FFFFFF', 3);
+  s += part('M10 28H28C26 50 20 70 24 104H10Z', '#F7A6B9', { w: 1.6 }) + part('M108 28H90C92 50 98 70 94 104H108Z', '#F7A6B9', { w: 1.6 });
+  s += face(rr(6, 24, 106, 6, 3), '#C99A6B', { w: 1.6 });
+  // corcho con notitas y chinches
+  s += face(rr(214, 30, 108, 74, 4), '#B9784A', { w: 2 });
+  s += flat(rr(220, 36, 96, 62, 2), '#DDB07A');
+  [[236, 46], [262, 70], [300, 44], [292, 80], [228, 84]].forEach(([x, y]) => { s += flat(`M${x} ${y}h2v2h-2Z`, '#C08A52'); });
+  s += G({ transform: 'rotate(-6 244 66)' }, face(rr(228, 46, 32, 38, 1.5), '#FFFFFF', { w: 1.4 }) + flat(rr(232, 50, 24, 22, 1), '#FFC2D4') + flat(HEART(244, 61, 0.28), '#F05A78'));
+  s += G({ transform: 'rotate(5 288 58)' }, face(rr(274, 44, 30, 28, 1.5), '#FFF1A8', { w: 1.4 }) + line('M279 53H299M279 59H295M279 65H297', '#D9B94E', 1.6));
+  s += part(starPath(296, 86, 8, 3.6), '#A9DFC4', { w: 1.2 });
+  [[244, 47, '#F05A78'], [289, 45, '#4FA6E6'], [296, 80, '#FFC93D']].forEach(([x, y, c]) => { s += part(ellD(x, y, 3, 3), c, { w: 1 }); });
+  // escritorio: tapa con vetas y canto con tirador
+  s += face(`M-4 ${top}H${W + 4}V${edge}H-4Z`, '#E8B985', { w: 2.2 });
+  s += shade(`M0 ${top}H${W}V${top + 6}H0Z`, SH, 0.12);
+  s += line(`M10 ${top + 22}C80 ${top + 18} 140 ${top + 28} 210 ${top + 22}S300 ${top + 26} 330 ${top + 20}M20 ${top + 60}C90 ${top + 56} 170 ${top + 66} 240 ${top + 58}`, '#C99060', 1.6, { opacity: 0.55 });
+  s += face(`M-4 ${edge}H${W + 4}V${H + 4}H-4Z`, '#C98E5A', { w: 2.2 });
+  s += part(rr(W / 2 - 16, edge + 5, 32, 5, 2.5), '#E8C46A', { w: 1.3 });
+  // la carta (con su sombra), cintas y sello
+  s += flat(rr(L.x + 3, L.y + 4, L.w, L.h, 4), SH, { opacity: 0.18 });
+  s += face(rr(L.x, L.y, L.w, L.h, 4), 'var(--pg-c-surface)', { w: 2 });
+  let d = '';
+  for (let y = L.y + 18; y < L.y + L.h - 6; y += 13) d += `M${L.x + 12} ${y}H${L.x + L.w - 12}`;
+  s += line(d, 'var(--pg-c-line)', 1.6, { opacity: 0.45 });
+  s += flat(`M${L.x - 6} ${L.y + 8}L${L.x + 14} ${L.y - 2}L${L.x + 19} ${L.y + 9}L${L.x - 1} ${L.y + 19}Z`, '#A9DFC4', { opacity: 0.85 });
+  s += part(flowerPath(L.x + L.w - 14, L.y + L.h - 12, 10, 8, 8), '#E8505E', { w: 1.8 }) + flat(HEART(L.x + L.w - 14, L.y + L.h - 11.5, 0.27), '#F58A94');
+  // taza con corazón y vapor
+  s += line('M28 140Q24 134 28 128M38 140Q34 134 38 128', '#FFFFFF', 2.2, { opacity: 0.9 });
+  s += shadow0(34, 182, 22);
+  s += line('M50 154C60 154 60 172 50 172', '#3A2A3E', 5) + line('M50 154C60 154 60 172 50 172', '#FFFFFF', 2.6);
+  s += part('M18 146H50V174C50 178 46 182 42 182H26C22 182 18 178 18 174Z', '#FFFFFF', { w: 2 });
+  s += face(ellD(34, 146, 16, 4), '#8A5A44', { w: 1.6 });
+  s += flat(HEART(34, 163, 0.32), '#F05A78');
+  // lapicero con lápices
+  s += line('M300 150L294 124M308 150L310 120M316 150L322 126', '#5E5A7A', 2);
+  s += part('M292 126L294 118L297 125Z', '#FFC93D', { w: 1 }) + part('M308 122L311 114L313 121Z', '#F05A78', { w: 1 }) + part('M320 128L325 121L325 128Z', '#4FA6E6', { w: 1 });
+  s += shadow0(306, 184, 20);
+  s += part('M290 150H322V178C322 181 320 183 317 183H295C292 183 290 181 290 178Z', '#9ED3F0', { w: 2 });
+  s += flat(rr(292, 160, 28, 5, 2), '#FFFFFF', { opacity: 0.7 });
+  return piece(W, H, s);
+}
+const shadow0 = (cx, cy, rx) => Ell(cx, cy, rx, rx * 0.2, { fill: SH, opacity: 0.18, 'data-r': 'tone' });
+
 // ── Poderes de "Atrapa la comida" ─────────────────────────────────
 export function powerSvg(kind) {
   let s = Ell(32, 59, 16, 3, { fill: '#2A1C24', opacity: 0.16, 'data-r': 'tone' });
@@ -1485,6 +1546,7 @@ export function GAME_ART_SET() {
     c('Mesa de cartas', cardTableSvg(336, 440), 336, 440),
     c('Caja de bombones', candyBoxSvg(7, 7, 44), 7 * 44 + 28, 7 * 44 + 36),
     c('Bandeja rompecabezas', puzzleFrameSvg(300), 328, 336),
+    c('Escritorio trivia', triviaDeskSvg(), TRIVIA_DESK.W, TRIVIA_DESK.H, 'surface'),
     c('Guirnalda', buntingSvg(320), 320, 34), c('Carta pregunta', letterCardSvg(330, 96), 330, 96),
     ...['cocina', 'trivia', 'memoria', 'golosinas', 'simon', 'volar', 'atrapar', 'rompecabezas', 'topos', 'serpiente', 'cruzar', 'torre'].map((g) => c(`Viñeta ${g}`, gameThumbSvg(g), THUMB.W, THUMB.H, 'surface')),
     c('Caja con huecos', candyBoxSvg(7, 7, 44, Array.from({ length: 49 }, (_, i) => !(i === 0 || i === 6 || i === 42 || i === 48 || i === 24))), 7 * 44 + 28, 7 * 44 + 36),

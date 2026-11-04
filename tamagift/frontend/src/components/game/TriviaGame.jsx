@@ -4,7 +4,7 @@ import { Screen, ScreenHeader, HeaderTag } from '../ui';
 import { play } from '../../sound';
 import { useFinish } from './meta';
 import Sprite from '../Sprite';
-import { buntingSvg, letterCardSvg } from '../../art/minigames';
+import { triviaDeskSvg, TRIVIA_DESK, TRIVIA_LETTER } from '../../art/minigames';
 
 // ── Trivia del corazón ────────────────────────────────────────────
 // Las preguntas salen de lo que configuró quien regaló. Acertar una
@@ -12,7 +12,6 @@ import { buntingSvg, letterCardSvg } from '../../art/minigames';
 // de banderines; la pregunta va en una carta con su sello (art/minigames).
 
 const ROUNDS = 6;
-const CARD_W = 336;
 const FAKE_FOODS = ['Sushi', 'Tacos', 'Lasaña', 'Panqueques', 'Ceviche', 'Ramen', 'Empanadas', 'Waffles', 'Arepas', 'Croissant'];
 const FAKE_NAMES = ['Luna', 'Mochi', 'Pelusa', 'Coco', 'Nube', 'Simba', 'Kiwi', 'Bruno'];
 const FAKE_PHRASES = [
@@ -119,15 +118,17 @@ export default function TriviaGame({ pet, onBack, onComplete }) {
     <Screen>
       <ScreenHeader title="Trivia del corazón" onBack={onBack} right={<HeaderTag>{idx + 1}/{questions.length}</HeaderTag>} />
       <div style={{ width: '100%', maxWidth: 340 }}>
-        <Sprite markup={buntingSvg(CARD_W)} cacheKey={`tv-bunting-${CARD_W}`} w={CARD_W} h={34} kind="surface" style={{ margin: '-4px auto 6px', pointerEvents: 'none' }} />
-        <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
           {questions.map((_, i) => (
             <div key={i} style={{ flex: 1, height: 6, borderRadius: 999, background: i < idx ? C.sage : i === idx ? C.rose : C.track }} />
           ))}
         </div>
-        <div style={{ position: 'relative', height: 96, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px 34px 14px 26px' }}>
-          <Sprite markup={letterCardSvg(CARD_W, 96)} cacheKey={`tv-card2-${CARD_W}`} w={CARD_W} h={96} kind="surface" style={{ position: 'absolute', left: '50%', top: 0, transform: 'translateX(-50%)', pointerEvents: 'none' }} />
-          <p style={{ position: 'relative', fontFamily: FONT.display, fontSize: 16, fontWeight: 800, color: C.ink, margin: 0, lineHeight: 1.3, textAlign: 'center' }}>{current.q}</p>
+        {/* el rincón del escritorio; la pregunta va escrita en la carta */}
+        <div style={{ position: 'relative', width: TRIVIA_DESK.W, height: TRIVIA_DESK.H, margin: '0 auto 12px', maxWidth: '100%' }}>
+          <Sprite markup={triviaDeskSvg()} cacheKey="tv-desk" w={TRIVIA_DESK.W} h={TRIVIA_DESK.H} kind="surface" pixel={2} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', left: TRIVIA_LETTER.x + 12, top: TRIVIA_LETTER.y + 6, width: TRIVIA_LETTER.w - 36, height: TRIVIA_LETTER.h - 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <p style={{ fontFamily: FONT.display, fontSize: 14.5, fontWeight: 800, color: C.ink, margin: 0, lineHeight: 1.25, textAlign: 'center' }}>{current.q}</p>
+          </div>
         </div>
         <div className="flex flex-col gap-2.5">
           {current.options.map((opt) => {

@@ -578,6 +578,41 @@ function sackSvgPart(paper, band, kind) {
   return s + flat('M18 24h2.5v26h-2.5Z', '#FFFFFF', { opacity: 0.6 });
 }
 
+// ── Rodajas: cómo se ve por dentro lo que se pica ─────────────────
+// Al picar, cada trozo muestra su cara cortada: el tomate con su pulpa y
+// semillas, la zanahoria con anillos, la cebolla en capas, el pepino con
+// su centro claro… La cara se ve un poco de costado (una elipse angosta),
+// del alto que tiene el ingrediente en ese punto (SLICE_PROFILE, en las
+// unidades 64×64 del dibujo: centro y medio alto según x).
+const ell = (cx, cy, rx, ry) => (x) => { const t = 1 - ((x - cx) / rx) ** 2; return t > 0 ? [cy, ry * Math.sqrt(t)] : [cy, 0]; };
+export const SLICE_PROFILE = {
+  tomate: ell(32, 37, 22, 19),
+  papa: ell(32, 37, 22, 17),
+  cebolla: ell(32, 40, 22, 16),
+  lechuga: ell(32, 36, 24, 20),
+  zanahoria: (x) => (x < 14 || x > 58 ? [38, 0] : [38, Math.max(0, 11 - ((x - 14) * 9) / 44)]),
+  pepino: (x) => (x < 6 || x > 60 ? [38, 0] : [38, 12]),
+  rollo: (x) => (x < 6 || x > 58 ? [37, 0] : [37, 13]),
+};
+const RINGS = {
+  tomate: (s) => {
+    s += part(ellD(20, 50, 18, 47), '#E8505E', { w: 2 });
+    s += flat(ellD(20, 50, 14, 41), '#F7848C');
+    [[20, 24], [20, 50], [20, 76]].forEach(([x, y]) => { s += flat(ellD(x + 3, y, 6, 10), '#FFB3A8') + flat(ellD(x + 3, y - 3, 1.8, 2.6), '#FFE29A') + flat(ellD(x + 4, y + 4, 1.8, 2.6), '#FFE29A'); });
+    return s + flat(ellD(15, 50, 3, 36), '#FFD3CC');
+  },
+  zanahoria: (s) => part(ellD(20, 50, 18, 47), '#E07E2A', { w: 2 }) + flat(ellD(20, 50, 14, 38), '#F59A3C') + flat(ellD(20, 50, 8, 22), '#FFC27A') + line('M20 30V70', '#FFD9A0', 1.6, { opacity: 0.8 }),
+  cebolla: (s) => part(ellD(20, 50, 18, 47), '#C988C9', { w: 2 }) + flat(ellD(20, 50, 15, 39), '#FBF0FB') + line(ellD(20, 50, 11, 29), '#D9A6DA', 2) + line(ellD(20, 50, 7, 18), '#D9A6DA', 2) + flat(ellD(20, 50, 3, 8), '#F2D8F2'),
+  papa: (s) => part(ellD(20, 50, 18, 47), '#B98A54', { w: 2 }) + flat(ellD(20, 50, 15, 41), '#FBEFC8') + flat(ellD(17, 46, 6, 18), '#FFF8E0'),
+  lechuga: (s) => part(ellD(20, 50, 18, 47), '#5FAE52', { w: 2 }) + flat(ellD(20, 50, 14, 39), '#B8E59A') + line('M20 14Q14 32 20 50T20 86M12 30Q8 50 12 70', '#8ED07A', 2) + flat(ellD(20, 50, 5, 14), '#E2F5CF'),
+  pepino: (s) => part(ellD(20, 50, 18, 47), '#3E7E4A', { w: 2 }) + flat(ellD(20, 50, 15, 41), '#C6EBA4') + flat(ellD(20, 50, 8, 22), '#E8F7D8') + [36, 50, 64].map((y) => flat(ellD(20, y, 2, 3.4), '#9FD086')).join(''),
+  rollo: (s) => part(ellD(20, 50, 18, 47), '#2F5A3E', { w: 2 }) + flat(ellD(20, 50, 15, 41), '#FFFFFF') + flat(ellD(20, 50, 6, 16), '#FF9A6B') + flat(ellD(22, 58, 3, 6), '#8FD06A'),
+};
+export function sliceFaceSvg(id) {
+  const f = RINGS[id] || RINGS.papa;
+  return piece(40, 100, f(''));
+}
+
 // Lo que se está cocinando en la sartén, según qué tan hecho está
 // (0 crudo, 0.5 en su punto, 1 quemado).
 export function cookItemSvg(kind, done = 0) {
@@ -741,5 +776,6 @@ export function KITCHEN_ART_SET() {
     ...['huevo', 'carne', 'galleta', 'pastel'].flatMap((k) => [0.1, 0.5, 0.95].map((d) => c(`${k} ${d}`, cookItemSvg(k, d), 120, 60))),
     ...['panqueque', 'arepa', 'huevo', 'onigiri', 'pasta', 'tortilla', 'ramen', 'torta'].map((k) => c(`base ${k}`, dishBaseSvg(k), 160, 104)),
     ...Object.keys(TOPPINGS).map((k) => c(`encima: ${k}`, toppingSvg(k), 64, 64)),
+    ...Object.keys(RINGS).map((k) => c(`rodaja: ${k}`, sliceFaceSvg(k), 40, 100)),
   ];
 }
