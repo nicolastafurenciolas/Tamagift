@@ -845,7 +845,9 @@ function kitPixel(svg, items, o) {
     if (!len) return mask;
     const M = el.getCTM();
     const sc = Math.hypot(M.a, M.b) || 1;
-    const step = 0.45 / sc;
+    // cada muestra cuesta (getPointAtLength es lento en curvas): una por
+    // píxel alcanza, los escalones de Bresenham rellenan entre ellas
+    const step = 1 / sc;
     const dash = it.dash, period = dash ? dash.reduce((a, b) => a + b, 0) : 0;
     const onDash = (s) => {
       if (!dash || !period) return true;
@@ -874,7 +876,7 @@ function kitPixel(svg, items, o) {
       const x = M.a * pt.x + M.c * pt.y + M.e, y = M.b * pt.x + M.d * pt.y + M.f;
       const gx = Math.floor(x), gy = Math.floor(y);
       // un salto largo es otro trazo del mismo camino (M…M…): no se une
-      if (prev && Math.hypot(x - prev[0], y - prev[1]) <= 1.6) line(prev[2], prev[3], gx, gy); else plot(gx, gy);
+      if (prev && Math.hypot(x - prev[0], y - prev[1]) <= 2.2) line(prev[2], prev[3], gx, gy); else plot(gx, gy);
       prev = [x, y, gx, gy];
     }
     if (it.clips.length) {

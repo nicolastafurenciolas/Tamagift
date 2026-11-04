@@ -896,22 +896,27 @@ function cookieSvg(x, y, r, c = '#D99A55') {
   return s + shine(ell(x - r * 0.42, y - th - ry * 0.48, r * 0.16, ry * 0.16), 0.7);
 }
 
-// Bombones en su pirotín plisado.
+// Bombón en su pirotín de borde rizado, con baño brillante y un hilo de glasé.
 function bombonSvg(x, y, c = '#7B4A33', cup = '#F7A8C0') {
-  let s = face(`M${x - 8} ${y - 8}L${x - 6.5} ${y}H${x + 6.5}L${x + 8} ${y - 8}Z`, cup, { w: 1.5 });
-  s += line(`M${x - 4} ${y - 7.5}L${x - 3.4} ${y - 0.5}M${x} ${y - 7.5}V${y - 0.5}M${x + 4} ${y - 7.5}L${x + 3.4} ${y - 0.5}`, tone(cup, -0.8), 1.3, { opacity: 0.8 });
-  s += part(`M${x - 8} ${y - 7}C${x - 8} ${y - 18} ${x + 8} ${y - 18} ${x + 8} ${y - 7}Z`, c, { w: 1.6 });
-  s += line(`M${x - 5} ${y - 11}q2.5 -3 5 0q2.5 3 5 0`, c === '#FFF4E4' ? '#9C6446' : '#FFF4E4', 1.8);
-  return s + shine(ell(x - 3.6, y - 13.6, 1.6, 1.1), 0.85);
+  const k = 1.35;
+  const X = (v) => f1(x + v * k), Y = (v) => f1(y + v * k);
+  let zz = `M${X(-8.6)} ${Y(-7)}`;
+  for (let i = 0; i <= 8; i++) zz += `L${X(-8.6 + i * 2.15)} ${Y(i % 2 ? -9 : -7)}`;
+  let s = face(`M${X(-8)} ${Y(-7)}L${X(-6.4)} ${Y(0)}H${X(6.4)}L${X(8)} ${Y(-7)}Z`, cup, { w: 1.5 });
+  s += line(`M${X(-4)} ${Y(-6.5)}L${X(-3.4)} ${Y(-0.5)}M${x} ${Y(-6.5)}V${Y(-0.5)}M${X(4)} ${Y(-6.5)}L${X(3.4)} ${Y(-0.5)}`, tone(cup, -0.8), 1.3, { opacity: 0.8 });
+  s += part(`M${X(-8)} ${Y(-7.5)}C${X(-8.6)} ${Y(-19)} ${X(8.6)} ${Y(-19)} ${X(8)} ${Y(-7.5)}Q${x} ${Y(-5.5)} ${X(-8)} ${Y(-7.5)}Z`, c, { w: 1.6 });
+  s += part(`${zz}L${X(8.6)} ${Y(-7)}L${X(8)} ${Y(-5.6)}H${X(-8)}Z`, tone(cup, 0.4), { w: 1.1 });
+  s += line(`M${X(-5)} ${Y(-12)}q${f1(2.5 * k)} ${f1(-3 * k)} ${f1(5 * k)} 0q${f1(2.5 * k)} ${f1(3 * k)} ${f1(5 * k)} 0`, c === '#FFF4E4' ? '#9C6446' : '#FFF4E4', 2);
+  return s + shine(ell(x - 3.8 * k, y - 14.4 * k, 1.8 * k, 1.2 * k), 0.9);
 }
 
 function bombones(id, list) {
   return def(`bombones-${id}`, () => {
     const l = list.slice().sort((a, b) => a[1] - b[1]);
     let s = '';
-    l.forEach(([x, y, c, cup]) => { s += bombonSvg(x, y, c, cup); });
-    const xs = l.map((b) => b[0]);
-    return { box: [Math.min(...xs) - 10, -20 + Math.min(...l.map((b) => b[1])), Math.max(...xs) + 10, Math.max(...l.map((b) => b[1])) + 4], svg: s, shadows: l.map(([x, y]) => [x, y + 1, 7, 2]) };
+    l.forEach(([x, y, c, cup]) => { s += bombonSvg(x * 1.3, y, c, cup); });
+    const xs = l.map((b) => b[0] * 1.3);
+    return { box: [Math.min(...xs) - 13, -27 + Math.min(...l.map((b) => b[1])), Math.max(...xs) + 13, Math.max(...l.map((b) => b[1])) + 4], svg: s, shadows: l.map(([x, y]) => [x * 1.3, y + 1, 9, 2.4]) };
   });
 }
 
@@ -1262,6 +1267,7 @@ function chocoRiver(S, yr, xFall, toRight) {
   // la orilla de adelante: borde de luz
   G.line(S, L_WATER + 10, GOL.caramelLt, 2.6, `M${xs.map((x) => `${x} ${f1(dn(x) + 1)}`).join('L')}`, y0, y1);
   G.line(S, L_WATER + 10, GOL.caramelLt, 2.6, `M${xFall - 32} ${yr + 6}Q${xFall} ${yr + 30} ${xFall + 32} ${yr + 6}`, y0, y1);
+  riverBanks(S, yr, xa, xb, xFall);
 }
 
 // Árbol de algodón de azúcar: palito de papel a rayas y copa esponjosa.
@@ -1442,6 +1448,12 @@ function golosinasGround(S) {
   for (let x = -12; x < W + 20; x += 26 + r() * 10) bump.push([x, 12 + r() * 8, -r() * 4]);
   G.flat(S, L_BASE + 8, GOL.cloudDk, puffD(-14, W + 14, zy[2] + 40, bump.map(([x, rr0, dy]) => [x, rr0 + 2, dy])), zy[2] - 10, zy[2] + 42);
   G.flat(S, L_BASE + 9, GOL.cloudLt, puffD(-14, W + 14, zy[2] + 36, bump), zy[2] - 10, zy[2] + 42);
+  // nubes lejanas: bancos tenues que dan profundidad
+  for (let y = zy[2] + 56, j = 0; y < H; y += 54, j++) {
+    const bumps = [];
+    for (let x = -20 + (j % 2) * 30; x < W + 30; x += 50 + r() * 20) bumps.push([x, 14 + r() * 8]);
+    G.flat(S, L_BASE + 10, j % 2 ? '#E9E1F8' : '#F6F2FD', puffD(-30, W + 30, y + 14, bumps), y - 20, y + 16);
+  }
   // nubes: montoncitos esponjosos con su sombra lila abajo
   for (let y = zy[2] + 70; y < H - 10; y += 30 + r() * 16) {
     const x = 10 + r() * (W - 20), R0 = 12 + r() * 12;
@@ -1503,6 +1515,7 @@ function golosinasBuild(S) {
     put(S, chocoFalls(), xFall, yr - 8, { block: false });
     S.mark(xFall - 70, yr - 100, xFall + 70, yr + 22);
     S.mark(-20, yr - 26, W + 20, yr + 22);
+    S.riverY = yr;
   }
   const trY = (z) => { const a = P[zk[z][0] - 1], b = P[zk[z][0]]; return ev((a.y + b.y) / 2); };
   const roadX = (y) => S.samp.reduce((bst, p) => (Math.abs(p.y - y) < Math.abs(bst.y - y) ? p : bst), S.samp[0]).x;
@@ -1560,7 +1573,9 @@ function golosinasBuild(S) {
   landmark(S, 2, candyCastle(), last.x < W / 2 ? W - 96 : 96, last.y + 10, { y0: last.y - 150, y1: S.H - 6, ky: 0.4 });
   landmark(S, 2, iceScoopHill('a', [[-28, -2, 32, '#C7F0DC', '#FFFFFF'], [22, 0, 42, '#FFC4D8', '#8C5638']]), 70, zy[2] + 150, { ky: 0.4, kx: 0.6, x0: 60, x1: W - 60 });
   landmark(S, 2, iceScoopHill('b', [[24, -2, 30, '#FFF0C2', '#F47FA4'], [-20, 0, 40, '#C9B6FF', '#FFFFFF']]), W - 70, zy[2] + 340, { ky: 0.4, kx: 0.6, x0: 60, x1: W - 60 });
-  frame(S, 2, [cottonClump(1), gumMound(9), cottonClump(2), cottonClump(3), cottonClump(5), gumMound(10), cottonClump(4)], { top: 60, every: 60, inset: 12, dx: 18 });
+  landmark(S, 2, cottonGrove(1), W - 80, zy[2] + 240, { ky: 0.4, kx: 0.5 });
+  landmark(S, 2, cottonGrove(2), 80, zy[2] + 420, { ky: 0.4, kx: 0.5 });
+  frame(S, 2, [bigCloud('a', 90), cottonClump(1), bigCloud('b', 76), cottonClump(2), cottonGrove(3), bigCloud('c', 100), cottonClump(3), gumMound(9)], { top: 50, every: 58, inset: 6, dx: 20 });
   // huecos de cielo entre las nubes
   for (let y = zy[2] + 120, i = 0; y < S.H - 60; y += 150, i++) {
     const rx = 30 + S.r() * 12;
@@ -1576,6 +1591,7 @@ function golosinasBuild(S) {
     osito(GOL.sky, 0.9),
     cottonClump(6),
   ], 16, { top: 60, m: -4 });
+  bizcochoTexture(S);
   golosinasDetails(S);
 }
 
@@ -2011,7 +2027,12 @@ function scarecrow() {
     s += face(rr(-22, -38, 44, 4.4, 1.5), COC.woodDk, { w: 1.5 });
     s += part('M-24 -38l-5 -2l2 4l-3 2l5 0Z', '#F2CF6A', { w: 1.1 }) + part('M24 -38l5 -2l-2 4l3 2l-5 0Z', '#F2CF6A', { w: 1.1 });
     s += face('M-15 -40H15L12 -20H-12Z', '#E8574F', { w: 1.6 });
-    s += line('M-9 -40L-7.5 -20M0 -40V-20M9 -40L7.5 -20M-14 -33H14M-13 -26H13', '#B83A3A', 1.3, { opacity: 0.8 });
+    // cuadrillé: cuadros claros alternados y líneas de la trama
+    let ck = '';
+    for (let r0 = 0; r0 < 3; r0++) for (let c = 0; c < 4; c++) if ((r0 + c) % 2 === 0) { const x0 = -14 + c * 7 + r0 * 0.5, y0 = -40 + r0 * 6.6; ck += rr(x0, y0, 6, 5.6, 0.5); }
+    s += flat(ck, '#F7A097');
+    s += line('M-7 -40L-6 -20M0 -40V-20M7 -40L6 -20M-14 -33.4H14M-13 -26.8H13', '#B83A3A', 1.4, { opacity: 0.85 });
+    s += part('M-3 -40L0 -35L3 -40Z', '#FFF4E0', { w: 1.1 });
     s += part(rr(-4, -32, 6, 6, 1), '#7FB4E6', { w: 1.1 });
     s += part('M-8 -20L-10 -10L-4 -12L0 -9L4 -12L10 -10L8 -20Z', '#F2CF6A', { w: 1.3 });
     s += part(circ(0, -48, 8), '#EBD3A2', { w: 1.6 });
@@ -2398,7 +2419,10 @@ function cocinaBuild(S) {
   ]);
   landmark(S, 1, stallA, px(1, 0.26), zy[1] + 130, { ky: 0.8, kx: 0.5, m: 0 });
   landmark(S, 1, stallB, px(1, 0.26), zy[2] - 30, { ky: 0.8, kx: 0.5, m: 0 });
-  landmark(S, 1, group('flores', [[flowerStall(), 0, 0], [streetLamp(), 50 * sg, 6]]), px(1, 0.3), mid(1) + 20, { ky: 0.6, kx: 0.4, m: 0 });
+  S.flores = landmark(S, 1, flowerStall(), px(1, 0.3), mid(1) + 20, { ky: 0.4, kx: 0.3, m: -2 });
+  // del lado de los carteles: cosas chicas entre etiqueta y etiqueta
+  const lsx = pocket(1) === 'R' ? [14, W * 0.5] : [W * 0.5, W - 14];
+  sprinkle(S, 1, [def('cajon-m', () => ({ box: [-14, -24, 14, 3], svg: crateSvg(0, 0, 24, 'manzana'), shadow: [0, 1, 13, 2.5] })), def('bolsa2', () => ({ box: [-20, -22, 20, 3], svg: sackSvg(-8, 0, '#F2E6C8', '#4FA86E') + sackSvg(8, 2), shadow: [0, 1, 16, 2.4] })), def('barril1', () => ({ box: [-12, -38, 12, 3], svg: barrelSvg(0, 0, 'pera'), shadow: [0, 1, 10, 2.5] })), def('canasta-u', () => ({ box: [-14, -26, 14, 3], svg: basketSvg(0, 0, 24, 'uva'), shadow: [0, 1, 12, 2.5] })), def('cajon-n', () => ({ box: [-14, -24, 14, 3], svg: crateSvg(0, 0, 24, 'naranja'), shadow: [0, 1, 13, 2.5] })), topiary('#F7C873')], 10, { top: 30, m: -2, max: 2, x0: lsx[0], x1: lsx[1] });
   frame(S, 1, [def('barriles', () => ({ box: [-24, -40, 24, 4], svg: barrelSvg(-10, 0, 'manzana') + barrelSvg(10, 4, 'naranja'), shadows: [[-10, 1, 10, 2.5], [10, 5, 10, 2.5]] })), streetLamp(), crateStack('b', ['manzanaV', 'limon']), topiary('#8ACBB8')], { top: 40, every: 62, inset: 16, dx: 16 });
   sprinkle(S, 1, [fruitCart('manzana'), bench(), def('canasta-f', () => ({ box: [-14, -24, 14, 3], svg: basketSvg(0, 0, 24, 'naranja'), shadow: [0, 1, 12, 2.5] })), crateStack('c', ['manzana', 'pera']), def('bolsa', () => ({ box: [-10, -22, 10, 3], svg: sackSvg(0, 0), shadow: [0, 1, 8, 2] })), fruitCart('naranja')], 9, { top: 30, m: -4, max: 1 });
   // ── la pastelería ──
@@ -2407,7 +2431,9 @@ function cocinaBuild(S) {
   landmark(S, 2, group('terraza', [[cafeTable('#F47FA4'), 0, 0], [cafeTable('#7FC3F0'), 60, 16], [sidewalkBoard(), -40, 12]]), px(2, 0.3), zy[2] + 70, { ky: 0.4, kx: 0.8 });
   landmark(S, 2, cakeFountain(), W / 2, mid(2), { ky: 0.3, kx: 0.3 });
   frame(S, 2, [topiary('#E8957E'), streetLamp(), topiary('#8ACBB8'), bush('p1', 11, '#FFFFFF'), bench()], { top: 40, every: 64, inset: 14, dx: 16 });
-  sprinkle(S, 2, [breadBike(), topiary('#F7C873'), bench(), bush('p2', 10), fruitCart('limon')], 6, { top: 40, m: -4, max: 1 });
+  if (!S.flores) S.flores = landmark(S, 2, flowerStall(), W / 2, mid(2) - 40, { ky: 0.4, kx: 0.3, m: -2 });
+  const psx = pocket(2) === 'R' ? [14, W * 0.5] : [W * 0.5, W - 14];
+  sprinkle(S, 2, [breadBike(), topiary('#F7C873'), bench(), bush('p2', 10), fruitCart('limon'), topiary('#8ACBB8'), def('macetas', () => ({ box: [-16, -20, 16, 3], svg: face('M-14 -8L-12 0H-4L-2 -8Z', '#E8957E', { w: 1.3 }) + flat(circ(-8, -11, 4.4), '#6DBA5E') + flat(circ(-9, -13, 1.6) + circ(-6, -10, 1.6), '#F47FA4') + face('M2 -9L4 0H12L14 -9Z', '#8ACBB8', { w: 1.3 }) + flat(circ(8, -12, 5), '#5FA85A') + flat(circ(7, -14, 1.6) + circ(10, -11, 1.6), '#FFD45C'), shadow: [0, 1, 14, 2.4] })), sidewalkBoard()], 12, { top: 40, m: -2, max: 2, x0: psx[0], x1: psx[1] });
   roadFlowers(S, 0, ['#FFFFFF', '#FFD45C', '#F47FA4'], COC.grassDp);
   cocinaDetails(S);
 }
@@ -2650,16 +2676,18 @@ function kite(len) {
   });
 }
 
-// Farolito de papel que sube solo: cuerpo redondeado con costillas, luz
-// adentro y su llamita abajo.
+// Farolito de papel que sube solo: globo redondo con costillas, luz cálida
+// adentro, aro de abajo, su llamita y un halo tenue.
 function skyLantern(c = '#FFB36B') {
   return def(`farolito-${c}`, () => {
-    let s = part('M-7 -20Q-10 -8 -6 0H6Q10 -8 7 -20Q0 -24 -7 -20Z', c, { w: 1.5 });
-    s += flat('M-4 -18Q-6 -8 -3 -2H3Q6 -8 4 -18Q0 -20 -4 -18Z', '#FFE6A8');
-    s += line('M-3.5 -19Q-5 -9 -2 -1M3.5 -19Q5 -9 2 -1', tone(c, -0.5), 1.1, { opacity: 0.8 });
-    s += part(rr(-5, -1, 10, 3, 1), tone(c, -0.6), { w: 1.1 });
-    s += part('M0 5Q-2.4 3.4 0 0.6Q2.4 3.4 0 5Z', '#FFD45C', { w: 0.9 });
-    return { box: [-11, -25, 11, 7], svg: s };
+    let s = tonePath(ell(0, -12, 15, 15), '#FFE6A8', 0.35);
+    s += part('M-8 -24Q-13 -12 -7 0H7Q13 -12 8 -24Q0 -28 -8 -24Z', c, { w: 1.6 });
+    s += flat('M-5 -21Q-8 -11 -4 -2H4Q8 -11 5 -21Q0 -23 -5 -21Z', '#FFE6A8');
+    s += flat(ell(0, -8, 3.4, 4.4), '#FFF6D0');
+    s += line('M-4 -23Q-6.4 -11 -2.4 -1M4 -23Q6.4 -11 2.4 -1M0 -25V0', tone(c, -0.5), 1.1, { opacity: 0.7 });
+    s += part(rr(-7, -1, 14, 3.4, 1.2), tone(c, -0.6), { w: 1.1 });
+    s += part('M0 7Q-3 4.6 0 1Q3 4.6 0 7Z', '#FFC94A', { w: 0.9 });
+    return { box: [-16, -28, 16, 9], svg: s };
   });
 }
 
@@ -2678,7 +2706,7 @@ function memoriaGround(S) {
     if (z > 0 && y < y0 + 40) col = mix(MEM.sky[z - 1][2], col, 0.5 + (y - y0) / 80);
     return col;
   };
-  for (let y = -10; y < H + 12; y += 12) G.flat(S, L_BASE, colAt(y + 6), rr(-10, y, W + 20, 12.5), y, y + 13, 'pixel');
+  for (let y = -10; y < H + 12; y += 12) G.flat(S, L_BASE, colAt(y + 6), rr(-10, y, W + 20, 12.5), y, y + 13, 'pixel neon lofi');
   // nubes lejanas (de día blancas, de tarde rosadas, de noche lilas)
   for (let y = 40; y < H; y += 46 + r() * 30) {
     const z = S.zoneAt(y);
@@ -2763,7 +2791,7 @@ function memoriaBuild(S) {
   ]);
   landmark(S, 1, picnic, px(1, 0.32), mid(1), { ky: 0.4, kx: 0.6 });
   landmark(S, 1, hotAirBalloon(), px(1, 0.75), zy[1] + 60, { ky: 0.5, kx: 0.4 });
-  sprinkle(S, 1, [skyLantern('#FFB36B'), skyLantern('#F47F8E'), skyLantern('#FFD45C')], 5, { top: 40, m: -6, max: 2 });
+  sprinkle(S, 1, [skyLantern('#FFB36B'), skyLantern('#F47F8E'), skyLantern('#FFD45C')], 5, { top: 40, m: -6, max: 2, x0: 36, x1: 324 });
   // ── noche ──
   landmark(S, 2, moon(), pocket(2) === 'L' ? 60 : W - 60, zy[2] + 60, { ky: 1, kx: 0.4 });
   const night = island('noche', 132, 2, [
@@ -3073,8 +3101,10 @@ function rompecabezasBuild(S) {
   // ── el bosque ──
   landmark(S, 1, mushroomHouse(), W / 2, mid(1) + 20, { ky: 0.4, kx: 0.4 });
   landmark(S, 1, fallenLog(), W / 2, zy[1] + 80, { ky: 0.5, kx: 0.3 });
-  frame(S, 1, [pine('a', 66), roundTree('b1', 20, 22, 0), pine('b', 56, '#3F8A60'), group('bosque-a', [[pine('c', 60), -14, 0], [pine('d', 48, '#3F8A60'), 14, 8]]), roundTree('b2', 18, 20, 0, '#F27C8E'), group('bosque-b', [[roundTree('b4', 16, 18, 0), -16, 0], [pine('e', 52), 12, 6]])], { top: 30, every: 46, inset: 12, dx: 18 });
-  sprinkle(S, 1, [group('bosque-c', [[pine('f', 50), -10, 0], [pine('g', 40, '#3F8A60'), 12, 6], [fern('c'), 0, 12]]), mushrooms('a', [[-8, 0, 8, '#E8574F'], [6, 3, 5, '#B98A5E'], [12, -1, 4, '#E8574F']]), stumpWithPiece(), fern('a'), roundTree('b5', 17, 18, 0), mushrooms('b', [[0, 0, 7, '#E8574F'], [10, 2, 4, '#B98A5E']]), fern('b'), pine('h', 46)], 14, { top: 40, m: -4, max: 2 });
+  frame(S, 1, [pine('a', 66), roundTree('b1', 20, 22, 0), pine('b', 56, '#3F8A60'), group('bosque-a', [[pine('c', 60), -14, 0], [pine('d', 48, '#3F8A60'), 14, 8]]), roundTree('b2', 18, 20, 0, '#F27C8E'), group('bosque-b', [[roundTree('b4', 16, 18, 0), -16, 0], [pine('e', 52), 12, 6]])], { top: 24, every: 38, inset: 12, dx: 20 });
+  frame(S, 1, [group('bosque-d', [[pine('i', 44), -10, 0], [fern('d'), 10, 10]]), mushrooms('c', [[0, 0, 6, '#E8574F'], [9, 2, 4, '#B98A5E']]), roundTree('b6', 15, 16, 0)], { top: 40, every: 44, inset: 46, dx: 14 });
+  landmark(S, 1, group('claro', [[pine('j', 62), -26, 0], [roundTree('b7', 19, 20, 0), 6, 10], [pine('k', 50, '#3F8A60'), 34, 4], [fern('e'), -6, 26], [mushrooms('d', [[0, 0, 6, '#E8574F']]), 24, 28]]), W / 2, zy[1] + 200, { ky: 0.3, kx: 0.3 });
+  sprinkle(S, 1, [group('bosque-c', [[pine('f', 50), -10, 0], [pine('g', 40, '#3F8A60'), 12, 6], [fern('c'), 0, 12]]), mushrooms('a', [[-8, 0, 8, '#E8574F'], [6, 3, 5, '#B98A5E'], [12, -1, 4, '#E8574F']]), stumpWithPiece(), fern('a'), roundTree('b5', 17, 18, 0), mushrooms('b', [[0, 0, 7, '#E8574F'], [10, 2, 4, '#B98A5E']]), fern('b'), pine('h', 46)], 26, { top: 30, m: -2, max: 3 });
   // piezas de rompecabezas tiradas entre el musgo
   scatter(S, 1, 16, (x, y, i) => {
     const c = ROM.pieces[i % ROM.pieces.length];
@@ -3084,6 +3114,96 @@ function rompecabezasBuild(S) {
   scatter(S, 0, 90, (x, y) => G.flat(S, L_DETAIL, ROM.lawnDp, tuftD(x, y, 0.8 + S.r() * 0.4), y - 8, y + 1), { top: 70 });
   scatter(S, 1, 90, (x, y) => G.flat(S, L_DETAIL, ROM.floorDk, tuftD(x, y, 0.8 + S.r() * 0.4), y - 8, y + 1), { top: 20 });
   roadFlowers(S, 0, ['#FFFFFF', '#F7A8C0', '#FFD45C'], ROM.lawnDp);
+}
+
+// Orillas y reflejos del río: labio de pasto de menta en la orilla de
+// adelante, piedritas de caramelo en la de atrás, reflejos alargados.
+function riverBanks(S, yr, xa, xb, xFall) {
+  const up = (x) => yr - 15 + Math.sin(x / 40 + 0.7) * 3;
+  const dn = (x) => yr + 15 + Math.sin(x / 46 + 2.1) * 3;
+  const xs = [];
+  for (let x = xa; x <= xb; x += 6) xs.push(x);
+  const y0 = yr - 40, y1 = yr + 34;
+  const away = (x) => Math.abs(x - xFall) > 36;
+  // pasto de menta sobre la orilla de adelante (ondulado, con matitas)
+  const lip = xs.filter(away);
+  if (lip.length > 1) {
+    const top = lip.map((x, i) => [x, dn(x) + 2 + (i % 3 === 1 ? 1.5 : 0)]);
+    G.flat(S, L_WATER + 11, '#9CCB86', poly([...top, ...lip.slice().reverse().map((x) => [x, dn(x) + 7 + Math.sin(x / 9) * 1.6])]), y0, y1);
+    G.flat(S, L_WATER + 12, '#BFE0A6', poly([...top.map(([x, y]) => [x, y]), ...lip.slice().reverse().map((x) => [x, dn(x) + 4])]), y0, y1);
+    let tf = '';
+    lip.forEach((x, i) => { if (i % 4 === 1 && !S.onRoad(x, dn(x) + 6, 12)) tf += tuftD(x, dn(x) + 8, 0.7); });
+    if (tf) G.flat(S, L_WATER + 13, '#7DB46A', tf, y0, y1);
+  }
+  // piedritas de caramelo en la barranca de atrás
+  let pb = '', ph = '';
+  xs.forEach((x, i) => {
+    if (i % 5 !== 2 || !away(x) || S.onRoad(x, up(x) - 9, 12)) return;
+    const y = up(x) - 9 - (i % 2) * 2;
+    pb += ell(x, y, 3.6, 2.2) + ell(x + 5, y + 1.4, 2.6, 1.7);
+    ph += rr(x - 2, y - 1.6, 2, 1.2, 0.5);
+  });
+  if (pb) { G.flat(S, L_WATER + 11, '#D58A3C', pb, y0, y1); G.flat(S, L_WATER + 12, '#FFD9A0', ph, y0, y1); }
+  // reflejos: franjas claras alargadas cerca de la orilla de adelante y destellos
+  let rf = '', sp = '';
+  for (let x = xa + 16, i = 0; x < xb - 16; x += 30, i++) {
+    if (!away(x) || S.onRoad(x, yr, 18)) continue;
+    const y = dn(x) - 5 - (i % 2) * 3;
+    rf += rr(x - 9, y, 18, 2, 1) + rr(x - 4, y - 4, 8, 1.6, 0.8);
+    if (i % 2 === 0) sp += sparkD(x + 8, yr - 4, 2.6);
+  }
+  if (rf) G.flat(S, L_WATER + 9, '#A8714C', rf, y0, y1);
+  if (sp) G.flat(S, L_WATER + 10, '#F3D2B4', sp, y0, y1);
+}
+
+// Textura del bizcocho (la tierra del pueblo del río): grano de azúcar,
+// migas de galleta con chispas, piedritas de caramelo y pasto de menta.
+function bizcochoTexture(S) {
+  const z = 1;
+  const sc = (S0, z0, n, fn, o) => scatter(S0, z0, n, (x, y, i) => { if (S.riverY == null || Math.abs(y - S.riverY) > 34) fn(x, y, i); }, o);
+  sc(S, z, 420, (x, y, i) => G.flat(S, L_TERRAIN + 3, i % 2 ? '#E9CB94' : '#FFF4DE', rr(f1(x), f1(y), i % 3 ? 2 : 3, 1.4, 0), y - 1, y + 2), { top: 30, m: 4 });
+  sc(S, z, 22, (x, y) => {
+    const R0 = 9 + S.r() * 8;
+    G.flat(S, L_TERRAIN + 1, '#E8C487', puffD(x - R0, x + R0, y + 2, [[x - R0 * 0.45, R0 * 0.32], [x + R0 * 0.1, R0 * 0.42], [x + R0 * 0.55, R0 * 0.3]]), y - R0, y + 3);
+    G.flat(S, L_TERRAIN + 2, '#8C5638', rr(x - 3, y - 2, 3, 2.4, 0.8) + rr(x + 4, y - 4, 2.6, 2.2, 0.8), y - 5, y + 2);
+  }, { top: 40, m: 16 });
+  sc(S, z, 34, (x, y) => {
+    G.flat(S, L_DETAIL + 2, '#D58A3C', ell(x, y, 3.2, 2) + ell(x + 5, y + 1.6, 2.4, 1.6), y - 3, y + 4);
+    G.flat(S, L_DETAIL + 3, '#FFD9A0', rr(x - 2, y - 1.4, 2, 1.1, 0.5), y - 3, y);
+  }, { top: 40, m: 10 });
+  sc(S, z, 70, (x, y) => G.flat(S, L_DETAIL, '#9CC97E', tuftD(x, y, 0.75), y - 7, y + 1), { top: 40, m: 8 });
+}
+
+// Nube grande de primer plano (asoma por el borde, con su sombra lila).
+function bigCloud(id, w) {
+  return def(`nubote-${id}-${w}`, () => {
+    const hw = w / 2;
+    const R = rng(w * 13 + id.length);
+    const bumps = [];
+    for (let x = -hw + 10; x < hw - 6; x += 14 + R() * 8) bumps.push([x, 10 + R() * 9]);
+    let s = part(puffD(-hw, hw, 0, bumps.map(([x, r]) => [x, r + 2])), '#E4DAF6', { w: 2 });
+    s += flat(puffD(-hw + 3, hw - 3, -4, bumps.map(([x, r]) => [x - 1, r])), '#FFFFFF');
+    s += flat(puffD(-hw + 8, hw * 0.4, -10, bumps.filter(([x]) => x < hw * 0.35).map(([x, r]) => [x - 2, r * 0.55])), '#FBF8FF');
+    s += shine(ell(-hw * 0.5, -18, 5, 2), 0.7);
+    return { box: [-hw - 2, -34, hw + 2, 4], svg: s, solid: [[-hw, -26, hw, 2]] };
+  });
+}
+
+// Bosquecito de algodón: cinco árboles en dos filas, con nubes al pie.
+function cottonGrove(v) {
+  return def(`bosquealgodon-${v}`, () => {
+    const R = rng(v * 41 + 9);
+    const cols = [['#FFB8D2', '#BFE0FF'], ['#BFE0FF', '#FFD0E2'], ['#E2CCFF', '#FFC4D8'], ['#FFD0E2', '#C7E3FF']];
+    const items = [[-30, 0], [0, -6], [30, 0], [-15, 14], [16, 16]].map(([x, y]) => {
+      const [c, c2] = cols[Math.floor(R() * 4)];
+      return [cottonTree(Math.round(22 + R() * 16), Math.round(14 + R() * 7), c, c2), x, y];
+    });
+    let s = '';
+    items.slice().sort((a, b) => a[2] - b[2]).forEach(([d, x, y]) => { s += at(x, y, d.svg); });
+    s += part(puffD(-46, 46, 26, [[-36, 9], [-18, 12], [2, 13], [22, 11], [38, 8]]), '#FFFFFF', { w: 1.8 });
+    s += flat(puffD(-36, 34, 26, [[-20, 6], [6, 7], [26, 5]]), '#F3EEFF');
+    return { box: [-50, -78, 50, 30], svg: s, solid: [[-48, -70, 48, 28]] };
+  });
 }
 
 // ═════════════════════════════════════════════════════════════════
