@@ -300,7 +300,7 @@ class ProfileIn(MailboxAuth):
         return _json_object(v)
 
 
-ReplyKind = Literal["carta", "foto", "pregunta", "canje", "meta"]
+ReplyKind = Literal["carta", "foto", "pregunta", "canje", "meta", "aviso"]
 
 
 class ReplyIn(BaseModel):

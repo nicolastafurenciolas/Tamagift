@@ -15,6 +15,8 @@ import { DECOR_DEFS } from '../art/room/decor';
 import { GAME_ART_SET } from '../art/minigames';
 import { KITCHEN_ART_SET } from '../art/kitchen';
 import { PERSONAL_ART } from '../art/room/personal';
+import { VISITOR_ART } from '../art/room/visitors';
+import { doorSvg } from '../art/room/door';
 
 const innerOf = (svg) => svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
 // Un rincón del cuarto (pared + piso) a escala del juego.
@@ -90,6 +92,21 @@ function sets(name) {
   if (name === 'juegos') return GAME_ART_SET();
   if (name === 'cocina') return KITCHEN_ART_SET();
   if (name === 'personal') return PERSONAL_ART.filter((d) => !q.get('ids') || q.get('ids').split(',').includes(d.id)).map((d) => ({ name: d.name, markup: d.svg, w: d.w, h: d.h }));
+  if (name === 'visitantes') {
+    // &escena=1: cada visitante junto a la puerta del cuarto, con la
+    // mochi al lado (escala del juego); &ids=cartero,gato-amigo
+    const ids = q.get('ids') ? q.get('ids').split(',') : null;
+    const list = VISITOR_ART.filter((v) => !ids || ids.includes(v.id));
+    if (!q.get('escena')) return list.map((v) => ({ name: v.name, markup: v.svg, w: v.w, h: v.h, kind: 'pet' }));
+    const pet = innerOf(mochiSvg(FAMILY[0].r, 'normal'));
+    return list.map((v) => {
+      const k = 0.85, vw = v.w * k, vh = v.h * k;
+      const extra = `<g transform="translate(30 ${320 - 214 + 4})">${innerOf(doorSvg())}</g>`
+        + `<g transform="translate(${150 - vw / 2} ${410 + v.foot * k - vh})"><g transform="scale(${k})">${innerOf(v.svg)}</g></g>`
+        + `<g transform="translate(300 ${410 + 10 * k - 200 * k}) scale(${k})">${pet}</g>`;
+      return { name: v.name, kind: 'surface', w: 480, h: 430, markup: cornerSvg(q.get('pared') || 'liso.crema', q.get('piso') || 'tablas.miel', extra) };
+    });
+  }
   if (name === 'deco') {
     // &temporada=halloween: solo las de esa temporada; &ids=a,b: solo esas
     const season = q.get('temporada');
