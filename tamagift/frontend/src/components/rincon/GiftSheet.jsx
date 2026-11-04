@@ -12,12 +12,14 @@ import { WARDROBE, applyLook } from '../../wardrobeState';
 import { SLOTS } from '../../art/mochi';
 import { COUPON_IDEAS, fill, pid } from '../../personal/catalog';
 import { couponTitle, dayLabel, dayOfIso } from '../../personal/suggest';
-import { Sheet, Section, Fold, Soon, Chip, ChipRow, TextField, LetterArea, MainButton, SmallButton, Note, RemoveBtn, ERRORS } from './kit';
+import { PACKS, activePacks, suggestPacks, suggestReason, withPack, withoutPack } from '../../personal/packs';
+import { findPackDecor } from '../../art/room/packs';
+import { Sheet, Section, Fold, Chip, ChipRow, TextField, LetterArea, MainButton, SmallButton, Note, RemoveBtn, ERRORS } from './kit';
 
 // ─────────────────────────────────────────────────────────────────
 // Regalarle: un paquete (mueble, adorno o ropa de los catálogos del
-// juego, con una nota) y los cupones de amor. Los packs por gustos
-// llegan en la etapa 5.
+// juego, con una nota), los cupones de amor y los packs por gustos
+// (personal/packs.js: adornos, ropa, comidas y frases de un gusto).
 // ─────────────────────────────────────────────────────────────────
 
 const NOTE_IDEAS = ['Vi esto y pensé en ti', 'Para tu cuarto, con cariño', 'Un detallito porque sí', 'Para que {mascota} te cuide', 'Porque te lo mereces'];
@@ -265,6 +267,117 @@ function Coupons({ ctx }) {
   );
 }
 
+// ── Packs por gustos ────────────────────────────────────────────
+// Primero los dos que sugiere la ficha; los demás, a un toque. Cada pack
+// se ve con sus adornos y su ropa puesta en la mascota, una frase y sus
+// comidas. "Activar" lo guarda en profile.packs (setProfile, sin pisar
+// lo demás de la ficha) y el juego lo hace llegar.
+function PackPreview({ pack, recipe }) {
+  const tile = { borderRadius: 10, background: C.paperDeep, display: 'grid', placeItems: 'center', overflow: 'hidden', aspectRatio: '1 / 1', minWidth: 0 };
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${recipe ? 5 : 3}, minmax(0, 1fr))`, gap: 5 }}>
+      {pack.decor.map((id) => {
+        const d = findPackDecor(id);
+        return d ? <span key={id} style={tile} title={d.name}><Sprite markup={d.svg()} cacheKey={`pack-${id}`} w={56} h={56} /></span> : null;
+      })}
+      {recipe && pack.wear.map((w) => (
+        <span key={w.id} style={tile}><PetArt recipe={applyLook(recipe, { wear: { [w.slot]: { id: w.id } } })} mood="feliz" size={58} /></span>
+      ))}
+    </div>
+  );
+}
+
+function PackCard({ ctx, pack, recipe, reason, onActivate, onRemove }) {
+  const { names } = ctx;
+  const on = activePacks(ctx.profile).includes(pack.id);
+  const color = C[pack.color] || C.lavender;
+  const said = fill(pack.lines[0], { nombre: names.nombre, yo: names.yo });
+  return (
+    <div className="pg-card" style={{ padding: 11, display: 'flex', flexDirection: 'column', gap: 8, borderColor: on ? color : C.line, background: on ? soft(color, 0.88) : C.surface }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontFamily: FONT.display, fontSize: 15.5, fontWeight: 800, color: C.ink }}>{pack.name}</div>
+          <div style={{ fontSize: 12, color: C.inkSoft, lineHeight: 1.3 }}>{pack.pitch}</div>
+        </div>
+        {on && <span style={{ fontFamily: FONT.display, fontSize: 11.5, fontWeight: 800, color: C.onAccent, background: color, borderRadius: 999, padding: '2px 9px', flexShrink: 0 }}>Activado ✓</span>}
+      </div>
+      {reason && !on && <div style={{ fontSize: 11.5, color: C.inkSoft, fontWeight: 700 }}>Porque le gusta: {reason}</div>}
+      <PackPreview pack={pack} recipe={recipe} />
+      <div style={{ fontFamily: FONT.hand || FONT.body, fontSize: 15, color: C.ink, lineHeight: 1.25 }}>{names.pet} dirá: «{said}»</div>
+      <div style={{ fontSize: 11.5, color: C.inkSoft, lineHeight: 1.35 }}>Para comer: {pack.foods.map((f) => f.name).join(' · ')}</div>
+      {on ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <span style={{ fontSize: 12, color: C.inkSoft, lineHeight: 1.35 }}>Le aparece en su tienda como «de {names.yo || 'ti'} para ti».</span>
+          <button onClick={onRemove} className="pg-focus" style={{ background: 'none', border: 'none', color: C.inkFaint, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', padding: 4, flexShrink: 0 }}>Quitar</button>
+        </div>
+      ) : (
+        <MainButton onClick={onActivate} color="sage" style={{ padding: 10, fontSize: 14 }}>Activar para {names.nombre}</MainButton>
+      )}
+    </div>
+  );
+}
+
+function Packs({ ctx }) {
+  const { profile, setProfile, names, r } = ctx;
+  const recipe = useMemo(() => parseRecipe(r.recipe), [r.recipe]);
+  const [showAll, setShowAll] = useState(false);
+  const [open, setOpen] = useState(null);
+  const [flash, setFlash] = useState('');
+  // la sugerencia se calcula al abrir (no salta de lugar al activar)
+  const top = useMemo(() => suggestPacks(profile, 2, { keepActive: true }), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const rest = PACKS.filter((p) => !top.includes(p.id));
+  const active = activePacks(profile);
+
+  function activate(id) {
+    // Aquí iría el pago del pack (cuando se venda aparte). Por ahora
+    // activar es gratis: se guarda en la ficha y el juego lo hace llegar.
+    play('win');
+    setProfile((p) => withPack(p, id), { now: true });
+    setFlash(`¡Listo! ${PACKS.find((x) => x.id === id).name} ya va camino al mundo de ${names.to}.`);
+  }
+  function remove(id) {
+    play('pop');
+    setProfile((p) => withoutPack(p, id), { now: true });
+    setFlash('');
+  }
+  const card = (p) => <PackCard key={p.id} ctx={ctx} pack={p} recipe={recipe} reason={suggestReason(profile, p.id)} onActivate={() => activate(p.id)} onRemove={() => remove(p.id)} />;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <p style={{ fontSize: 12.5, color: C.inkSoft, margin: 0, lineHeight: 1.4 }}>
+        Adornos, ropa para {names.pet}, comidas y frases nuevas. Estos van con lo que nos contaste de {names.to}:
+      </p>
+      {top.map((id) => card(PACKS.find((p) => p.id === id)))}
+      <Note>{flash}</Note>
+      {!showAll ? (
+        <SmallButton onClick={() => { play('pop'); setShowAll(true); }} style={{ alignSelf: 'center' }}>Ver los otros {rest.length} packs</SmallButton>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {rest.map((p) => {
+            if (open === p.id) return card(p);
+            const hero = findPackDecor(p.hero);
+            return (
+              <button
+                key={p.id} onClick={() => { play('pop'); setOpen(p.id); }} className="pg-card pg-focus"
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', cursor: 'pointer', textAlign: 'left', background: C.surface, color: C.ink }}
+              >
+                <span style={{ width: 42, height: 42, borderRadius: 10, background: C.paperDeep, display: 'grid', placeItems: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                  {hero && <Sprite markup={hero.svg()} cacheKey={`pack-${hero.id}`} w={38} h={38} />}
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontFamily: FONT.display, fontSize: 14, fontWeight: 800 }}>{p.name}{active.includes(p.id) ? ' ✓' : ''}</span>
+                  <span style={{ display: 'block', fontSize: 11.5, color: C.inkSoft, lineHeight: 1.3 }}>{p.pitch}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <p style={{ fontSize: 11.5, color: C.inkFaint, margin: 0 }}>Le llega como regalo tuyo, sin costo para {names.to}. Se guarda solo.</p>
+    </div>
+  );
+}
+
 export default function GiftSheet({ ctx, focus, onClose }) {
   const { names } = ctx;
   useEffect(() => {
@@ -273,6 +386,7 @@ export default function GiftSheet({ ctx, focus, onClose }) {
     return () => clearTimeout(t);
   }, [focus]);
   const canjes = (ctx.r.replies || []).filter((x) => x.kind === 'canje' && !x.done).length;
+  const nPacks = activePacks(ctx.profile).length;
   return (
     <Sheet title={`Regalarle a ${names.to}`} subtitle="Le llega en una caja a la puerta, con tu nota" icon={IconGift} color={C.sage} onClose={onClose} status={ctx.saveStatus}>
       <Section id="rc-paquete" title="Un paquete" hint={`Elige algo para el cuarto o para ${names.pet}.`} highlight={focus === 'paquete'}>
@@ -286,7 +400,14 @@ export default function GiftSheet({ ctx, focus, onClose }) {
       >
         <Coupons ctx={ctx} />
       </Fold>
-      <Soon title="Packs por gustos" text="Varias cosas juntas, elegidas según lo que le gusta." />
+      <Fold
+        id="rc-packs" title="Packs por gustos" icon={IconSparkle} color={C.lavender}
+        hint={`Su mundo se llena de lo que le gusta a ${names.to}`}
+        badge={nPacks ? `${nPacks} activo${nPacks > 1 ? 's' : ''}` : null}
+        open={focus === 'packs' ? true : undefined}
+      >
+        <Packs ctx={ctx} />
+      </Fold>
     </Sheet>
   );
 }

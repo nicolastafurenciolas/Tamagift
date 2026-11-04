@@ -29,6 +29,7 @@ import { BACK_ITEMS } from './back.js';
 import { HAND_ITEMS } from './hand.js';
 import { HALLOWEEN_WEAR } from './halloween.js';
 import { NAVIDAD_WEAR } from './navidad.js';
+import { PACK_WEAR } from './packs.js';
 import { nid, T } from './kit.js';
 
 export const SLOTS = [
@@ -85,6 +86,7 @@ export const WARDROBE = [
   // de temporada (`season`): solo se venden esos días, ver seasons.js
   ...HALLOWEEN_WEAR,
   ...NAVIDAD_WEAR,
+  ...PACK_WEAR, // de los packs por gustos (personal/packs.js)
 ];
 
 export const findWearable = (slot, id) => WARDROBE.find((w) => w.slot === slot && w.id === id) || null;

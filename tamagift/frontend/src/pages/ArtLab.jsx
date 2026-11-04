@@ -17,6 +17,32 @@ import { KITCHEN_ART_SET } from '../art/kitchen';
 import { PERSONAL_ART } from '../art/room/personal';
 import { VISITOR_ART } from '../art/room/visitors';
 import { doorSvg } from '../art/room/door';
+import { fiestasSet } from '../art/room/celebrations';
+import { PhotoObjectsLab } from '../components/game/personal/PhotoObject';
+import { PACK_DECOR_DEFS } from '../art/room/packs';
+
+// Packs por gustos: /arte?set=packs (adornos), &pack=cafe, &escena=1 (en un
+// rincón con la mochi, a la escala del juego), &ropa=1 (las prendas).
+function packsSet(q) {
+  const pk = q.get('pack');
+  const ids = q.get('ids') ? q.get('ids').split(',') : null;
+  if (q.get('ropa')) {
+    return WARDROBE.filter((w) => w.season === 'pack' && (!pk || w.pack === pk) && (!ids || ids.includes(w.id)))
+      .map((w, i) => ({ name: w.label, r: { ...FAMILY[i % FAMILY.length].r, body: SHAPES[(i + 2) % 4].id, wear: { [w.slot]: { id: w.id } } } }));
+  }
+  const list = PACK_DECOR_DEFS.filter((d) => (!pk || d.pack === pk) && (!ids || ids.includes(d.id)));
+  if (!q.get('escena')) return list.map((d) => ({ name: d.name, markup: d.svg(), w: d.w, h: d.h }));
+  const pet = innerOf(mochiSvg(FAMILY[0].r, 'normal'));
+  const table = '<g><path d="M120 330h140v10H120Z" fill="#D9B08C" stroke="#3A2A3E" stroke-width="2.2" data-r="face"/><path d="M128 340h8v64h-8ZM244 340h8v64h-8Z" fill="#B98760" stroke="#3A2A3E" stroke-width="2" data-r="face"/></g>';
+  return list.map((d) => {
+    const w = d.w * 1.25, h = d.h * 1.25;
+    const hang = d.hang || (d.place === 'sobre' && d.w > d.h * 1.6);
+    const bottom = d.place === 'piso' ? 404 + d.foot * 1.25 : hang ? 230 : 330 + d.foot * 1.25;
+    const extra = (d.place === 'sobre' && !hang ? table : '') + `<g transform="translate(${190 - w / 2} ${bottom - h}) scale(1.25)">${innerOf(d.svg())}</g><g transform="translate(330 224)">${pet}</g>`;
+    return { name: d.name, kind: 'surface', w: 384, h: 344, markup: cornerSvg(q.get('pared') || 'liso.crema', q.get('piso') || 'tablas.miel', extra) };
+  });
+}
+import StoryLab from '../components/game/personal/StoryLab';
 
 const innerOf = (svg) => svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
 // Un rincón del cuarto (pared + piso) a escala del juego.
@@ -91,6 +117,7 @@ function sets(name) {
   if (name === 'comida') return FOOD_SPRITES.map((f) => ({ name: f.id, markup: renderToStaticMarkup(f.render()), w: 100, h: 100 }));
   if (name === 'juegos') return GAME_ART_SET();
   if (name === 'cocina') return KITCHEN_ART_SET();
+  if (name === 'fiestas') return fiestasSet(q, innerOf(mochiSvg(FAMILY[0].r, 'feliz')), cornerSvg);
   if (name === 'personal') return PERSONAL_ART.filter((d) => !q.get('ids') || q.get('ids').split(',').includes(d.id)).map((d) => ({ name: d.name, markup: d.svg, w: d.w, h: d.h }));
   if (name === 'visitantes') {
     // &escena=1: cada visitante junto a la puerta del cuarto, con la
@@ -130,12 +157,17 @@ function sets(name) {
       return { name: d.name, kind: 'surface', w: 384, h: 344, markup: cornerSvg(q.get('pared') || 'liso.crema', q.get('piso') || 'tablas.miel', extra) };
     });
   }
+  if (name === 'packs') return packsSet(q);
   if (name === 'ui') return Object.entries(UI_SPRITES).map(([k, r]) => ({ name: k, markup: renderToStaticMarkup(r()), w: 90, h: 90 }));
   return FAMILY;
 }
 
 // Sin ?set= se muestra el catálogo completo (pages/ArtCatalog.jsx).
 export default function ArtLab() {
+  // los objetos con foto se arman en capas (marco, foto, frente): su propio laboratorio
+  if (new URLSearchParams(window.location.search).get('set') === 'fotos') return <PhotoObjectsLab />;
+  // su historia (fechas, lugares, recetas, objetos con foto) sin pasar por el juego
+  if (new URLSearchParams(window.location.search).get('set') === 'historia') return <StoryLab />;
   return new URLSearchParams(window.location.search).get('set') ? <LabSet /> : <ArtCatalog />;
 }
 

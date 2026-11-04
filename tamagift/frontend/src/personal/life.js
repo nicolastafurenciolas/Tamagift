@@ -34,6 +34,7 @@
 
 import { LIKE_LINES, fill } from './catalog.js';
 import { todayKey } from '../gameState.js';
+import { packLikeOptions } from './packs.js';
 
 const MIN = 60 * 1000;
 export const LIFE_PER_DAY = 3;
@@ -162,6 +163,8 @@ function likeOptions(profile) {
     if (!lines || !String(v || '').trim()) continue;
     lines.forEach((line, i) => out.push({ id, i, v: inSentence(v, id), line, key: `like:${id}:${i}` }));
   }
+  // las frases de los packs por gustos que activó quien regala
+  out.push(...packLikeOptions(profile));
   return out;
 }
 

@@ -9,6 +9,7 @@ import { face, part, flat, line, shade, shine, rr, rrTop, ellD, tone, mix, mat, 
 import { DECOR_VIBES, CHROME, BRASS, apple, surf, floorSh, glow, roundShade, gloss, heart, star, dot, dots, ball, eye, blush, smile, catMouth, bow, flame, steam, grain, blossom, rose, spoon } from './decorVibes.js';
 import { DECOR_HALLOWEEN } from './decorHalloween.js';
 import { DECOR_NAVIDAD } from './decorNavidad.js';
+import { DECOR_PACKS } from './packs.js';
 import { findPaint } from './furniture/paints.js';
 
 const f1 = (v) => +v.toFixed(1);
@@ -586,7 +587,7 @@ const DEFS = [
 // Las de siempre + las de personalidad (decorVibes.js) + las de
 // temporada (`season`, ver seasons.js). Las que reciben pintura
 // (`draw(p)`) se pueden teñir con las pinturas de los muebles.
-export const DECOR_DEFS = [...DEFS, ...DECOR_VIBES, ...DECOR_HALLOWEEN, ...DECOR_NAVIDAD].map((d) => ({
+export const DECOR_DEFS = [...DEFS, ...DECOR_VIBES, ...DECOR_HALLOWEEN, ...DECOR_NAVIDAD, ...DECOR_PACKS].map((d) => ({
   ...d,
   vibes: d.vibes || [],
   paintable: d.draw.length > 0,
