@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { C, FONT, SHADOW, soft } from '../../theme';
 import { useStyle } from '../../styles/StyleContext';
 import Sprite from '../Sprite';
 import { PetSprite } from './common';
-import { MAP_W, MAP_STEP, mapPoints, mapScene } from '../../art/levelMaps';
+import { MAP_W, MAP_STEP, mapPoints, mapScene, mapFrame, CHUNK_PAD, labelLines } from '../../art/levelMaps';
 import { mix, isDark } from '../../art/room/draw';
 
 // ─────────────────────────────────────────────────────────────────
@@ -11,9 +11,11 @@ import { mix, isDark } from '../../art/room/draw';
 // el mapa de niveles (un camino que serpentea, como en los juegos del
 // género: se ve cuánto falta y dan ganas de llegar al final).
 //
-// Con `theme` el mapa es un mundo con zonas (art/levelMaps.js): fondo y
-// adornos propios, un cartel al empezar cada zona y la mascota parada en
-// el nivel que toca.
+// Con `theme` el mapa es un mundo ilustrado (art/levelMaps.js): el suelo
+// en trozos, las piezas (árboles, puestos, casitas) cada una en su
+// lugar, y encima la interfaz: el avance por el camino, el cartel de
+// cada zona, las paradas, sus etiquetas y la mascota en el nivel que toca.
+// Solo se dibuja lo que está cerca de la vista (y lo ya dibujado queda).
 // ─────────────────────────────────────────────────────────────────
 
 export function StarRow({ n = 0, total = 3, size = 14, animate = false, gap = 1 }) {
@@ -33,13 +35,11 @@ export function StarRow({ n = 0, total = 3, size = 14, animate = false, gap = 1 
   );
 }
 
-const W = MAP_W;
-
-// El degradado del fondo: cada zona con sus colores, fundidas en el borde.
-// En los estilos oscuros (neón, lo-fi) se oscurecen hacia su papel.
+// El fondo provisional (mientras se dibuja el suelo): los colores de cada
+// zona. En los estilos oscuros (neón, lo-fi) se oscurecen hacia su papel.
 function zoneBackground(zones, H, paper) {
   const dark = isDark(paper);
-  const tint = (c) => (dark ? mix(c, paper, 0.62) : c);
+  const tint = (c) => (dark ? mix(c, paper, 0.5) : c);
   const stops = [];
   zones.forEach((z, i) => {
     const end = i < zones.length - 1 ? zones[i + 1].y : H;
@@ -48,58 +48,144 @@ function zoneBackground(zones, H, paper) {
   return `linear-gradient(180deg, ${stops.join(', ')})`;
 }
 
+// Lo que se dibuja: lo visible y un margen arriba y abajo.
+const AHEAD = 360;
+
+// Las escenas ya armadas (volver al mapa es instantáneo).
+const scenes = new Map();
+
+// El cartel de una zona: centrado donde lo pide la escena, pero sin salirse
+// de lo que muestra la tarjeta (mide su ancho real, que cambia con la letra
+// de cada estilo).
+function ZoneSign({ z, vis0, vis1 }) {
+  const ref = useRef(null);
+  const [w, setW] = useState(z.sign.w);
+  useLayoutEffect(() => { if (ref.current) setW(ref.current.offsetWidth); }, [z.name]);
+  const x = Math.max(vis0 + 8 + w / 2, Math.min(vis1 - 8 - w / 2, z.sign.x));
+  return (
+    <div
+      ref={ref} className="pg-anim-pop"
+      style={{
+        position: 'absolute', left: Math.round(x - w / 2), top: z.sign.y, transform: 'translateY(-50%)', pointerEvents: 'none', whiteSpace: 'nowrap',
+        background: C.surface, border: `2px solid ${C.ink}`, borderRadius: 8, padding: '3px 12px', boxShadow: SHADOW.soft,
+        fontFamily: FONT.display, fontSize: 12.5, fontWeight: 800, color: C.ink, zIndex: 1,
+      }}
+    >
+      {z.name}
+    </div>
+  );
+}
+
 export function LevelMap({ count, unlocked, stars = {}, colors, onPick, labels, theme, look }) {
   const ref = useRef(null);
   const { style } = useStyle();
-  const pts = useMemo(() => mapPoints(count, theme ? 84 : 46), [count, theme]);
-  const scene = useMemo(() => (theme ? mapScene(theme, count, pts) : null), [theme, count, pts]);
-  const H = scene ? scene.H : pts[pts.length - 1].y + 60;
+  const paper = (style.ui && style.ui.paper) || '#FFF8EE';
+  const isPixel = style.art && style.art.kind === 'pixel';
+  const px = isPixel ? (style.art.pixel || 2) : undefined;
+  const kit = style.art && style.art.kind;
+  // en lo-fi el suelo se apaga hacia la noche del estilo (neón ya lo hace su kit)
+  const dim = kit === 'lofi' ? { paper, k: 0.42 } : null;
+  const labelKey = labels ? labels.join('|') : '';
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const pts = useMemo(() => mapPoints(count, undefined, theme, labels), [count, theme, labelKey]);
+  const frame = useMemo(() => (theme ? mapFrame(theme, count, pts) : null), [theme, count, pts]);
+  // La escena se arma después de mostrar las paradas (en un celular tarda).
+  const sceneKey = theme ? `${theme}|${count}|${labelKey}|${dim ? dim.paper : ''}|${kit === 'papel' ? 'p' : ''}` : '';
+  const [scene, setScene] = useState(() => (theme ? scenes.get(sceneKey) || null : null));
+  useEffect(() => {
+    if (!theme) return undefined;
+    const hit = scenes.get(sceneKey);
+    if (hit) { setScene(hit); return undefined; }
+    const id = setTimeout(() => {
+      const sc = mapScene(theme, count, pts, { labels, dim, kit });
+      scenes.set(sceneKey, sc);
+      if (scenes.size > 12) scenes.delete(scenes.keys().next().value);
+      setScene(sc);
+    }, 30);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sceneKey]);
+  const OX = frame ? frame.OX : 0;
+  const W = frame ? frame.W : MAP_W;
+  const H = frame ? frame.H : pts[pts.length - 1].y + 60;
   const cur = Math.min(unlocked, count);
+  const [view, setView] = useState(() => ({ top: Math.max(0, pts[cur - 1].y - 280), h: 560 }));
+  const [cardW, setCardW] = useState(340);
+  const seen = useRef(new Set());
+
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el) return undefined;
     el.scrollTop = Math.max(0, pts[cur - 1].y - el.clientHeight / 2);
+    let raf = 0;
+    const read = () => { raf = 0; setView((v) => (Math.abs(v.top - el.scrollTop) > 40 || v.h !== el.clientHeight ? { top: el.scrollTop, h: el.clientHeight } : v)); };
+    read();
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(read); };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => { el.removeEventListener('scroll', onScroll); if (raf) cancelAnimationFrame(raf); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const d = pts.map((p, k) => `${k ? 'L' : 'M'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join('');
-  const done = pts.slice(0, cur).map((p, k) => `${k ? 'L' : 'M'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join('');
-  const path = scene ? scene.path : { base: C.line, dash: C.surface, done: C.amber };
-  const bg = scene
-    ? zoneBackground(scene.zones, H, (style.ui && style.ui.paper) || '#FFF8EE')
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const upd = () => setCardW(el.clientWidth);
+    upd();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(upd);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const near = (key, y0, y1) => {
+    if (seen.current.has(key)) return true;
+    if (y1 >= view.top - AHEAD && y0 <= view.top + view.h + AHEAD) { seen.current.add(key); return true; }
+    return false;
+  };
+
+  const X = (p) => p.x + OX;
+  const d = pts.map((p, k) => `${k ? 'L' : 'M'}${X(p).toFixed(1)} ${p.y.toFixed(1)}`).join('');
+  const done = pts.slice(0, cur).map((p, k) => `${k ? 'L' : 'M'}${X(p).toFixed(1)} ${p.y.toFixed(1)}`).join('');
+  const bg = frame
+    ? zoneBackground(frame.zones, H, paper)
     : `linear-gradient(180deg, ${soft(C.sky, 0.55)}, ${soft(C.sage, 0.6)})`;
+  // el avance: miguitas de color sobre el camino hasta el nivel que toca
+  const crumbs = useMemo(() => (scene ? scene.trail.filter((t) => t.k <= cur - 1 + 1e-6) : []), [scene, cur]);
+  const left = Math.round((cardW - W) / 2);
+  const vis0 = -left, vis1 = cardW - left;
+
   return (
-    <div ref={ref} className="pg-card" style={{ width: '100%', maxWidth: 340, height: 'min(560px, calc(100vh - 200px))', overflowY: 'auto', overflowX: 'hidden', padding: 0, position: 'relative', background: scene ? C.surface : bg }}>
-      <div style={{ position: 'relative', width: W, height: H, margin: '0 auto', background: scene ? bg : undefined }}>
-        {scene && scene.chunks.map((c) => (
-          <div key={c.key} style={{ position: 'absolute', left: 0, top: c.y, width: W, height: c.h, pointerEvents: 'none' }}>
-            <Sprite markup={c.markup} cacheKey={`map-${c.key}`} w={W} h={c.h} />
+    <div ref={ref} className="pg-card" style={{ width: '100%', maxWidth: 340, height: 'min(560px, calc(100vh - 200px))', overflowY: 'auto', overflowX: 'hidden', padding: 0, position: 'relative', background: frame ? C.surface : bg }}>
+      <div style={{ position: 'relative', width: W, height: H, marginLeft: frame ? left : 'auto', marginRight: frame ? 0 : 'auto', background: frame ? bg : undefined }}>
+        {scene && scene.chunks.map((c) => near(c.key, c.y, c.y + c.h) && (
+          <div key={c.key} style={{ position: 'absolute', left: 0, top: c.y, width: W, height: c.h, overflow: 'hidden', pointerEvents: 'none' }}>
+            <Sprite markup={c.markup} cacheKey={`map-${c.key}`} w={W} h={c.h + CHUNK_PAD * 2} kind="surface" pixel={px} style={{ position: 'absolute', left: 0, top: -CHUNK_PAD }} />
           </div>
         ))}
-        <svg width={W} height={H} style={{ position: 'absolute', inset: 0 }} aria-hidden="true">
-          <path d={d} fill="none" stroke={path.base} strokeWidth={scene ? 13 : 10} strokeLinecap="round" strokeLinejoin="round" opacity={scene ? 0.95 : 0.55} />
-          <path d={d} fill="none" stroke={path.dash} strokeWidth="4" strokeDasharray={scene ? '6 9' : '2 10'} strokeLinecap="round" />
-          {unlocked > 1 && <path d={done} fill="none" stroke={path.done} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />}
+        {scene && scene.pieces.map((p) => near(`p${p.n}`, p.y, p.y + p.h) && (
+          <Sprite
+            key={`p${p.n}`} markup={p.markup} cacheKey={`mp-${p.key}`} w={p.w} h={p.h} pixel={px}
+            style={{ position: 'absolute', left: p.x, top: p.y, pointerEvents: 'none' }}
+          />
+        ))}
+        <svg width={W} height={H} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} aria-hidden="true">
+          {!frame && <path d={d} fill="none" stroke={C.line} strokeWidth={10} strokeLinecap="round" strokeLinejoin="round" opacity={0.55} />}
+          {!frame && <path d={d} fill="none" stroke={C.surface} strokeWidth="4" strokeDasharray="2 10" strokeLinecap="round" />}
+          {!frame && unlocked > 1 && <path d={done} fill="none" stroke={C.amber} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />}
+          {frame && !scene && <path d={d} fill="none" stroke={C.line} strokeWidth={16} strokeLinecap="round" strokeLinejoin="round" opacity={0.35} />}
+          {scene && crumbs.map((t, i) => (isPixel
+            ? <rect key={i} x={Math.round(t.x / 2) * 2 - 2} y={Math.round(t.y / 2) * 2 - 2} width="4" height="4" fill={scene.path.done} stroke={scene.path.ink} strokeWidth="1" strokeOpacity="0.55" shapeRendering="crispEdges" />
+            : <circle key={i} cx={t.x} cy={t.y} r="2.6" fill={scene.path.done} stroke={scene.path.ink} strokeWidth="1" strokeOpacity="0.55" />))}
         </svg>
-        {scene && scene.zones.map((z) => (
-          <div
-            key={z.name} className="pg-anim-pop"
-            style={{
-              position: 'absolute', left: '50%', top: Math.max(8, z.y - 13), transform: 'translateX(-50%)', pointerEvents: 'none', whiteSpace: 'nowrap',
-              background: C.surface, border: `2px solid ${C.ink}`, borderRadius: 8, padding: '3px 12px', boxShadow: SHADOW.soft,
-              fontFamily: FONT.display, fontSize: 12.5, fontWeight: 800, color: C.ink, zIndex: 1,
-            }}
-          >
-            {z.name}
-          </div>
-        ))}
+        {scene && scene.zones.map((z) => <ZoneSign key={z.name} z={z} vis0={vis0} vis1={vis1} />)}
         {pts.map((p, k) => {
           const n = k + 1;
           const open = n <= unlocked;
           const isCur = n === cur;
           const col = colors[k % colors.length];
           const s = stars[n] || 0;
+          const side = p.side || (p.x > MAP_W / 2 ? 'L' : 'R');
           return (
-            <div key={n} style={{ position: 'absolute', left: p.x - 23, top: p.y - 23, width: 46, height: 46, zIndex: 2 }}>
+            <div key={n} style={{ position: 'absolute', left: X(p) - 23, top: p.y - 23, width: 46, height: 46, zIndex: 2 }}>
               <button
                 onClick={() => open && onPick(n)} disabled={!open} className="pg-focus pg-keep-round"
                 aria-label={open ? `Nivel ${n}${labels ? `: ${labels[k]}` : ''}` : `Nivel ${n} bloqueado`}
@@ -127,12 +213,13 @@ export function LevelMap({ count, unlocked, stars = {}, colors, onPick, labels, 
               {labels && open && (
                 <span
                   style={{
-                    position: 'absolute', left: p.x > W / 2 ? 'auto' : 52, right: p.x > W / 2 ? 52 : 'auto', top: 11, whiteSpace: 'nowrap', pointerEvents: 'none',
+                    position: 'absolute', left: side === 'L' ? 'auto' : 52, right: side === 'L' ? 52 : 'auto', top: 23, transform: 'translateY(-50%)', pointerEvents: 'none',
+                    whiteSpace: 'nowrap', lineHeight: 1.15, textAlign: side === 'L' ? 'right' : 'left',
                     fontFamily: FONT.display, fontSize: 11.5, fontWeight: 700, color: C.ink,
-                    ...(scene ? { background: C.surface, borderRadius: 7, padding: '2px 7px', boxShadow: SHADOW.soft } : {}),
+                    ...(frame ? { background: C.surface, borderRadius: 7, padding: '2px 7px', boxShadow: SHADOW.soft, boxSizing: 'border-box' } : {}),
                   }}
                 >
-                  {labels[k]}
+                  {frame ? labelLines(labels[k]).map((l, i) => <React.Fragment key={i}>{i ? <br /> : null}{l}</React.Fragment>) : labels[k]}
                 </span>
               )}
               {/* la mascota espera en el nivel que toca */}
