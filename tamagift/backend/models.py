@@ -57,6 +57,12 @@ class Pet(Base):
     # (ver Letter). Solo se entrega una vez, al crear la mascota.
     owner_token = Column(String(40), nullable=True)
 
+    # Lo personal que quien regala sigue sumando después de crear el
+    # regalo (ver PLAN_REGALO_VIVO.md): ficha de gustos, fechas de la
+    # pareja, mensajes por situación, cupones, lugares, recetas y su
+    # propio mochi. JSON; el servidor no lo interpreta, solo lo guarda.
+    profile = Column(Text, nullable=True)
+
     hunger_meter = Column(Integer, default=60)
     love_meter = Column(Integer, default=60)
     current_mood = Column(String(20), default="normal")
@@ -208,6 +214,39 @@ class Letter(Base):
     pet_id = Column(Integer, ForeignKey("pets.id"), index=True, nullable=False)
     text = Column(Text, nullable=False)
     photo = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    # "carta" | "nota" (corta, sin sobre) | "paquete" (trae un objeto en
+    # `payload`) | "voz" (nota de voz en `audio`) | "respuesta" (contesta
+    # una pregunta de quien recibe; `payload` dice cuál).
+    kind = Column(String(12), nullable=True, default="carta")
+    # Carta con fecha: no se puede leer antes de `open_at` (el juego la
+    # muestra en el cofre con cuenta regresiva).
+    open_at = Column(DateTime, nullable=True)
+    payload = Column(Text, nullable=True)
+    audio = Column(Text, nullable=True)
+    # Cuándo la abrió quien recibe (quien regaló lo ve en su rincón).
+    opened_at = Column(DateTime, nullable=True)
+
+
+class Reply(Base):
+    """Lo que quien recibe le manda a quien regaló desde el juego: una
+    carta de vuelta, una foto de su cuarto, una pregunta para el tablero,
+    el canje de un cupón o una meta cumplida.
+
+    `answer` / `done_at` los pone quien regaló (responde la pregunta o
+    marca el cupón como cumplido) y el juego se lo muestra a quien recibe.
+    """
+    __tablename__ = "replies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    pet_id = Column(Integer, ForeignKey("pets.id"), index=True, nullable=False)
+    kind = Column(String(12), nullable=False)
+    text = Column(Text, nullable=True)
+    photo = Column(Text, nullable=True)
+    ref = Column(String(60), nullable=True)
+    answer = Column(Text, nullable=True)
+    done_at = Column(DateTime, nullable=True)
+    seen_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

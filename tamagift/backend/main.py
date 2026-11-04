@@ -42,6 +42,12 @@ LATE_COLUMNS = [
     ("pets", "app_style", "VARCHAR(16)"),
     ("outfits", "recipe", "TEXT"),
     ("pets", "owner_token", "VARCHAR(40)"),
+    ("pets", "profile", "TEXT"),
+    ("letters", "kind", "VARCHAR(12) DEFAULT 'carta'"),
+    ("letters", "open_at", "TIMESTAMP"),
+    ("letters", "payload", "TEXT"),
+    ("letters", "audio", "TEXT"),
+    ("letters", "opened_at", "TIMESTAMP"),
 ]
 
 
@@ -185,6 +191,7 @@ def create_pet(payload: schemas.PetCreate, db: Session = Depends(database.get_db
         recipe_original=payload.recipe_original,
         app_style=payload.app_style,
         owner_token=secrets.token_urlsafe(18),
+        profile=payload.profile,
     )
     db.add(pet)
     db.flush()
@@ -345,9 +352,17 @@ def set_active_design(slug: str, payload: schemas.ActiveDesignIn, db: Session = 
     return pet
 
 
-# ── Buzón: cartas de quien regaló ───────────────────────────────────
+# ── Buzón: lo que quien regaló sigue mandando ──────────────────────
+# Cartas, notas, paquetes, notas de voz y cartas con fecha (ver
+# PLAN_REGALO_VIVO.md). El juego las reparte de a poco; acá solo se
+# guardan y se cuida que una carta con fecha no se lea antes de tiempo.
 
-LETTERS_PER_DAY = 10
+LETTERS_PER_DAY = 15
+REPLIES_PER_DAY = 20
+
+
+def _now():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def _pet_or_404(db, slug):
@@ -371,10 +386,35 @@ def _can_write(db, pet, auth):
     return False
 
 
-def _letter_out(l, with_photo):
+def _iso(dt):
+    return dt.isoformat() if dt else None
+
+
+def _parse_when(v):
+    """Fecha u hora ISO del navegador → datetime UTC sin zona."""
+    if not v:
+        return None
+    try:
+        d = datetime.fromisoformat(v.replace("Z", "+00:00"))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="fecha-invalida")
+    if d.tzinfo:
+        d = d.astimezone(timezone.utc).replace(tzinfo=None)
+    return d
+
+
+def _letter_out(l, with_media, giver=False):
+    locked = bool(l.open_at and l.open_at > _now()) and not giver
     return schemas.LetterOut(
-        id=l.id, text=l.text, has_photo=bool(l.photo), photo=l.photo if with_photo else None,
-        created_at=l.created_at.isoformat() if l.created_at else None,
+        id=l.id, kind=l.kind or "carta",
+        text="" if locked else l.text,
+        has_photo=bool(l.photo) and not locked,
+        photo=l.photo if (with_media and not locked) else None,
+        has_audio=bool(l.audio) and not locked,
+        audio=l.audio if (with_media and not locked) else None,
+        payload=None if locked else l.payload,
+        open_at=_iso(l.open_at), locked=locked, opened_at=_iso(l.opened_at),
+        created_at=_iso(l.created_at),
     )
 
 
@@ -389,19 +429,29 @@ def send_letter(slug: str, payload: schemas.LetterIn, db: Session = Depends(data
     pet = _pet_or_404(db, slug)
     if not _can_write(db, pet, payload):
         raise HTTPException(status_code=403, detail="sin-permiso")
-    since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=1)
+    if not payload.text.strip() and not payload.photo and not payload.audio and not payload.payload:
+        raise HTTPException(status_code=400, detail="vacia")
+    if payload.kind == "voz" and not payload.audio:
+        raise HTTPException(status_code=400, detail="falta-audio")
+    if payload.kind == "paquete" and not payload.payload:
+        raise HTTPException(status_code=400, detail="falta-paquete")
+    since = _now() - timedelta(days=1)
     recent = db.query(models.Letter).filter(models.Letter.pet_id == pet.id, models.Letter.created_at >= since).count()
     if recent >= LETTERS_PER_DAY:
         raise HTTPException(status_code=429, detail="muchas-cartas")
-    letter = models.Letter(pet_id=pet.id, text=payload.text.strip(), photo=payload.photo or None)
+    letter = models.Letter(
+        pet_id=pet.id, text=payload.text.strip(), photo=payload.photo or None,
+        kind=payload.kind, open_at=_parse_when(payload.open_at),
+        payload=payload.payload or None, audio=payload.audio or None,
+    )
     db.add(letter)
     db.commit()
     db.refresh(letter)
-    return _letter_out(letter, False)
+    return _letter_out(letter, False, giver=True)
 
 
-# Las cartas, sin las fotos (pesan): `after` devuelve solo las más nuevas
-# que esa. La foto de cada una se pide aparte.
+# Las cartas, sin fotos ni audios (pesan): `after` devuelve solo las más
+# nuevas que esa. Las cerradas (con fecha) vienen sin contenido.
 @app.get("/api/pets/{slug}/letters", response_model=List[schemas.LetterOut])
 def list_letters(slug: str, after: int = 0, db: Session = Depends(database.get_db)):
     pet = _pet_or_404(db, slug)
@@ -417,6 +467,123 @@ def get_letter(slug: str, letter_id: int, db: Session = Depends(database.get_db)
     if not letter:
         raise HTTPException(status_code=404, detail="Carta no encontrada")
     return _letter_out(letter, True)
+
+
+@app.post("/api/pets/{slug}/letters/{letter_id}/opened", response_model=schemas.LetterOut)
+def mark_letter_opened(slug: str, letter_id: int, db: Session = Depends(database.get_db)):
+    """Quien recibe abrió la carta: quien regaló lo ve en su rincón."""
+    pet = _pet_or_404(db, slug)
+    letter = db.query(models.Letter).filter(models.Letter.pet_id == pet.id, models.Letter.id == letter_id).first()
+    if not letter:
+        raise HTTPException(status_code=404, detail="Carta no encontrada")
+    if letter.open_at and letter.open_at > _now():
+        raise HTTPException(status_code=409, detail="todavia-cerrada")
+    if not letter.opened_at:
+        letter.opened_at = _now()
+        db.commit()
+        db.refresh(letter)
+    return _letter_out(letter, False)
+
+
+@app.put("/api/pets/{slug}/profile")
+def save_profile(slug: str, payload: schemas.ProfileIn, db: Session = Depends(database.get_db)):
+    pet = _pet_or_404(db, slug)
+    if not _can_write(db, pet, payload):
+        raise HTTPException(status_code=403, detail="sin-permiso")
+    pet.profile = payload.profile
+    db.commit()
+    return {"profile": pet.profile}
+
+
+# ── Lo que quien recibe le manda de vuelta ──────────────────────────
+
+def _reply_out(r, with_photo=False):
+    return schemas.ReplyOut(
+        id=r.id, kind=r.kind, text=r.text, has_photo=bool(r.photo),
+        photo=r.photo if with_photo else None, ref=r.ref, answer=r.answer,
+        done=bool(r.done_at), seen=bool(r.seen_at), created_at=_iso(r.created_at),
+    )
+
+
+@app.post("/api/pets/{slug}/replies", response_model=schemas.ReplyOut)
+def send_reply(slug: str, payload: schemas.ReplyIn, db: Session = Depends(database.get_db)):
+    pet = _pet_or_404(db, slug)
+    if not (payload.text or "").strip() and not payload.photo and not payload.ref:
+        raise HTTPException(status_code=400, detail="vacia")
+    since = _now() - timedelta(days=1)
+    recent = db.query(models.Reply).filter(models.Reply.pet_id == pet.id, models.Reply.created_at >= since).count()
+    if recent >= REPLIES_PER_DAY:
+        raise HTTPException(status_code=429, detail="muchas")
+    r = models.Reply(pet_id=pet.id, kind=payload.kind, text=(payload.text or "").strip() or None,
+                     photo=payload.photo or None, ref=payload.ref)
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+    return _reply_out(r)
+
+
+# El juego pregunta por respuestas a sus preguntas y cupones cumplidos.
+@app.get("/api/pets/{slug}/replies", response_model=List[schemas.ReplyOut])
+def list_replies(slug: str, db: Session = Depends(database.get_db)):
+    pet = _pet_or_404(db, slug)
+    rows = (db.query(models.Reply).filter(models.Reply.pet_id == pet.id)
+            .order_by(models.Reply.id.desc()).limit(80).all())
+    return [_reply_out(r) for r in rows]
+
+
+@app.get("/api/pets/{slug}/replies/{reply_id}", response_model=schemas.ReplyOut)
+def get_reply(slug: str, reply_id: int, db: Session = Depends(database.get_db)):
+    pet = _pet_or_404(db, slug)
+    r = db.query(models.Reply).filter(models.Reply.pet_id == pet.id, models.Reply.id == reply_id).first()
+    if not r:
+        raise HTTPException(status_code=404, detail="no-existe")
+    return _reply_out(r, True)
+
+
+@app.post("/api/pets/{slug}/replies/{reply_id}/answer", response_model=schemas.ReplyOut)
+def answer_reply(slug: str, reply_id: int, payload: schemas.ReplyAnswerIn, db: Session = Depends(database.get_db)):
+    pet = _pet_or_404(db, slug)
+    if not _can_write(db, pet, payload):
+        raise HTTPException(status_code=403, detail="sin-permiso")
+    r = db.query(models.Reply).filter(models.Reply.pet_id == pet.id, models.Reply.id == reply_id).first()
+    if not r:
+        raise HTTPException(status_code=404, detail="no-existe")
+    if payload.answer is not None and payload.answer.strip():
+        r.answer = payload.answer.strip()
+    if payload.done and not r.done_at:
+        r.done_at = _now()
+    r.seen_at = r.seen_at or _now()
+    db.commit()
+    db.refresh(r)
+    return _reply_out(r)
+
+
+@app.post("/api/pets/{slug}/rincon", response_model=schemas.RinconOut)
+def rincon(slug: str, payload: schemas.MailboxAuth, db: Session = Depends(database.get_db)):
+    """Todo lo que ve quien regaló en su rincón, de una vez. Marca como
+    vistas las respuestas nuevas de quien recibe."""
+    pet = _pet_or_404(db, slug)
+    if not _can_write(db, pet, payload):
+        raise HTTPException(status_code=403, detail="sin-permiso")
+    letters = (db.query(models.Letter).filter(models.Letter.pet_id == pet.id)
+               .order_by(models.Letter.id.desc()).limit(120).all())
+    replies = (db.query(models.Reply).filter(models.Reply.pet_id == pet.id)
+               .order_by(models.Reply.id.desc()).limit(120).all())
+    out_replies = [_reply_out(r) for r in replies]
+    now = _now()
+    for r in replies:
+        if not r.seen_at:
+            r.seen_at = now
+    save = db.query(models.GameSave).filter(models.GameSave.pet_id == pet.id).first()
+    db.commit()
+    active = pet.recipe_redesign if pet.active_design == "redesign" and pet.recipe_redesign else pet.recipe_original
+    return schemas.RinconOut(
+        slug=pet.slug, name=pet.name, creator_name=pet.creator_name, recipient_name=pet.recipient_name,
+        recipe=active, app_style=pet.app_style, profile=pet.profile, created_at=_iso(pet.created_at),
+        last_seen_day=save.updated_at.date().isoformat() if save and save.updated_at else None,
+        letters=[_letter_out(l, False, giver=True) for l in letters],
+        replies=out_replies,
+    )
 
 
 # ── Álbum de fotos ──────────────────────────────────────────────────

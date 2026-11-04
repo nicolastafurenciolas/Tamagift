@@ -28,6 +28,22 @@ AUDIO_MAX = 14_000_000   # un archivo de audio de hasta 10 MB
 # La partida guardada (JSON). Una partida muy jugada pesa unos 30 KB;
 # el tope deja margen sin dejar que alguien llene la base.
 GAME_SAVE_MAX = 400_000
+# Lo personal de quien regala (ficha, fechas, mensajes, cupones, su mochi).
+PROFILE_MAX = 400_000
+# Una nota de voz corta (opus/webm o mp4 en data URL; ~1 minuto).
+VOICE_MAX = 2_000_000
+
+
+def _json_object(v):
+    if v is None:
+        return v
+    try:
+        data = json.loads(v)
+    except Exception:
+        raise ValueError("No es JSON")
+    if not isinstance(data, dict):
+        raise ValueError("Tiene que ser un objeto")
+    return v
 
 
 class FoodPreferenceBase(BaseModel):
@@ -183,6 +199,12 @@ class PetCreate(BaseModel):
     outfits: List[OutfitIn] = Field(default=[], max_length=8)
     decor_items: List[DecorItemIn] = Field(default=[], max_length=12)
     whack_targets: List[WhackTargetIn] = Field(default=[], max_length=8)
+    profile: Optional[str] = Field(default=None, max_length=PROFILE_MAX)
+
+    @field_validator("profile")
+    @classmethod
+    def profile_is_object(cls, v):
+        return _json_object(v)
 
 
 class PetOut(BaseModel):
@@ -210,6 +232,7 @@ class PetOut(BaseModel):
     outfits: List[OutfitOut] = []
     decor_items: List[DecorItemOut] = []
     whack_targets: List[WhackTargetOut] = []
+    profile: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -227,9 +250,29 @@ class MailboxAuth(BaseModel):
     access_key: Optional[str] = Field(default=None, max_length=80)
 
 
+LetterKind = Literal["carta", "nota", "paquete", "voz", "respuesta"]
+
+
 class LetterIn(MailboxAuth):
-    text: str = Field(min_length=1, max_length=600)
+    text: str = Field(default="", max_length=1200)
     photo: Optional[str] = Field(default=None, max_length=IMG_MAX)
+    kind: LetterKind = "carta"
+    # ISO (fecha u hora). Antes de eso la carta queda cerrada en el cofre.
+    open_at: Optional[str] = Field(default=None, max_length=40)
+    payload: Optional[str] = Field(default=None, max_length=20_000)
+    audio: Optional[str] = Field(default=None, max_length=VOICE_MAX)
+
+    @field_validator("payload")
+    @classmethod
+    def payload_is_object(cls, v):
+        return _json_object(v)
+
+    @field_validator("audio")
+    @classmethod
+    def is_audio(cls, v):
+        if v and not v.startswith("data:audio/"):
+            raise ValueError("Tiene que ser un audio")
+        return v
 
 
 class LetterOut(BaseModel):
@@ -238,6 +281,74 @@ class LetterOut(BaseModel):
     has_photo: bool = False
     photo: Optional[str] = None
     created_at: Optional[str] = None
+    kind: str = "carta"
+    open_at: Optional[str] = None
+    # Cerrada hasta `open_at`: sin texto, foto, audio ni contenido.
+    locked: bool = False
+    payload: Optional[str] = None
+    has_audio: bool = False
+    audio: Optional[str] = None
+    opened_at: Optional[str] = None
+
+
+class ProfileIn(MailboxAuth):
+    profile: str = Field(max_length=PROFILE_MAX)
+
+    @field_validator("profile")
+    @classmethod
+    def profile_is_object(cls, v):
+        return _json_object(v)
+
+
+ReplyKind = Literal["carta", "foto", "pregunta", "canje", "meta"]
+
+
+class ReplyIn(BaseModel):
+    kind: ReplyKind
+    text: Optional[str] = Field(default=None, max_length=600)
+    photo: Optional[str] = Field(default=None, max_length=900_000)
+    ref: Optional[str] = Field(default=None, max_length=60)
+
+    @field_validator("photo")
+    @classmethod
+    def is_image(cls, v):
+        if v and not v.startswith("data:image/"):
+            raise ValueError("Tiene que ser una imagen")
+        return v
+
+
+class ReplyOut(BaseModel):
+    id: int
+    kind: str
+    text: Optional[str] = None
+    has_photo: bool = False
+    photo: Optional[str] = None
+    ref: Optional[str] = None
+    answer: Optional[str] = None
+    done: bool = False
+    seen: bool = False
+    created_at: Optional[str] = None
+
+
+class ReplyAnswerIn(MailboxAuth):
+    answer: Optional[str] = Field(default=None, max_length=600)
+    done: bool = False
+
+
+class RinconOut(BaseModel):
+    slug: str
+    name: str
+    creator_name: Optional[str] = None
+    recipient_name: Optional[str] = None
+    recipe: Optional[str] = None
+    app_style: Optional[str] = None
+    profile: Optional[str] = None
+    created_at: Optional[str] = None
+    # Última vez que quien recibe guardó la partida (no minuto a minuto:
+    # solo el día, para cuidar su privacidad).
+    last_seen_day: Optional[str] = None
+    letters: List[LetterOut] = []
+    replies: List[ReplyOut] = []
 
 
 # Fotos del álbum (JPEG en data URL; ya vienen comprimidas del celular).

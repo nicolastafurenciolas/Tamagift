@@ -352,14 +352,19 @@ export async function checkMailbox(slug, auth) {
   }
 }
 
-// Manda una carta. Devuelve { ok, letter } o { error: 'sin-permiso' |
-// 'muchas-cartas' | 'muy-pesada' | 'sin-conexion' }.
-export async function sendLetter(slug, { text, photo, token, accessKey }) {
+// Manda algo a quien recibe: carta, nota, paquete (`payload` = qué
+// objeto), nota de voz (`audio`) o carta con fecha (`openAt`, ISO).
+// Devuelve { ok, letter } o { error: 'sin-permiso' | 'muchas-cartas' |
+// 'muy-pesada' | 'sin-conexion' }.
+export async function sendLetter(slug, { text = '', photo, token, accessKey, kind = 'carta', openAt, payload, audio }) {
   try {
     const res = await fetchWithTimeout(`${API_BASE}/api/pets/${slug}/letters`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, photo: photo || null, token: token || null, access_key: accessKey || null }),
-    }, 30000);
+      body: JSON.stringify({
+        text, photo: photo || null, token: token || null, access_key: accessKey || null,
+        kind, open_at: openAt || null, payload: payload ? JSON.stringify(payload) : null, audio: audio || null,
+      }),
+    }, 45000);
     if (res.ok) return { ok: true, letter: await res.json() };
     if (res.status === 403) return { error: 'sin-permiso' };
     if (res.status === 429) return { error: 'muchas-cartas' };
@@ -384,6 +389,99 @@ export async function fetchLetters(slug, after = 0) {
 export async function fetchLetter(slug, id) {
   try {
     const res = await fetchWithTimeout(`${API_BASE}/api/pets/${slug}/letters/${Number(id)}`, {}, 20000);
+    return res.ok ? await res.json() : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Quien recibe abrió la carta (quien regaló lo ve en su rincón).
+export async function markLetterOpened(slug, id) {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE}/api/pets/${slug}/letters/${Number(id)}/opened`, { method: 'POST' }, 10000);
+    return res.ok ? await res.json() : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// ── Lo personal y el rincón de quien regaló ─────────────────────────
+// Ver PLAN_REGALO_VIVO.md y personal/catalog.js.
+
+const jsonPost = (url, body, method = 'POST', ms = 15000) => fetchWithTimeout(url, {
+  method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+}, ms);
+const authBody = ({ token, accessKey } = {}) => ({ token: token || null, access_key: accessKey || null });
+
+// Guarda la ficha personal entera (objeto). Devuelve true/false o 'sin-permiso'.
+export async function saveProfile(slug, profile, auth) {
+  try {
+    const res = await jsonPost(`${API_BASE}/api/pets/${slug}/profile`, { ...authBody(auth), profile: JSON.stringify(profile || {}) }, 'PUT');
+    if (res.status === 403) return 'sin-permiso';
+    return res.ok;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Todo lo del rincón: { name, profile (objeto), letters, replies, … } o
+// { error: 'sin-permiso' | 'no-existe' | 'sin-conexion' }.
+export async function fetchRincon(slug, auth) {
+  try {
+    const res = await jsonPost(`${API_BASE}/api/pets/${slug}/rincon`, authBody(auth));
+    if (res.status === 403) return { error: 'sin-permiso' };
+    if (res.status === 404) return { error: 'no-existe' };
+    if (!res.ok) return { error: 'sin-conexion' };
+    const r = await res.json();
+    return { ...r, profile: parseProfile(r.profile) };
+  } catch (e) {
+    return { error: 'sin-conexion' };
+  }
+}
+
+export function parseProfile(raw) {
+  if (!raw) return {};
+  if (typeof raw === 'object') return raw;
+  try { const p = JSON.parse(raw); return p && typeof p === 'object' && !Array.isArray(p) ? p : {}; } catch (e) { return {}; }
+}
+
+// Quien recibe le manda algo de vuelta: 'carta' | 'foto' | 'pregunta' |
+// 'canje' (ref = id del cupón) | 'meta'. Devuelve { ok, reply } o { error }.
+export async function sendReply(slug, { kind, text, photo, ref }) {
+  try {
+    const res = await jsonPost(`${API_BASE}/api/pets/${slug}/replies`, { kind, text: text || null, photo: photo || null, ref: ref || null }, 'POST', 30000);
+    if (res.ok) return { ok: true, reply: await res.json() };
+    if (res.status === 429) return { error: 'muchas' };
+    if (res.status === 413 || res.status === 422) return { error: 'muy-pesada' };
+    return { error: 'sin-conexion' };
+  } catch (e) {
+    return { error: 'sin-conexion' };
+  }
+}
+
+// Lo que mandó quien recibe, con respuestas y cupones cumplidos (sin fotos).
+export async function fetchReplies(slug) {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE}/api/pets/${slug}/replies`, {}, 10000);
+    return res.ok ? await res.json() : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+export async function fetchReply(slug, id) {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE}/api/pets/${slug}/replies/${Number(id)}`, {}, 20000);
+    return res.ok ? await res.json() : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Quien regaló responde una pregunta o marca un cupón como cumplido.
+export async function answerReply(slug, id, { answer, done = false }, auth) {
+  try {
+    const res = await jsonPost(`${API_BASE}/api/pets/${slug}/replies/${Number(id)}/answer`, { ...authBody(auth), answer: answer || null, done });
     return res.ok ? await res.json() : null;
   } catch (e) {
     return null;
