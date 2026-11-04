@@ -4,7 +4,7 @@ import { IconEnvelope, IconGift, IconHeart, IconSparkle, IconCamera, IconPaw, Ic
 import { play } from '../../sound';
 import { fetchReply } from '../../api';
 import { Modal } from '../ui';
-import { toneColor, SmallButton, MainButton } from './kit';
+import { toneColor, SmallButton, MainButton, LetterArea } from './kit';
 import { dayLabel, dayOfIso, prettyDay, lastSeenText, waiting, letterWhen, LETTER_NAMES, futureLabel } from '../../personal/suggest';
 
 // ─────────────────────────────────────────────────────────────────
@@ -14,18 +14,24 @@ import { dayLabel, dayOfIso, prettyDay, lastSeenText, waiting, letterWhen, LETTE
 
 const ICONS = { envelope: IconEnvelope, gift: IconGift, heart: IconHeart, sparkle: IconSparkle, camera: IconCamera, paw: IconPaw, frame: IconFrame };
 
-export function SuggestionCard({ s, onAction, onQuick, onSkip, canSkip }) {
+// `s.quick`: una nota que se manda tal cual con un toque.
+// `s.send`: { kind, text, payload } ya escrito; el texto se puede editar
+// en la tarjeta antes de mandarlo (p. ej. la sopa para la mascota).
+export function SuggestionCard({ s, onAction, onSend, onSkip, canSkip }) {
   const [state, setState] = useState(null); // null | enviando | enviada | error
-  useEffect(() => { setState(null); }, [s && s.id]);
+  const [draft, setDraft] = useState('');
+  useEffect(() => { setState(null); setDraft((s && s.send && s.send.text) || ''); }, [s && s.id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!s) return null;
   const color = toneColor(s.tone);
   const Icon = ICONS[s.icon] || IconHeart;
-  async function quick() {
-    if (state) return;
+  async function go() {
+    if (state === 'enviando' || state === 'enviada') return;
+    const opts = s.send ? { ...s.send, text: draft.trim() || s.send.text } : { kind: 'nota', text: s.quick };
     setState('enviando');
-    const ok = await onQuick(s.quick);
+    const ok = await onSend(opts);
     setState(ok ? 'enviada' : 'error');
   }
+  const direct = !!(s.quick || s.send);
   return (
     <div
       className="pg-card pg-anim-pop"
@@ -41,13 +47,18 @@ export function SuggestionCard({ s, onAction, onQuick, onSkip, canSkip }) {
           {s.text && <p style={{ fontSize: 13, color: C.inkSoft, margin: '6px 0 0', lineHeight: 1.4 }}>{s.text}</p>}
         </div>
       </div>
+      {s.send && state !== 'enviada' && (
+        <div style={{ marginTop: 12 }}>
+          <LetterArea value={draft} onChange={setDraft} rows={3} max={300} label="Tu nota" placeholder="Tu nota…" />
+        </div>
+      )}
       {state === 'enviada' ? (
         <div className="pg-anim-pop" style={{ marginTop: 14, textAlign: 'center', fontFamily: FONT.display, fontWeight: 800, fontSize: 14, color: C.sageDeep }}>
           ✓ ¡Enviada! Le llega la próxima vez que abra el juego.
         </div>
       ) : (
-        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-          <MainButton onClick={s.quick ? quick : () => { play('pop'); onAction(s.action); }} busy={state === 'enviando'} style={{ padding: 12, fontSize: 15 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: s.send ? 4 : 14 }}>
+          <MainButton onClick={direct ? go : () => { play('pop'); onAction(s.action); }} busy={state === 'enviando'} style={{ padding: 12, fontSize: 15 }}>
             {s.cta}
           </MainButton>
         </div>
@@ -67,8 +78,8 @@ export function SuggestionCard({ s, onAction, onQuick, onSkip, canSkip }) {
 
 const linkStyle = { background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer', fontFamily: 'var(--pg-font-display)', fontWeight: 800, fontSize: 12, color: 'var(--pg-c-inkSoft)' };
 
-const H_ICON = { abrio: IconEnvelope, canje: IconSparkle, pregunta: IconHeart, foto: IconCamera, carta: IconEnvelope, meta: IconSparkle };
-const H_TONE = { abrio: 'rose', canje: 'amber', pregunta: 'lavender', foto: 'sky', carta: 'rose', meta: 'sage' };
+const H_ICON = { abrio: IconEnvelope, canje: IconSparkle, pregunta: IconHeart, foto: IconCamera, carta: IconEnvelope, meta: IconSparkle, aviso: IconPaw };
+const H_TONE = { abrio: 'rose', canje: 'amber', pregunta: 'lavender', foto: 'sky', carta: 'rose', meta: 'sage', aviso: 'peach' };
 
 export function Happenings({ r, items, names, onOpen }) {
   const [all, setAll] = useState(false);
@@ -103,7 +114,7 @@ export function Happenings({ r, items, names, onOpen }) {
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'block', fontSize: 13.5, fontWeight: 700, lineHeight: 1.25 }}>
                   {h.text}
-                  {h.done && <span style={{ marginLeft: 6, fontSize: 11.5, fontWeight: 800, color: C.sageDeep }}>{h.kind === 'canje' ? '' : '· respondida'}</span>}
+                  {h.done && <span style={{ marginLeft: 6, fontSize: 11.5, fontWeight: 800, color: C.sageDeep }}>{h.kind === 'canje' ? '' : h.kind === 'aviso' ? '· atendido' : '· respondida'}</span>}
                   {h.isNew && <span style={{ marginLeft: 6, fontFamily: FONT.display, fontSize: 10.5, fontWeight: 800, color: C.onAccent, background: C.rose, borderRadius: 999, padding: '1px 6px', verticalAlign: 'middle' }}>nuevo</span>}
                 </span>
                 {h.quote && <span style={{ display: 'block', fontSize: 12, color: C.inkSoft, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.kind === 'canje' ? h.quote : `«${h.quote}»`}</span>}

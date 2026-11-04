@@ -180,10 +180,14 @@ export default function MailboxPage() {
   const seed = useMemo(() => [...String(slug)].reduce((a, c) => a + c.charCodeAt(0), 0), [slug]);
   const ideas = useMemo(() => (r ? suggestions(r, { today, seed }) : []), [r, today, seed]);
   const visible = ideas.filter((s) => !skips.includes(s.id));
-  const current = visible[0] || ideas[ideas.length - 1] || null;
+  // Lo que se acaba de mandar desde la tarjeta queda a la vista (con su
+  // "¡Enviada!") hasta pedir la siguiente idea, aunque ya no aplique.
+  const [pinned, setPinned] = useState(null);
+  const current = pinned || visible[0] || ideas[ideas.length - 1] || null;
   const items = useMemo(() => (r ? happenings(r, today) : []), [r, today]);
 
   function skip() {
+    if (pinned) { setPinned(null); return; }
     if (!current) return;
     const next = [...skips, current.id];
     setSkips(next.length >= ideas.length ? [] : next);
@@ -260,9 +264,9 @@ export default function MailboxPage() {
         {state === 'listo' && r && (
           <>
             <SuggestionCard
-              s={current} canSkip={ideas.length > 1}
+              s={current} canSkip={ideas.length > 1 || !!pinned}
               onAction={openSheet} onSkip={skip}
-              onQuick={async (text) => (await send({ kind: 'nota', text })).ok}
+              onSend={async (opts) => { const shown = current; const ok = (await send(opts)).ok; if (ok) setPinned(shown); return ok; }}
             />
 
             <Happenings r={r} items={items} names={names} onOpen={openHappening} />

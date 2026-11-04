@@ -121,6 +121,7 @@ export function happenings(r, today = dayKey()) {
     else if (x.kind === 'foto') out.push({ ...base, kind: 'foto', text: 'Te mandó una foto', quote: snippet(x.text), done: !pendingIds.has(x.id) });
     else if (x.kind === 'carta') out.push({ ...base, kind: 'carta', text: 'Te escribió', quote: snippet(x.text), done: !pendingIds.has(x.id) });
     else if (x.kind === 'meta') out.push({ ...base, kind: 'meta', text: 'Cumplió una meta', quote: snippet(x.text) });
+    else if (x.kind === 'aviso') out.push({ ...base, kind: 'aviso', text: `${r.name || 'Su mascota'} te avisa`, quote: snippet(x.text, 60), done: !pendingAvisos(r).some((a) => a.id === x.id) && !!STORY_ACTIONS[x.ref] });
   }
   return out
     .filter((h) => h.day)
@@ -169,6 +170,42 @@ export function unansweredReplies(r) {
   return ((r && r.replies) || []).filter((x) => (x.kind === 'carta' || x.kind === 'foto') && !answered.has(String(x.id)) && !x.answer);
 }
 
+// ── Avisos de la mascota (historias del juego) ──────────────────
+// Quien recibe vive una historia (p. ej. la mascota se resfría) y la
+// mascota le avisa a quien regala con una reply kind 'aviso' y
+// ref 'story:<id>'. Cada ref conocido trae su acción sugerida: una
+// carta ya escrita (editable) con payload { story } que el juego
+// convierte en lo que hace falta. Para sumar casos, se agrega acá.
+//   n = { pet, to, nombre, yo }
+export const STORY_ACTIONS = {
+  'story:sopa': {
+    story: 'sopa', icon: 'heart', tone: 'peach',
+    kicker: (n) => `${n.pet} te avisa`,
+    title: (n) => `${n.pet} se resfrió: ¿le mandas sopa?`,
+    text: (n, aviso) => (aviso && aviso.text ? `«${snippet(aviso.text, 90)}»` : `Una sopita tuya y se cura. ${n.to} la recibe en la puerta.`),
+    cta: 'Mandar la sopa',
+    letter: (n) => ({
+      kind: 'nota',
+      text: `Una sopita calentita para ${n.pet}, y un abrazo para ti, ${n.nombre}. ¡Que se mejoren pronto!`,
+      payload: { story: 'sopa' },
+    }),
+  },
+};
+
+// Avisos con acción conocida que todavía no atendiste (sin una carta
+// con ese payload.story mandada después del aviso).
+export function pendingAvisos(r) {
+  const letters = (r && r.letters) || [];
+  return ((r && r.replies) || []).filter((x) => {
+    const act = x.kind === 'aviso' && STORY_ACTIONS[x.ref];
+    if (!act) return false;
+    return !letters.some((l) => {
+      const p = letterPayload(l);
+      return p && p.story === act.story && String(l.created_at) >= String(x.created_at);
+    });
+  });
+}
+
 export function suggestions(r, { today = dayKey(), seed = 0 } = {}) {
   if (!r) return [];
   const profile = r.profile || {};
@@ -178,6 +215,17 @@ export function suggestions(r, { today = dayKey(), seed = 0 } = {}) {
   const letters = r.letters || [];
   const replies = r.replies || [];
   const out = [];
+
+  // 0. Su mascota avisa algo (una historia del juego) y hay algo que hacer.
+  const n = { pet, to, nombre: nick, yo: r.creator_name || '' };
+  for (const a of pendingAvisos(r).slice(0, 1)) {
+    const act = STORY_ACTIONS[a.ref];
+    out.push({
+      id: `aviso-${a.id}`, icon: act.icon, tone: act.tone,
+      kicker: act.kicker(n), title: act.title(n), text: act.text(n, a),
+      cta: act.cta, send: act.letter(n), action: { sheet: 'escribir', focus: 'carta' },
+    });
+  }
 
   // 1. Te hizo una pregunta y no la respondiste.
   const preguntas = replies.filter((x) => x.kind === 'pregunta' && !x.answer);
