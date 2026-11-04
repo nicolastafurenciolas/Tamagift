@@ -37,13 +37,18 @@ Con esto: creas una mascota completa desde el asistente (dibujando con el
 dedo de verdad) y la abres como la abriría tu novia, todo desde tu propio
 celular, sin subir nada a internet todavía.
 
+## Estilos visuales
+
+La app tiene seis estilos (pixel por defecto, lo-fi, retro, papel, neón y
+sticker). Cómo funcionan y cómo revisarlos: `ESTILOS.md`.
+
 ## Qué hay en cada carpeta
 
 - **`frontend/`** — el asistente de 8 pasos + el juego completo (alimentar,
   bañar, 3 minijuegos, cuarto decorable, cinemáticas, reproductor de
   música). Proyecto real de Vite + React + rutas, no artifacts sueltos.
 - **`backend/`** — FastAPI + base de datos. Probado contra Postgres real, no
-  solo SQLite. `backend/DEPLOY.md` trae los pasos para subirlo a Render
+  solo SQLite. `backend/DEPLOY.md` trae los pasos para subirlo (Supabase + Railway + Netlify)
   cuando estés listo para eso.
 - **`historial/`** — versiones sueltas de partes del proyecto de sesiones
   anteriores (el estudio de dibujo, el asistente y el juego como archivos
@@ -56,7 +61,7 @@ celular, sin subir nada a internet todavía.
 - Nada de esto lo he visto correr en un navegador real — no tengo forma de
   abrir uno desde donde trabajo. Esta es literalmente la primera vez que
   esto se prueba con manos y ojos de verdad.
-- El despliegue real en Render y Netlify (la configuración está probada,
+- El despliegue real en Railway y Netlify (la configuración está probada,
   pero no puedo crear cuentas ni desplegar por ti).
 - El ícono personalizado al "agregar a inicio" en iPhone específicamente —
   la lógica está ahí, pero no la pude confirmar en un dispositivo real.

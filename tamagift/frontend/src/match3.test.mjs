@@ -3,8 +3,8 @@
 
 import assert from 'node:assert/strict';
 import {
-  SIZE, findMatches, applyGravity, resolveBoard, trySwap, hasAnyMove, createBoard, areAdjacent,
-  findHint, previewSwap,
+  ROWS, COLS, findRuns, findGroups, classifyGroup, applyGravity, playSwap, hasAnyMove, createBoard,
+  areAdjacent, findHint, allMoves, blastCells, LEVELS, levelBoard, goalStatus, starsFor, jellyLeft, shuffleBoard,
 } from './match3.js';
 
 let passed = 0;
@@ -13,228 +13,206 @@ function test(name, fn) {
   catch (e) { console.error(`FAIL  ${name}\n      ${e.message}`); process.exitCode = 1; }
 }
 
-// Tablero desde filas escritas a mano, para que los casos se lean claro.
-const board = (rows) => rows.flatMap((r) => [...r].map((ch) => (ch === '.' ? null : Number(ch))));
-
-// Azar determinista (congruencial lineal): las pruebas tienen que dar
-// siempre lo mismo. Un `() => 0` fijo no sirve porque haría que todas
-// las fichas nuevas fueran iguales y se encadenaran cascadas sin fin.
+// Azar determinista: las pruebas tienen que dar siempre lo mismo.
 function seededRnd(seed = 7) {
   let n = seed;
   return () => { n = (n * 9301 + 49297) % 233280; return n / 233280; };
 }
-const fixedRnd = seededRnd();
 
-test('detecta línea horizontal de 3', () => {
-  const g = board([
-    '111000',
-    '234234',
-    '234234',
-    '234234',
-    '234234',
-    '234234',
-  ]);
-  const hits = findMatches(g);
-  assert.ok(hits.has(0) && hits.has(1) && hits.has(2), 'los tres primeros forman línea');
+// Tablero desde filas escritas a mano (7×7). Dígito = tipo; letras =
+// especiales sobre el tipo 0: h/v rayadas, b bomba, C bola de colores;
+// '.' casilla vacía, ' ' casilla que no existe.
+let ids = 0;
+function board(rows, types = 5) {
+  const cells = [];
+  const mask = [];
+  rows.forEach((r) => [...r].forEach((ch) => {
+    mask.push(ch !== ' ');
+    if (ch === ' ' || ch === '.') { cells.push(null); return; }
+    ids += 1;
+    if (ch === 'h' || ch === 'v') cells.push({ id: ids, t: 0, sp: ch });
+    else if (ch === 'b') cells.push({ id: ids, t: 0, sp: 'bomb' });
+    else if (ch === 'C') cells.push({ id: ids, t: -1, sp: 'color' });
+    else cells.push({ id: ids, t: Number(ch), sp: null });
+  }));
+  return { rows: rows.length, cols: rows[0].length, types, cells, mask: mask.every(Boolean) ? null : mask, jelly: new Array(cells.length).fill(0), nextId: 1000 };
+}
+const at = (r, c) => r * COLS + c;
+
+const NOISE = [
+  '1234123',
+  '2341234',
+  '3412341',
+  '4123412',
+  '1234123',
+  '2341234',
+  '3412341',
+];
+
+test('detecta líneas horizontales y verticales', () => {
+  const b = board(['0001234', ...NOISE.slice(1)]);
+  const runs = findRuns(b);
+  assert.equal(runs.length, 1);
+  assert.deepEqual(runs[0].cells, [0, 1, 2]);
+  const v = board(NOISE.map((r, i) => (i < 3 ? `0${r.slice(1)}` : r)));
+  assert.ok(findRuns(v).some((r) => r.dir === 'v' && r.cells.length === 3));
 });
 
-test('detecta línea vertical de 3', () => {
-  const g = board([
-    '512340',
-    '512340',
-    '512340',
-    '212340',
-    '312340',
-    '412340',
-  ]);
-  const hits = findMatches(g);
-  assert.ok(hits.has(0) && hits.has(SIZE) && hits.has(SIZE * 2), 'la columna 0 forma línea');
+test('no inventa líneas en un tablero sin ellas', () => {
+  assert.equal(findRuns(board(NOISE)).length, 0);
 });
 
-test('no inventa líneas donde no las hay', () => {
-  const g = board([
-    '010101',
-    '101010',
-    '010101',
-    '101010',
-    '010101',
-    '101010',
-  ]);
-  assert.equal(findMatches(g).size, 0);
+test('4 en línea hace rayada; 5 hace bola de colores; L hace bomba', () => {
+  const four = board(['0000123', ...NOISE.slice(1)]);
+  const g4 = findGroups(four)[0];
+  assert.equal(classifyGroup(four, g4, [1]).sp, 'h');
+  const five = board(['0000023', ...NOISE.slice(1)]);
+  assert.equal(classifyGroup(five, findGroups(five)[0]).sp, 'color');
+  const ell = board(['0001234', '0234123', '0412341', ...NOISE.slice(3)]);
+  const gs = findGroups(ell);
+  assert.equal(gs.length, 1, 'la L es un solo grupo');
+  assert.equal(classifyGroup(ell, gs[0]).sp, 'bomb');
 });
 
-test('una línea de 4 cuenta las 4 fichas', () => {
-  const g = board([
-    '111120',
-    '234234',
-    '234234',
-    '234234',
-    '234234',
-    '234234',
-  ]);
-  const hits = findMatches(g);
-  assert.equal([...hits].filter((i) => i < SIZE).length, 4);
+test('una jugada válida limpia, crea la especial donde se jugó y gasta el tablero viejo', () => {
+  // mover el 0 de (1,3) a (0,3) completa 0000 en la fila de arriba
+  const b = board(['0001234', '2340123', ...NOISE.slice(2)]);
+  const res = playSwap(b, at(0, 3), at(1, 3), seededRnd());
+  assert.ok(res.ok);
+  const first = res.steps[0];
+  assert.equal(first.created.length, 1);
+  assert.equal(first.created[0].sp, 'h');
+  assert.equal(first.created[0].at, at(0, 3), 'nace donde llegó la golosina movida');
+  assert.equal(first.collected[0], 3);
 });
 
-test('la gravedad hace caer las fichas y rellena arriba', () => {
-  const g = board([
-    '111111',
-    '222222',
-    '333333',
-    '444444',
-    '555555',
-    '......',   // fila de abajo vacía
-  ]);
-  const next = applyGravity(g, 6, () => 0);
-  assert.equal(next[SIZE * 5], 5, 'lo de arriba baja hasta el fondo');
-  assert.ok(next.every((v) => v != null), 'no quedan huecos');
-  assert.equal(next[0], 0, 'las fichas nuevas entran por arriba');
-});
-
-test('resolveBoard no se cuelga aunque el relleno siga formando líneas', () => {
-  // Relleno constante: cada oleada de fichas nuevas vuelve a alinear.
-  // Sin tope de cascadas esto giraría para siempre y colgaría la app.
-  const g = board([
-    '111000',
-    '234234',
-    '234234',
-    '234234',
-    '234234',
-    '234234',
-  ]);
-  const res = resolveBoard(g, 5, () => 0);
-  assert.ok(res.cascades <= 30, 'las cascadas tienen tope');
-  assert.ok(res.cleared > 0);
-});
-
-test('resolveBoard limpia y deja el tablero sin líneas', () => {
-  const g = board([
-    '111000',
-    '234234',
-    '234234',
-    '234234',
-    '234234',
-    '234234',
-  ]);
-  const { board: out, cleared, cascades } = resolveBoard(g, 5, seededRnd(3));
-  assert.ok(cleared >= 3, `debe limpiar al menos 3 (limpió ${cleared})`);
-  assert.ok(cascades < 30, 'con relleno variado las cascadas terminan solas');
-  assert.equal(findMatches(out).size, 0, 'al terminar no pueden quedar líneas');
-});
-
-test('un intercambio que no forma línea se deshace y no puntúa', () => {
-  const g = board([
-    '010101',
-    '101010',
-    '010101',
-    '101010',
-    '010101',
-    '101010',
-  ]);
-  const res = trySwap(g, 0, 1, 4, fixedRnd);
-  assert.equal(res.ok, false, 'no debe aceptarse');
-  assert.equal(res.cleared, 0);
-  assert.deepEqual(res.board, g, 'el tablero queda igual que antes');
-});
-
-test('un intercambio que forma línea sí puntúa', () => {
-  // Cambiar (0,0) con (1,0) pone tres '2' en la fila 0.
-  const g = board([
-    '122345',
-    '234153',
-    '345215',
-    '451534',
-    '515342',
-    '153425',
-  ]);
-  const res = trySwap(g, 0, SIZE, 6, () => 0.99);
-  assert.equal(res.ok, true, 'el intercambio debería valer');
-  assert.ok(res.cleared >= 3, `debe limpiar al menos 3 (limpió ${res.cleared})`);
-});
-
-test('no se puede intercambiar fichas que no son vecinas', () => {
-  const g = createBoard(5, () => 0.42);
-  const res = trySwap(g, 0, 35, 5);
+test('una jugada que no hace nada no gasta movimiento', () => {
+  const b = board(NOISE);
+  const res = playSwap(b, at(0, 0), at(0, 1), seededRnd());
   assert.equal(res.ok, false);
+  assert.equal(res.board, b);
 });
 
-test('areAdjacent reconoce vecinos y rechaza diagonales', () => {
-  assert.equal(areAdjacent(0, 1), true, 'derecha');
-  assert.equal(areAdjacent(0, SIZE), true, 'abajo');
-  assert.equal(areAdjacent(0, SIZE + 1), false, 'diagonal no');
-  assert.equal(areAdjacent(SIZE - 1, SIZE), false, 'no se envuelve de fila');
+test('no se puede cambiar con una casilla lejana o que no existe', () => {
+  const b = board(['  01234', ...NOISE.slice(1)]);
+  assert.equal(areAdjacent(b, 0, 2), false);
+  assert.equal(playSwap(b, at(0, 1), at(0, 2), seededRnd()).ok, false);
 });
 
-test('el tablero inicial no regala líneas y tiene jugadas', () => {
-  for (let seed = 0; seed < 25; seed++) {
-    let n = seed + 1;
-    const rnd = () => { n = (n * 9301 + 49297) % 233280; return n / 233280; };
-    const g = createBoard(5, rnd);
-    assert.equal(findMatches(g).size, 0, `semilla ${seed}: no debe empezar con líneas`);
-    assert.equal(hasAnyMove(g), true, `semilla ${seed}: debe haber al menos una jugada`);
+test('la rayada limpia su fila entera al estallar', () => {
+  const b = board(NOISE);
+  const cells = blastCells(b, at(3, 3), 'h', 0);
+  assert.deepEqual(cells, [0, 1, 2, 3, 4, 5, 6].map((c) => at(3, c)));
+  assert.equal(blastCells(b, at(3, 3), 'bomb', 0).length, 9);
+});
+
+test('la bola de colores con una golosina se lleva todas las de ese tipo', () => {
+  const b = board(['C123412', ...NOISE.slice(1)]);
+  const ones = b.cells.filter((c) => c && c.t === 1).length;
+  const res = playSwap(b, at(0, 0), at(0, 1), seededRnd());
+  assert.ok(res.ok);
+  assert.ok(res.steps[0].collected[1] >= ones, 'se llevó todas las del tipo 1');
+});
+
+test('dos especiales juntas combinan su explosión', () => {
+  const b = board(['hv12341', ...NOISE.slice(1)]);
+  const res = playSwap(b, at(0, 0), at(0, 1), seededRnd());
+  assert.ok(res.ok);
+  assert.ok(res.steps[0].cleared.length >= ROWS + COLS - 1, 'fila y columna completas');
+});
+
+test('la gravedad conserva las golosinas, las baja y rellena arriba', () => {
+  const b = board(['1234123', '.......', ...NOISE.slice(2)]);
+  const keepIds = b.cells[at(0, 0)].id;
+  const g = applyGravity(b, seededRnd());
+  assert.equal(g.cells[at(1, 0)].id, keepIds, 'la de arriba bajó una casilla');
+  assert.ok(g.cells[at(0, 0)].drop >= 1, 'la nueva sabe desde dónde cae');
+  assert.ok(g.cells.every((c, i) => !b.mask || !b.mask[i] || c), 'no quedan huecos');
+});
+
+test('la gravedad salta las casillas que no existen', () => {
+  const b = board(['1      ', '       ', '2      ', ...NOISE.slice(3)]);
+  const g = applyGravity(b, seededRnd());
+  assert.equal(g.cells[at(1, 0)], null, 'la casilla que no existe sigue vacía');
+  assert.equal(g.cells[at(2, 0)].t, 2);
+});
+
+test('cada cascada termina (tope) y el tablero queda lleno', () => {
+  const rnd = seededRnd(3);
+  let b = createBoard({ types: 3 }, rnd);
+  for (let k = 0; k < 40; k++) {
+    const m = allMoves(b)[0];
+    if (!m) { b = shuffleBoard(b, rnd); continue; }
+    const res = playSwap(b, m[0], m[1], rnd);
+    assert.ok(res.ok);
+    assert.ok(res.steps.length <= 30);
+    b = res.board;
+    assert.ok(b.cells.every(Boolean), 'sin huecos');
   }
 });
 
-test('hasAnyMove ve la jugada obvia', () => {
-  // Intercambiar (0,1) con (1,1) alinea tres '0' en la fila de arriba.
-  const g = board([
-    '010333',
-    '101444',
-    '245245',
-    '452452',
-    '524524',
-    '245245',
-  ]);
-  assert.equal(hasAnyMove(g), true);
+test('un tablero nuevo no trae líneas hechas y siempre tiene jugada', () => {
+  for (let s = 1; s < 25; s++) {
+    const b = createBoard({ types: 6 }, seededRnd(s));
+    assert.equal(findRuns(b).length, 0);
+    assert.ok(hasAnyMove(b));
+    assert.ok(findHint(b));
+  }
 });
 
-test('hasAnyMove coincide con una comprobación independiente', () => {
-  // En vez de inventar a mano un tablero sin jugadas (fácil de
-  // equivocarse: en un damero de 2 colores SÍ hay jugadas, porque un
-  // cambio vertical alinea dos tríos horizontales), se compara contra
-  // una implementación ingenua sobre muchos tableros al azar.
-  const naive = (g) => {
-    for (let a = 0; a < SIZE * SIZE; a++) {
-      for (let b = 0; b < SIZE * SIZE; b++) {
-        if (!areAdjacent(a, b)) continue;
-        const t = [...g];
-        [t[a], t[b]] = [t[b], t[a]];
-        if (findMatches(t).size > 0) return true;
-      }
+test('todos los niveles arman su tablero con su forma y gelatina', () => {
+  assert.equal(LEVELS.length, 30);
+  LEVELS.forEach((L0) => {
+    const b = levelBoard(L0.level, seededRnd(L0.level));
+    assert.equal(findRuns(b).length, 0, `nivel ${L0.level}`);
+    assert.ok(hasAnyMove(b), `nivel ${L0.level} sin jugadas`);
+    if (L0.goals.some((g) => g.kind === 'jelly')) assert.ok(jellyLeft(b) > 0, `nivel ${L0.level} sin gelatina`);
+    L0.goals.filter((g) => g.kind === 'collect').forEach((g) => assert.ok(g.t < L0.types, `nivel ${L0.level}: tipo inexistente`));
+  });
+});
+
+test('las metas y las estrellas se cuentan bien', () => {
+  const st = goalStatus(2, { score: 0, collected: { 0: LEVELS[1].goals[0].n }, board: levelBoard(2, seededRnd()) });
+  assert.equal(st.done, true);
+  assert.equal(starsFor(1, 0), 1);
+  assert.equal(starsFor(1, 99999), 3);
+});
+
+// Un bot sencillo (elige la jugada que más limpia) tiene que poder ganar
+// cada nivel al menos una vez en pocos intentos: si no, el nivel está mal
+// calibrado y frustraría a cualquiera.
+function botPlays(level, seed) {
+  const rnd = seededRnd(seed);
+  const L0 = LEVELS[level - 1];
+  let b = levelBoard(level, rnd);
+  let score = 0;
+  const collected = {};
+  for (let m = 0; m < L0.moves; m++) {
+    let best = null;
+    for (const [a, c] of allMoves(b)) {
+      const r = playSwap(b, a, c, seededRnd(seed * 31 + m));
+      if (!r.ok) continue;
+      const gain = r.steps.reduce((s0, st) => s0 + st.points + st.jellyHit.length * 15 + L0.goals.filter((g) => g.kind === 'collect').reduce((x, g) => x + (st.collected[g.t] || 0) * 12, 0), 0);
+      if (!best || gain > best.gain) best = { a, c, gain };
     }
-    return false;
-  };
-
-  let vistosConJugada = 0, vistosSinJugada = 0;
-  for (let seed = 1; seed <= 120; seed++) {
-    const rnd = seededRnd(seed);
-    // Pocos tipos → más probable que salga alguno sin jugadas.
-    const g = Array.from({ length: SIZE * SIZE }, () => Math.floor(rnd() * 3));
-    const esperado = naive(g);
-    assert.equal(hasAnyMove(g), esperado, `semilla ${seed}`);
-    esperado ? vistosConJugada++ : vistosSinJugada++;
+    if (!best) { b = shuffleBoard(b, rnd); continue; }
+    const r = playSwap(b, best.a, best.c, rnd);
+    r.steps.forEach((st, k) => { score += st.points * (k + 1); Object.entries(st.collected).forEach(([t, n]) => { collected[t] = (collected[t] || 0) + n; }); });
+    b = r.board;
+    if (!hasAnyMove(b)) b = shuffleBoard(b, rnd);
+    if (goalStatus(level, { score, collected, board: b }).done) return true;
   }
-  assert.ok(vistosConJugada > 0, 'la muestra debe incluir tableros con jugada');
-});
+  return false;
+}
 
-test('findHint devuelve una jugada que de verdad sirve', () => {
-  for (let seed = 1; seed <= 40; seed++) {
-    const rnd = seededRnd(seed);
-    const g = Array.from({ length: SIZE * SIZE }, () => Math.floor(rnd() * 4));
-    const hint = findHint(g);
-    if (hint === null) { assert.equal(hasAnyMove(g), false, `semilla ${seed}`); continue; }
-    const [a, b] = hint;
-    assert.equal(areAdjacent(a, b), true, `semilla ${seed}: la pista debe ser de vecinas`);
-    const { matched } = previewSwap(g, a, b);
-    assert.ok(matched.size >= 3, `semilla ${seed}: la pista tiene que formar línea`);
+test('cada nivel se puede ganar (bot sencillo, varios intentos)', () => {
+  const lost = [];
+  for (const L0 of LEVELS) {
+    let won = false;
+    for (let s = 1; s <= 4 && !won; s++) won = botPlays(L0.level, s * 17 + L0.level);
+    if (!won) lost.push(L0.level);
   }
-});
-
-test('previewSwap no toca el tablero original', () => {
-  const g = createBoard(5, seededRnd(11));
-  const copia = [...g];
-  previewSwap(g, 0, 1);
-  assert.deepEqual(g, copia, 'previewSwap no debe mutar lo que recibe');
+  assert.deepEqual(lost, [], `niveles que el bot no gana: ${lost.join(', ')}`);
 });
 
 console.log(`\n${passed} pruebas OK`);

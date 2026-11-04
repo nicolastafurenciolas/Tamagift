@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Enum as SAEnum, Text
+from sqlalchemy import Column, Integer, BigInteger, String, Float, ForeignKey, DateTime, Enum as SAEnum, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -49,6 +49,19 @@ class Pet(Base):
     drawing_feliz_redesign = Column(Text, nullable=True)
     drawing_enojado_redesign = Column(Text, nullable=True)
     active_design = Column(String(10), nullable=False, default="original")
+    # Estilo visual (pixel, lofi, retro, papel, neon, sticker). Lo elige
+    # quien regala; quien recibe lo puede cambiar desde el juego.
+    app_style = Column(String(16), nullable=True)
+
+    # Llave del buzón: con ella quien regaló puede mandar cartas después
+    # (ver Letter). Solo se entrega una vez, al crear la mascota.
+    owner_token = Column(String(40), nullable=True)
+
+    # Lo personal que quien regala sigue sumando después de crear el
+    # regalo (ver PLAN_REGALO_VIVO.md): ficha de gustos, fechas de la
+    # pareja, mensajes por situación, cupones, lugares, recetas y su
+    # propio mochi. JSON; el servidor no lo interpreta, solo lo guarda.
+    profile = Column(Text, nullable=True)
 
     hunger_meter = Column(Integer, default=60)
     love_meter = Column(Integer, default=60)
@@ -137,6 +150,7 @@ class Outfit(Base):
     drawing_normal = Column(Text, nullable=False)
     drawing_feliz = Column(Text, nullable=False)
     drawing_enojado = Column(Text, nullable=False)
+    recipe = Column(Text, nullable=True)   # JSON de la mochi con el traje
 
     pet = relationship("Pet", back_populates="outfits")
 
@@ -184,6 +198,101 @@ class DecorItem(Base):
     ratio = Column(Float, default=1.0)
 
     pet = relationship("Pet", back_populates="decor_items")
+
+class Letter(Base):
+    """Una carta que quien regaló manda después de crear el regalo (texto
+    y, si quiere, una foto). Le llega a quien recibe como un paquete en la
+    puerta de su cuarto.
+
+    Escribir pide la llave del buzón (`Pet.owner_token`) o la llave de
+    acceso con que se compró ese regalo; leer solo pide el link del
+    regalo, igual que el resto de la mascota.
+    """
+    __tablename__ = "letters"
+
+    id = Column(Integer, primary_key=True, index=True)
+    pet_id = Column(Integer, ForeignKey("pets.id"), index=True, nullable=False)
+    text = Column(Text, nullable=False)
+    photo = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    # "carta" | "nota" (corta, sin sobre) | "paquete" (trae un objeto en
+    # `payload`) | "voz" (nota de voz en `audio`) | "respuesta" (contesta
+    # una pregunta de quien recibe; `payload` dice cuál).
+    kind = Column(String(12), nullable=True, default="carta")
+    # Carta con fecha: no se puede leer antes de `open_at` (el juego la
+    # muestra en el cofre con cuenta regresiva).
+    open_at = Column(DateTime, nullable=True)
+    payload = Column(Text, nullable=True)
+    audio = Column(Text, nullable=True)
+    # Cuándo la abrió quien recibe (quien regaló lo ve en su rincón).
+    opened_at = Column(DateTime, nullable=True)
+
+
+class Reply(Base):
+    """Lo que quien recibe le manda a quien regaló desde el juego: una
+    carta de vuelta, una foto de su cuarto, una pregunta para el tablero,
+    el canje de un cupón o una meta cumplida.
+
+    `answer` / `done_at` los pone quien regaló (responde la pregunta o
+    marca el cupón como cumplido) y el juego se lo muestra a quien recibe.
+    """
+    __tablename__ = "replies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    pet_id = Column(Integer, ForeignKey("pets.id"), index=True, nullable=False)
+    kind = Column(String(12), nullable=False)
+    text = Column(Text, nullable=True)
+    photo = Column(Text, nullable=True)
+    ref = Column(String(60), nullable=True)
+    answer = Column(Text, nullable=True)
+    done_at = Column(DateTime, nullable=True)
+    seen_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Snapshot(Base):
+    """Una foto del álbum: quien recibe le toma fotos a su mascota en el
+    cuarto (con marco de polaroid). Viven en el servidor para no perderlas
+    al cambiar de celular, y quien regaló las ve desde su buzón.
+
+    `thumb` es una miniatura chica (para la cuadrícula del álbum, que se
+    pide entera); la foto grande se pide aparte.
+    """
+    __tablename__ = "snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    pet_id = Column(Integer, ForeignKey("pets.id"), index=True, nullable=False)
+    image = Column(Text, nullable=False)
+    thumb = Column(Text, nullable=False)
+    caption = Column(String(80), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class GameSave(Base):
+    """La partida de quien recibe el regalo: monedas, lo comprado, el
+    cuarto, el vestidor, los récords… Antes vivía solo en el navegador
+    del celular: si cambiaba de teléfono o borraba los datos, lo perdía
+    todo.
+
+    Una fila por mascota. `data` es el JSON tal cual lo arma el juego
+    (gameState.js): el servidor no lo interpreta, solo lo guarda.
+    `rev` sube en cada guardado; quien guarda dice sobre cuál versión
+    trabajó, y si otro dispositivo guardó entre medio el servidor no
+    pisa nada y le devuelve la versión nueva (ver POST …/save). Si el
+    dispositivo decide que la suya es la más nueva, vuelve a mandarla
+    sobre esa versión.
+    `saved_at` es la hora (ms, reloj del dispositivo) del último cambio
+    hecho a mano, para decidir cuál de dos partidas es la más reciente.
+    """
+    __tablename__ = "game_saves"
+
+    id = Column(Integer, primary_key=True, index=True)
+    pet_id = Column(Integer, ForeignKey("pets.id"), unique=True, index=True, nullable=False)
+    data = Column(Text, nullable=False)
+    rev = Column(Integer, nullable=False, default=1)
+    saved_at = Column(BigInteger, nullable=False, default=0)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
 
 class AccessKey(Base):
     """Llave de acceso: se compra una, sirve para crear UNA mascota.
