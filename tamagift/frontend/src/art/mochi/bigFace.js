@@ -539,8 +539,19 @@ function eyeAngry(style, p, side) {
   const rows = toRows(g);
   const ax = W / 2, ay = t + H / 2;
   if (side < 0) return { rows, ax, ay };
-  // el derecho es el espejo exacto (el brillo sigue al párpado)
-  return { rows: mirrorRows(rows), ax: W + 1 - ax, ay };
+  // el derecho: la forma espejada, pero el brillo otra vez arriba a la
+  // IZQUIERDA (la luz del mundo), justo debajo del párpado
+  const m = gridOf(mirrorRows(rows)).map((r) => r.map((ch) => (ch === 'w' ? 'k' : ch)));
+  const okM = (x, y) => m[y] && 'keE'.includes(m[y][x]) && inner(m, x, y);
+  const n = H >= 7 ? 2 : H >= 5 ? 1 : 0;
+  if (n) {
+    for (let x = 1; x < Math.ceil(W / 2) + 1; x++) {
+      let y = 0; while (y < m.length && m[y][x] === '.') y++;
+      const yS = y + t + (H >= 7 ? 1 : 0) - (H < 7 ? 0 : 0);
+      if (okM(x, yS) && (n < 2 || okM(x + 1, yS))) { m[yS][x] = 'w'; if (n >= 2) m[yS][x + 1] = 'w'; if (H >= 10 && m[yS + 1] && m[yS + 1][x] === 'k') m[yS + 1][x] = 'w'; break; }
+    }
+  }
+  return { rows: toRows(m), ax: W + 1 - ax, ay };
 }
 
 export function eyeStamp(style, mood, p, side, nb) {

@@ -90,8 +90,9 @@ function hairTones(col) {
     base: col,
     back: black ? mixc(col, '#000000', 0.25) : shade(col, light ? -0.9 : -0.7),   // lo de atrás, en sombra
     // hebras: en pelo negro van más claras (si no, no se ven)
-    dark: black ? mixc(col, '#B8A9C6', 0.3) : shade(col, light ? -1.4 : -1.1),
-    hi: mixc(col, '#FFFFFF', light ? 0.7 : black ? 0.36 : 0.5),
+    // en pelo negro las luces son frías (azul lavanda), como en el anime
+    dark: black ? mixc(col, '#8FA6E0', 0.42) : shade(col, light ? -1.4 : -1.1),
+    hi: black ? mixc(col, '#A9C2FF', 0.62) : mixc(col, '#FFFFFF', light ? 0.7 : 0.5),
   };
 }
 
@@ -231,6 +232,16 @@ function sideLocks(g, fr, t, len, w = 12) {
   return one(-1) + one(1);
 }
 
+// Mechoncitos sueltos en las sienes (y uno en la frente): rompen el
+// borde liso del casquete, que si no se lee como un casco.
+function wisps(fr, yAt, t, center = true) {
+  const one = (x, s, len) => {
+    const y = yAt(x) - 3;
+    return part(`M${f(x - 3.5)} ${f(y)} C${f(x - 3.5)} ${f(y + len * 0.5)} ${f(x + s * 3)} ${f(y + len * 0.8)} ${f(x + s * 4.5)} ${f(y + len)} C${f(x + s * 1.5)} ${f(y + len * 0.55)} ${f(x + 3.5)} ${f(y + len * 0.4)} ${f(x + 3.5)} ${f(y)}Z`, t.base, { 'stroke-width': 2 });
+  };
+  return one(100 - fr.half * 0.74, 1, 12) + one(100 + fr.half * 0.74, -1, 12) + (center ? one(100 - fr.half * 0.12, 1, 9) : '');
+}
+
 const parting = (g, t, x = 100) => line(`M${f(x)} ${f(g.topAt(x) - 4)} L${f(x)} ${f(g.topAt(x) + 12)}`, t.dark, 2.4, { opacity: 0.85 });
 
 // Coletero del color de los detalles.
@@ -339,7 +350,8 @@ export function renderHair(id, g, c) {
       const hlAt = (x) => hl + (fr.sideY - hl) * Math.pow(Math.abs(x - 100) / fr.half, 1.5);
       out.front = hairShadow(g, d, 2.6) + sideLocks(g, fr, t, 10, 9) + part(d, t.base)
         + line([-0.66, -0.33, 0, 0.33, 0.66].map((k) => { const x = 100 + fr.half * k; return `M${f(x)} ${f(hlAt(x) - 2.5)} Q${f(100 + fr.half * k * 0.6)} ${f(g.top + 18)} ${f(100 + k * 6)} ${f(g.top + 2)}`; }).join(''), t.dark, 2.4, { opacity: 0.7 })
-        + angelRing(g, fr, t, { from: 0.8, to: 0.36, o1: -6, o2: -10 });
+        + angelRing(g, fr, t, { from: 0.8, to: 0.36, o1: -6, o2: -10 })
+        + wisps(fr, hlAt, t);
       const r = 16 * Math.pow(g.wf, 0.15), by = g.top - r + 3;
       out.back = disc(100, by, r, r * 0.9, t.base)
         + line(`M${f(100 - r * 0.65)} ${f(by)} Q100 ${f(by - r * 0.85)} ${f(100 + r * 0.65)} ${f(by - r * 0.1)} M${f(100 - r * 0.35)} ${f(by + r * 0.45)} Q${f(100 + r * 0.2)} ${f(by + r * 0.2)} ${f(100 + r * 0.65)} ${f(by + r * 0.45)}`, t.dark, 2.2, { opacity: 0.75 })
@@ -416,7 +428,8 @@ export function renderHair(id, g, c) {
     case 'copete': {
       // copete: una ola de pelo que sube desde la frente y se dobla hacia
       // atrás, sobre un casquete corto
-      out.front = hairCap({ n: 7, depth: -10, notch: 5, sweep: 4, locks: [5, 9], ringOpts: { from: 0.82, to: 0.5, o1: -6, o2: -9 } });
+      // flequillo corto y desordenado debajo del copete (no un borde liso)
+      out.front = hairCap({ n: 6, depth: -6, notch: 8, sweep: 6, locks: [7, 9], ringOpts: { from: 0.82, to: 0.5, o1: -6, o2: -9 } });
       const L = 100 - fr.half * 0.62, R = 100 + fr.half * 0.6, y = g.top + 6;
       const wave = `M${f(L)} ${f(y + 13)} C${f(L - 5)} ${f(y - 6)} ${f(100 - fr.half * 0.2)} ${f(y - 22)} ${f(100 + fr.half * 0.28)} ${f(y - 21)} C${f(R + 2)} ${f(y - 20)} ${f(R + 8)} ${f(y - 9)} ${f(R)} ${f(y - 4)} C${f(R - 4)} ${f(y - 1)} ${f(R - 8)} ${f(y - 4)} ${f(R - 10)} ${f(y - 1)} C${f(R - 12)} ${f(y + 4)} ${f(R - 10)} ${f(y + 9)} ${f(R - 12)} ${f(y + 12)} Q100 ${f(y + 7)} ${f(L)} ${f(y + 13)}Z`;
       out.top = part(wave, t.base)

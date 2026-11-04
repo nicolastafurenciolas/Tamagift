@@ -1135,7 +1135,12 @@ function kitPixel(svg, items, o) {
   // (unas gafas de sol, un antifaz, un flequillo) las tapa.
   for (const s of stamps) {
     const si = s.it.i;
-    const covered = (p) => idx[p] > si && al[p] >= 0.99 && !isLine[p] && items[idx[p]] && items[idx[p]].role !== 'stamp';
+    // un vidrio transparente (lentes) no tapa: los ojos se ven a través
+    const covered = (p) => {
+      if (idx[p] <= si || al[p] < 0.99 || isLine[p]) return false;
+      const t = items[idx[p]];
+      return !!t && t.role !== 'stamp' && !!t.fill && t.fill[3] >= 0.93;
+    };
     drawStamp(img, W, H, s, o, covered);
   }
   ctx.setTransform(1, 0, 0, 1, 0, 0);

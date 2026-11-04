@@ -24,15 +24,7 @@ export const DEFAULT_MOCHI = {
 
 const mixc = (a, b, t) => hex(mixRgb(parseColor(a), parseColor(b), t));
 
-// Lo puesto en la cara que TAPA ojos o boca. En pixel las piezas hechas a
-// mano (ojos, boca, mejillas) se pintan al final, encima de todo: lo que
-// queda tapado no se dibuja. (Los demás estilos lo tapan solos.)
-const COVERS = {
-  gafasol: { eyes: [-1, 1] },
-  pepinos: { eyes: [-1, 1] },
-  parche: { eyes: [1] },
-  tapabocas: { mouth: true, cheeks: true },
-};
+
 const isPale = (c) => lum(parseColor(c)) > 0.82;
 
 function colorsOf(r) {
@@ -79,6 +71,13 @@ export function mochiSvg(recipe = DEFAULT_MOCHI, mood = 'normal') {
   parts.push(hair.back);
   parts.push(ears.back);
   parts.push(P(g.path, { fill: c.body, stroke: INK, 'stroke-width': 2.8, 'stroke-linejoin': 'round', 'data-r': 'body' }));
+  // En neón el kit oscurece el cuerpo hacia la noche: un velo de luz de
+  // su propio color (solo neón, recortado al cuerpo) le devuelve el tono.
+  {
+    const nid = `nb${Math.round(g.w * 10)}${Math.round((r.chub || 0) * 9)}`;
+    parts.push(G({ 'data-only': 'neon' }, E('clipPath', { id: nid }, P(g.path))
+      + G({ 'clip-path': `url(#${nid})` }, P(g.path, { fill: 'none', stroke: c.body, 'stroke-width': 150, opacity: 0.1, 'data-r': 'line' }))));
+  }
   parts.push(renderPattern(r.pattern, g, c));
   parts.push(Ell(g.belly.cx, g.belly.cy, g.belly.rx, g.belly.ry, { fill: c.inner, 'data-r': 'flat', opacity: c.inner.toUpperCase() === c.body.toUpperCase() ? 0 : 0.95 }));
   // la panza también tiene volumen: más sombra abajo a la derecha (la luz
@@ -96,14 +95,16 @@ export function mochiSvg(recipe = DEFAULT_MOCHI, mood = 'normal') {
   parts.push(hair.front);
   parts.push(ears.front);
   parts.push(ears.face);
-  const cover = COVERS[resolveWear(r).cara?.id] || {};
-  parts.push(renderCheeks(r.cheeks, g, mood, c, { y: shift.y * 0.15, dx: (shift.dx || 0) * 0.6 }, { hidePx: cover.cheeks }));
+  parts.push(renderCheeks(r.cheeks, g, mood, c, { y: shift.y * 0.15, dx: (shift.dx || 0) * 0.6 }));
   parts.push(renderMarks(r.marks, g, mood, c, shift));
   parts.push(wear.under);
   parts.push(renderBrows(r.brows, g, mood, c, shift));
-  parts.push(renderEyes(r.eyes, g, mood, c, shift, { brows: r.brows && r.brows !== 'ninguna', dark: c.dark, hidePx: cover.eyes }));
+  parts.push(renderEyes(r.eyes, g, mood, c, shift, { brows: r.brows && r.brows !== 'ninguna', dark: c.dark }));
   // el hociquito va sobre la panza clarita: su tinta sigue a ese color
-  parts.push(renderMouth(r.mouth, g, mood, c, { y: mouthY - g.face.mouthY }, { dark: r.mouth === 'hocico' ? c.darkInner : c.dark, hidePx: cover.mouth }));
+  // si el animal ya trae nariz en la cara (ñata, nariz de koala), el
+  // hociquito no dibuja otra: queda la boquita w
+  const mouth = r.mouth === 'hocico' && ears.faceMouthDy ? 'w' : r.mouth;
+  parts.push(renderMouth(mouth, g, mood, c, { y: mouthY - g.face.mouthY }, { dark: mouth === 'hocico' ? c.darkInner : c.dark }));
   parts.push(hair.top);
   parts.push(wear.front);
   parts.push(wear.hand);

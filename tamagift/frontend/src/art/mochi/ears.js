@@ -182,7 +182,9 @@ export function renderEars(id, g, c) {
       }
       const curl = (x, y, r) => `M${f(x - r)} ${f(y)} a${f(r)} ${f(r)} 0 1 1 ${f(r)} ${f(r)}`;
       out.front = part(`${d}Z`, c.wool)
-        + P(curl(cx - 16 * k, cy + 1, 3.8) + curl(cx + 1 * k, cy - 5, 4) + curl(cx + 17 * k, cy + 2, 3.6), { fill: 'none', stroke: shade(c.wool, -0.9), 'stroke-width': 2.2, 'stroke-linecap': 'round', 'data-r': 'line' })
+        // sombra en la parte de abajo de la nube y rizos marcados
+        + P(`M${f(xl)} ${f(yb - 2)} Q${f(cx)} ${f(yb + 4)} ${f(xr)} ${f(yb - 2)} L${f(xr - 2)} ${f(cy - 2)} Q${f(cx)} ${f(cy + 4)} ${f(xl + 2)} ${f(cy - 2)}Z`, { fill: shade(c.wool, -1.2), opacity: 0.55, 'data-r': 'tone' })
+        + P(curl(cx - 16 * k, cy + 1, 4) + curl(cx + 1 * k, cy - 5, 4.2) + curl(cx + 17 * k, cy + 2, 3.8) + curl(cx - 6 * k, cy + 7, 3.4) + curl(cx + 9 * k, cy + 7, 3.4), { fill: 'none', stroke: shade(c.wool, -1.8), 'stroke-width': 2.6, 'stroke-linecap': 'round', 'data-r': 'line' })
         + Ell(cx - 10 * k, t - 2, 5, 2.4, { fill: '#FFFFFF', opacity: 0.85, 'data-r': 'shine' });
       out.back = pair(g, 0.36, 13, part('M3 2 C-5 -3 -18 -1 -24 6 C-16 11 -5 11 3 8Z', c.body) + flat('M-1 3 C-7 1.5 -14 2.5 -18 5.5 C-12 8 -6 7.5 -1 6Z', inner), { tilt: 0.3, rot: -8 });
       break;
@@ -218,7 +220,7 @@ export function renderEars(id, g, c) {
       // cuerno con su espiral en bandas (no en rayitas: en pixel se pierden)
       out.front = G({ transform: `translate(100 ${f(t + 6)}) rotate(8)` },
         E('clipPath', { id: id3 }, P(horn)) + part(horn, '#FFE08A', { stroke: '#A8781E' })
-        + G({ 'clip-path': `url(#${id3})` }, flat('M-9 -5 L9 -10 L9 -6.5 L-9 -1.5Z M-9 -16 L9 -21 L9 -17.5 L-9 -12.5Z M-9 -27 L9 -32 L9 -28.5 L-9 -23.5Z', '#E9B949'))
+        + G({ 'clip-path': `url(#${id3})` }, flat('M-9 -6 L9 -12 L9 -6 L-9 0Z M-9 -21 L9 -27 L9 -21.5 L-9 -15.5Z', '#D99A2E'))
         + P(horn, { fill: 'none', stroke: '#A8781E', 'stroke-width': 2.4, 'stroke-linejoin': 'round', 'data-r': 'line' })
         + Ell(-2.6, -14, 1.2, 5, { fill: '#FFFFFF', opacity: 0.8, transform: 'rotate(12 -2.6 -14)', 'data-r': 'shine' }))
         + E('clipPath', { id: id2 }, P(g.path))
@@ -341,7 +343,8 @@ export function colorsForEars(c) {
     earInner: c.inner === '#FFFFFF' || c.inner.toUpperCase() === '#FFF1E4' ? mixc(c.inner, '#FFB3C6', 0.55) : c.inner,
     tip: shade(c.body, -2.2),
     patch: '#4A3F55',
-    wool: mixc('#FFFFFF', c.body, 0.08),
+    // lana: blanca y un poco fría, que se separe de un cuerpo claro
+    wool: lum(parseColor(c.body)) > 0.8 ? '#FFFFFF' : mixc('#FFFFFF', c.body, 0.08),
     mane1: c.accent,
     mane2: c.accentAlt === '#FFFFFF' ? '#B8A1FF' : c.accentAlt,
     gill: mixc(c.accent, '#FF7FA8', 0.75),
