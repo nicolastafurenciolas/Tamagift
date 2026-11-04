@@ -9,6 +9,8 @@ import { UI_SPRITES, foodSpriteFor } from '../../sprites';
 import { BUG_ART, envelopeSvg, crumbSvg, ghostSvg, flakeSvg } from '../../art/room/world';
 import { BUGS } from '../../worldEvents';
 import { findFood } from '../../foodCatalog';
+import PersonalLayer from './personal/PersonalLayer';
+import ReplyBox from './personal/ReplyBox';
 
 // ─────────────────────────────────────────────────────────────────
 // Los sucesos dibujados dentro del cuarto (coordenadas del mundo) y la
@@ -37,7 +39,18 @@ const DOOR_VISITS = {
   intercambio: { si: 'Darle un regalo', no: 'Darle un abrazo', border: 'rose' },
 };
 
-export default function WorldEvents({ event, onResolve, onLetter, onHip, onDoorChoice, pixel }) {
+// `personal`: lo que llega de quien regala (carta, voz, cofre), ver
+// personal/PersonalLayer.jsx. Va en la misma capa que los sucesos.
+export default function WorldEvents({ personal, pixel, ...rest }) {
+  return (
+    <>
+      <EventArt {...rest} pixel={pixel} />
+      {personal && <PersonalLayer {...personal} pixel={pixel} />}
+    </>
+  );
+}
+
+function EventArt({ event, onResolve, onLetter, onHip, onDoorChoice, pixel }) {
   const [gone, setGone] = useState(() => new Set());
   useEffect(() => { setGone(new Set()); }, [event && event.id]);
 
@@ -178,14 +191,15 @@ export default function WorldEvents({ event, onResolve, onLetter, onHip, onDoorC
   }
 }
 
-export function LetterModal({ letter, from, petName, onClose }) {
+// `slug` + `letter.letterId`: la carta vino del buzón y se puede responder.
+export function LetterModal({ letter, from, petName, slug, onClose }) {
   return (
     <Modal onClose={onClose} maxWidth={340} z={85}>
       <div className="pg-anim-pop" style={{ background: '#FFFBF3', border: '2px solid #E8D9C4', borderRadius: 14, padding: '18px 16px', textAlign: 'left', boxShadow: SHADOW.soft, position: 'relative' }}>
         <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)' }}>
           <Sprite markup={envelopeSvg()} cacheKey="envelope" w={46} h={38} />
         </div>
-        <p style={{ fontFamily: FONT.hand || FONT.display, fontSize: 15, color: '#8C7A70', margin: '6px 0 10px' }}>Para {petName} y para ti:</p>
+        <p style={{ fontFamily: FONT.hand || FONT.display, fontSize: 15, color: '#8C7A70', margin: '6px 0 10px' }}>{letter.heading || `Para ${petName} y para ti:`}</p>
         {letter.loading && <p style={{ fontFamily: FONT.hand || FONT.display, fontSize: 18, color: '#8C7A70', margin: 0 }}>Abriendo el sobre…</p>}
         {letter.photo
           ? <div style={{ borderRadius: 10, overflow: 'hidden', border: '6px solid #FFFFFF', boxShadow: SHADOW.soft, transform: 'rotate(-2deg)' }}><Sprite src={letter.photo} w={280} h={210} kind="photo" fit="cover" /></div>
@@ -193,7 +207,8 @@ export function LetterModal({ letter, from, petName, onClose }) {
         {letter.text && <p style={{ fontFamily: FONT.hand || FONT.display, fontSize: 21, color: C.ink, lineHeight: 1.35, margin: letter.photo ? '12px 0 0' : 0, whiteSpace: 'pre-wrap' }}>{letter.text}</p>}
         <p style={{ fontFamily: FONT.hand || FONT.display, fontSize: 15, color: '#8C7A70', margin: '12px 0 0', textAlign: 'right' }}>— {from || 'Con cariño'}</p>
       </div>
-      <button onClick={onClose} className="pg-btn pg-btn-rose pg-focus" style={{ marginTop: 14, padding: '10px 26px', fontSize: 13.5 }}>Guardarla en el corazón</button>
+      {slug && letter.letterId != null && !letter.loading && <div><ReplyBox key={letter.letterId} slug={slug} to={from} refId={letter.letterId} /></div>}
+      <button onClick={onClose} className="pg-btn pg-btn-rose pg-focus" style={{ marginTop: 12, padding: '10px 26px', fontSize: 13.5 }}>Guardarla en el corazón</button>
     </Modal>
   );
 }

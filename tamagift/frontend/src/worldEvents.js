@@ -31,8 +31,14 @@ export const BUGS = [
 
 const pick = (arr, r = Math.random) => arr[Math.floor(r() * arr.length)];
 
+// Lo que llega a la puerta o por debajo de ella: un "algo nuevo" en el
+// cuarto. Con `quiet` (ya hay otra cosa nueva esperando, por ejemplo una
+// carta de quien regaló, ver personal/engine.js) no toca ninguno de
+// estos: solo los sucesos de jugar un rato.
+export const ARRIVAL_EVENTS = ['regalo', 'carta', 'visita', 'dulceotruco', 'intercambio'];
+
 // ¿Qué toca ahora? Devuelve el suceso nuevo o null.
-export function rollEvent(game, pet, { now = Date.now(), rnd = Math.random, date = new Date(now) } = {}) {
+export function rollEvent(game, pet, { now = Date.now(), rnd = Math.random, date = new Date(now), quiet = false } = {}) {
   const ev = game.events || {};
   if (ev.active) return null;
   if (ev.nextAt && now < ev.nextAt) return null;
@@ -41,10 +47,10 @@ export function rollEvent(game, pet, { now = Date.now(), rnd = Math.random, date
   const mk = (type, data = {}, ms = 5 * 60 * 1000) => ({ id: `${type}-${now.toString(36)}`, type, until: now + ms, data });
 
   // Lo diario primero: el regalo y la carta de quien regaló.
-  if (last.regalo !== today) return mk('regalo', { gift: dailyGift(rnd, date, game) }, 24 * 3600 * 1000);
+  if (!quiet && last.regalo !== today) return mk('regalo', { gift: dailyGift(rnd, date, game) }, 24 * 3600 * 1000);
   const phrases = (pet.phrases || []).filter((p) => p.category === 'positiva' || p.category === 'casual');
   const photos = (pet.photos || []).filter((p) => p.url);
-  if (last.carta !== today && (phrases.length || photos.length)) {
+  if (!quiet && last.carta !== today && (phrases.length || photos.length)) {
     const usePhoto = photos.length && (!phrases.length || rnd() < 0.35);
     return mk('carta', usePhoto ? { photo: pick(photos, rnd).url } : { text: pick(phrases, rnd).text }, 24 * 3600 * 1000);
   }
@@ -53,12 +59,12 @@ export function rollEvent(game, pet, { now = Date.now(), rnd = Math.random, date
   // lo diario; los fantasmitas salen más de noche.
   const season = (activeSeason(date) || {}).id;
   const halloween = season === 'halloween', navidad = season === 'navidad';
-  if (halloween && last.dulceotruco !== today) return makeEvent('dulceotruco', game, pet, { now, rnd, date });
-  if (navidad && last.intercambio !== today) return makeEvent('intercambio', game, pet, { now, rnd, date });
+  if (!quiet && halloween && last.dulceotruco !== today) return makeEvent('dulceotruco', game, pet, { now, rnd, date });
+  if (!quiet && navidad && last.intercambio !== today) return makeEvent('intercambio', game, pet, { now, rnd, date });
 
   const pool = [
     ['antojo', 3], ['bichito', 3], ['moneda', 2], ['hipo', 2],
-    ...(last.visita !== today ? [['visita', 1.4]] : []),
+    ...(!quiet && last.visita !== today ? [['visita', 1.4]] : []),
     ...(halloween ? [['fantasmas', phaseOf(date) === 'noche' ? 4 : 2]] : []),
     ...(navidad ? [['copos', phaseOf(date) === 'noche' ? 3.5 : 2]] : []),
   ];
