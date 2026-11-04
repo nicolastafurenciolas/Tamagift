@@ -213,7 +213,7 @@ export default function ArtCatalog() {
   const styles = STYLE_LIST.filter((s) => on.has(s.id));
   const toggle = (id) => setOn((prev) => { const n = new Set(prev); if (n.has(id) && n.size > 1) n.delete(id); else n.add(id); return n; });
   useEffect(() => {
-    document.title = 'Arte de Tamagift';
+    document.title = 'Arte de Tamamochi';
     document.body.dataset.ready = '1';
     // con #seccion en el link, ir ahí (la página se arma después de cargar)
     const id = window.location.hash.slice(1);
@@ -224,7 +224,7 @@ export default function ArtCatalog() {
     <div style={{ background: '#F7F3EE', minHeight: '100vh', color: '#3A2A3E', fontFamily: 'Nunito, system-ui, sans-serif' }}>
       <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(247,243,238,0.95)', backdropFilter: 'blur(6px)', borderBottom: '1px solid #E2D8CC', padding: '12px 20px' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
-          <h1 style={{ fontFamily: "'Baloo 2', Nunito, sans-serif", fontSize: 26, margin: 0, marginRight: 8 }}>Arte de Tamagift</h1>
+          <h1 style={{ fontFamily: "'Baloo 2', Nunito, sans-serif", fontSize: 26, margin: 0, marginRight: 8 }}>Arte de Tamamochi</h1>
           {STYLE_LIST.map((s) => (
             <button key={s.id} onClick={() => toggle(s.id)} style={{ ...chip(on.has(s.id)), background: on.has(s.id) ? s.ui.rose : '#FFFFFF', borderColor: s.ui.rose, color: on.has(s.id) ? s.ui.onAccent : '#3A2A3E' }}>{s.name}</button>
           ))}

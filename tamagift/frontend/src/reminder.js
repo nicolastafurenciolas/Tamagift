@@ -31,7 +31,7 @@ export function reminderIcs({ petName, url, slug = 'mascota', hour = 20, minute 
   if (start <= now) start.setDate(start.getDate() + 1);
   const end = new Date(start.getTime() + 15 * 60000);
   const lines = [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Tamagift//Recordatorio//ES', 'CALSCALE:GREGORIAN',
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Tamamochi//Recordatorio//ES', 'CALSCALE:GREGORIAN',
     'BEGIN:VEVENT',
     `UID:tamagift-${slug}-${hour}${pad(minute)}@tamagift`,
     `DTSTAMP:${utcStamp(now)}`,

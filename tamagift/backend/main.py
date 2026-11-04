@@ -69,7 +69,7 @@ def ensure_late_columns():
 
 ensure_late_columns()
 
-app = FastAPI(title="Tamagift API")
+app = FastAPI(title="Tamamochi API")
 
 # Tope del cuerpo de una petición (se registra ANTES que CORS para que
 # la respuesta 413 también lleve las cabeceras CORS y el navegador la lea). Los esquemas ya limitan cada campo,

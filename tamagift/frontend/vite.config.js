@@ -13,8 +13,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png'],
       manifest: {
-        name: 'Tamagift — Crea el regalo',
-        short_name: 'Tamagift',
+        name: 'Tamamochi — Crea el regalo',
+        short_name: 'Tamamochi',
         description: 'Crea una mascota virtual personalizada como regalo para tu pareja',
         theme_color: '#D8697F',
         background_color: '#FBF1EC',
