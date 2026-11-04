@@ -1,9 +1,17 @@
 // Orejas (y lo que hace a cada animalito): cada oreja se dibuja derecha,
 // con la base en (0,0), y se coloca sobre el borde del cuerpo en el
 // ángulo de ese punto. Así sirve igual en los cuatro anchos.
+//
+// Algunos animales se reconocen por la cara más que por las orejas: el
+// chanchito por su ñata, el koala por su nariz grande, la capibara por su
+// hocico ancho, la vaquita por su morro rosado y el panda por sus manchas.
+// Eso va en `face` (encima del cuerpo, debajo de ojos y boca).
+//
+// Pensado para pixel: nada más fino que 2–3 unidades (en el cuarto un
+// píxel de arte mide ~2.7 unidades), siluetas llenas en vez de trazos.
 
 import { G, P, Ell, Cir, E, mirrorX } from '../svg.js';
-import { parseColor, hex, ramp, mixRgb } from '../color.js';
+import { parseColor, hex, ramp, mixRgb, lum } from '../color.js';
 
 export const EARS = [
   { id: 'ninguna', label: 'Sin orejas' },
@@ -35,10 +43,13 @@ export const EARS = [
   { id: 'abeja', label: 'Abejita' },
 ];
 
+const OUT = '#3A2A3E';
 const shade = (c, k) => hex(ramp(parseColor(c), k));
 const mixc = (a, b, t) => hex(mixRgb(parseColor(a), parseColor(b), t));
-const part = (d, fill, extra = {}) => P(d, { fill, stroke: '#3A2A3E', 'stroke-width': 2.6, 'stroke-linejoin': 'round', 'data-r': 'part', ...extra });
+const f = (n) => n.toFixed(1);
+const part = (d, fill, extra = {}) => P(d, { fill, stroke: OUT, 'stroke-width': 2.6, 'stroke-linejoin': 'round', 'data-r': 'part', ...extra });
 const flat = (d, fill, extra = {}) => P(d, { fill, 'data-r': 'flat', ...extra });
+const tone = (d, fill, op, extra = {}) => P(d, { fill, opacity: op, 'data-r': 'tone', ...extra });
 
 // Coloca una oreja izquierda (dibujada derecha) sobre el borde y la
 // espeja a la derecha.
@@ -50,103 +61,166 @@ function pair(g, xFrac, sink, local, { tilt = 0.85, rot = 0, scale } = {}) {
   const left = G({ transform: `translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${a.toFixed(1)}) scale(${s.toFixed(3)})` }, local);
   return left + mirrorX(left);
 }
+// Una pieza a un lado del cuerpo (en coordenadas del dibujo) y su espejo.
+const both = (s) => s + mirrorX(s);
 
 let zid = 0;
 
+// Ala de membrana (dragón, murciélago): nace arriba en la espalda y se
+// abre hacia afuera con tres puntas y sus varillas.
+function membraneWing(g, col, size = 1) {
+  const s = size * Math.pow(g.wf, 0.3);
+  const x = g.l + 12, y = g.ys - (g.ys - g.top) * 0.42;
+  const wing = part('M4 8 L2 -4 C-2 -16 -12 -26 -26 -28 C-25 -21 -24 -16 -27 -10 C-21 -11 -16 -8 -16 -2 C-11 -5 -6 -2 -5 4 C-2 3 2 5 4 8Z', col)
+    + P('M1 -2 L-24 -25 M0 0 L-24 -11 M1 2 L-14 -3', { fill: 'none', stroke: shade(col, -1.1), 'stroke-width': 2.2, 'stroke-linecap': 'round', 'data-r': 'line' });
+  return both(G({ transform: `translate(${f(x)} ${f(y)}) scale(${s.toFixed(3)})` }, wing));
+}
+
 export function renderEars(id, g, c) {
   const inner = c.earInner;
-  const out = { back: '', front: '', face: '', faceShift: null };
+  // side: orejas que cuelgan a los costados (van debajo del pelo)
+  const out = { back: '', side: '', front: '', face: '', faceShift: null };
+  const fy = g.face.y;
   switch (id) {
     case 'gato':
-      out.back = pair(g, 0.25, 10, part('M-15 9 L-6.5 -21 Q0 -29.5 6.5 -21 L15 9Z', c.body) + flat('M-8 3 L-2.6 -12.5 Q0 -16.5 2.6 -12.5 L8 3Z', inner));
+      out.back = pair(g, 0.26, 10, part('M-15 9 L-6.5 -21 Q0 -29.5 6.5 -21 L15 9Z', c.body) + flat('M-8.5 4 L-2.8 -13.5 Q0 -18 2.8 -13.5 L8.5 4Z', inner), { rot: -3, scale: 1.16 * Math.pow(g.wf, 0.35) });
       break;
     case 'conejo':
-      out.back = pair(g, 0.14, 10, part('M0 6 C-9 6 -11 -14 -10 -26 C-9 -40 -4 -48 0 -48 C4 -48 9 -40 10 -26 C11 -14 9 6 0 6Z', c.body) + flat('M0 0 C-4 0 -5.5 -14 -5 -24 C-4.6 -34 -2 -40 0 -40 C2 -40 4.6 -34 5 -24 C5.5 -14 4 0 0 0Z', inner), { tilt: 0.4, rot: -9 });
+      out.back = pair(g, 0.14, 10, part('M0 6 C-10 6 -12 -14 -11 -27 C-10 -41 -4.5 -49 0 -49 C4.5 -49 10 -41 11 -27 C12 -14 10 6 0 6Z', c.body) + flat('M0 0 C-4.6 0 -6 -14 -5.6 -25 C-5 -35 -2.2 -41 0 -41 C2.2 -41 5 -35 5.6 -25 C6 -14 4.6 0 0 0Z', inner), { tilt: 0.4, rot: -9 });
       break;
     case 'conejoCaido': {
-      const x = 100 - g.w * 0.2, y = g.topAt(x) + 3;
-      const ear = part('M9 -3 C-5 -9 -23 -3 -31 15 C-37 31 -33 45 -25 45 C-17 45 -13 31 -8 19 C-3 9 5 4 13 1Z', c.body)
-        + flat('M3 -2 C-7 -5 -19 1 -25 15 C-29 26 -27 36 -23 36 C-18 35 -15 26 -11 17 C-7 10 0 5 6 2Z', inner);
-      const L = G({ transform: `translate(${x.toFixed(2)} ${y.toFixed(2)}) scale(${Math.pow(g.wf, 0.3).toFixed(3)})` }, ear);
-      out.front = L + mirrorX(L);
+      // orejas largas que caen por los costados de la cabeza, por fuera
+      const x = 100 - g.w * 0.25, y = g.topAt(x) + 3;
+      const ear = part('M8 -3 C-4 -10 -20 -7 -27 6 C-33 18 -34 34 -27 41 C-20 47 -12 39 -12 28 C-12 18 -5 9 9 4Z', c.body)
+        + flat('M3 -1 C-6 -5 -17 -1 -22 9 C-27 19 -27 31 -23 35 C-19 38 -16 32 -16 25 C-15 15 -8 7 4 3Z', inner)
+        + tone('M-27 6 C-33 18 -34 34 -27 41 C-31 30 -30 16 -24 6Z', '#3A2A3E', 0.12);
+      const L = G({ transform: `translate(${f(x)} ${f(y)}) scale(${Math.pow(g.wf, 0.3).toFixed(3)})` }, ear);
+      out.side = both(L);
       break;
     }
     case 'oso':
-      out.back = pair(g, 0.27, 6, Cir(0, -6, 12.5, { fill: c.body, stroke: '#3A2A3E', 'stroke-width': 2.6, 'data-r': 'part' }) + Cir(0, -5, 6.4, { fill: inner, 'data-r': 'flat' }), { tilt: 0.6 });
+      out.back = pair(g, 0.27, 6, Cir(0, -6.5, 13, { fill: c.body, stroke: OUT, 'stroke-width': 2.6, 'data-r': 'part' }) + Cir(0, -5.5, 7, { fill: inner, 'data-r': 'flat' }), { tilt: 0.6 });
       break;
     case 'perro': {
       const x = 100 - g.w * 0.31, y = g.topAt(x) + 5;
-      const ear = part('M7 -6 C-7 -11 -20 -1 -21 17 C-22 33 -15 43 -7 41 C1 39 3 25 5 13 C6 5 11 -2 7 -6Z', c.accent)
-        + P('M-14 26 C-14 16 -11 6 -5 0', { fill: 'none', stroke: shade(c.accent, 1), 'stroke-width': 2.2, 'stroke-linecap': 'round', 'data-r': 'line', opacity: 0.8 });
-      const L = G({ transform: `translate(${x.toFixed(2)} ${y.toFixed(2)}) scale(${Math.pow(g.wf, 0.3).toFixed(3)})` }, ear);
-      out.front = L + mirrorX(L);
+      const ear = part('M7 -6 C-7 -11 -21 -1 -22 17 C-23 33 -15 44 -7 42 C1 40 3 26 5 14 C6 6 11 -2 7 -6Z', c.accent)
+        + tone('M-22 17 C-23 33 -15 44 -7 42 C-15 38 -18 28 -16 14 C-15 6 -12 0 -8 -4 C-16 0 -21 8 -22 17Z', '#3A2A3E', 0.14);
+      const L = G({ transform: `translate(${f(x)} ${f(y)}) scale(${Math.pow(g.wf, 0.3).toFixed(3)})` }, ear);
+      out.side = both(L);
       break;
     }
     case 'zorro': {
       const id2 = `zt${++zid}`;
-      const d = 'M-17 10 C-18 -5 -13 -24 -3 -34 C0 -37 2 -37 4 -33 L19 10Z';
+      const d = 'M-18 10 C-19 -5 -14 -25 -3 -35 C0 -38 2 -38 4 -34 L20 10Z';
       out.back = pair(g, 0.25, 10, E('clipPath', { id: id2 }, P(d)) + part(d, c.body)
-        + G({ 'clip-path': `url(#${id2})` }, flat('M-30 -22 L20 -40 L20 -18 Q0 -14 -30 -10Z', c.tip))
-        + P(d, { fill: 'none', stroke: '#3A2A3E', 'stroke-width': 2.6, 'stroke-linejoin': 'round', 'data-r': 'line' })
-        + flat('M-9 4 C-9 -6 -6 -16 -1 -22 L9 4Z', inner), { tilt: 0.7 });
+        + G({ 'clip-path': `url(#${id2})` }, flat('M-30 -21 L22 -40 L22 -17 Q0 -13 -30 -9Z', c.tip))
+        + P(d, { fill: 'none', stroke: OUT, 'stroke-width': 2.6, 'stroke-linejoin': 'round', 'data-r': 'line' })
+        + flat('M-10 5 C-10 -6 -7 -16 -1 -22 L10 5Z', inner), { tilt: 0.7 });
       break;
     }
     case 'raton':
-      out.back = pair(g, 0.3, 9, Cir(0, -12, 17, { fill: c.body, stroke: '#3A2A3E', 'stroke-width': 2.6, 'data-r': 'part' }) + Cir(1, -11, 10.5, { fill: inner, 'data-r': 'flat' }), { tilt: 0.7 });
+      out.back = pair(g, 0.3, 9, Cir(0, -12, 17.5, { fill: c.body, stroke: OUT, 'stroke-width': 2.6, 'data-r': 'part' }) + Cir(1, -11, 11, { fill: inner, 'data-r': 'flat' }), { tilt: 0.7 });
       break;
-    case 'cerdito':
+    case 'cerdito': {
       // orejas de chancho: anchas, con la punta doblada hacia adelante
-      out.front = pair(g, 0.25, 9, part('M-14 8 C-14 -4 -9 -15 -2 -19 C4 -16 12 -6 14 6Z', c.body) + flat('M-8 4 C-7 -4 -4 -10 -1 -12 C3 -9 7 -3 8 4Z', inner)
-        + part('M-2 -19 C4 -16 9 -10 11 -4 C5 -1 -1 -2 -6 -7 C-5 -12 -4 -16 -2 -19Z', shade(c.body, -0.35)), { tilt: 0.55, rot: -4 });
+      out.front = pair(g, 0.25, 9, part('M-15 8 C-15 -4 -10 -16 -2 -20 C4 -17 13 -6 15 6Z', c.body) + flat('M-8.5 4 C-7.5 -4 -4.5 -10.5 -1 -12.5 C3 -9.5 7.5 -3 8.5 4Z', inner)
+        + part('M-2 -20 C4 -17 9.5 -10.5 11.5 -4 C5 -1 -1 -2 -6.5 -7.5 C-5.5 -12.5 -4 -16.5 -2 -20Z', shade(c.body, -0.35)), { tilt: 0.55, rot: -4 });
+      // la ñata: ovalada, rosada, con sus dos agujeritos
+      const sc = c.snout;
+      const y = fy + 5.5, rx = 8.4 * Math.pow(g.wf, 0.15), ry = 6;
+      out.face = Ell(100, y, rx, ry, { fill: sc, stroke: OUT, 'stroke-width': 2.2, 'data-r': 'part' })
+        + Ell(100 - rx * 0.36, y + 0.4, 1.7, 2.6, { fill: shade(sc, -2.2), 'data-r': 'flat' })
+        + Ell(100 + rx * 0.36, y + 0.4, 1.7, 2.6, { fill: shade(sc, -2.2), 'data-r': 'flat' })
+        + Ell(100 - rx * 0.5, y - ry * 0.55, rx * 0.28, 1.2, { fill: '#FFFFFF', opacity: 0.7, 'data-r': 'shine' });
+      out.faceMouthDy = 2;
       break;
+    }
     case 'panda': {
       const dark = c.patch;
-      out.back = pair(g, 0.27, 6, Cir(0, -6, 12, { fill: dark, stroke: '#2A2230', 'stroke-width': 2.6, 'data-r': 'part' }), { tilt: 0.6 });
-      const y = g.face.y + 1, dx = g.face.dx;
-      out.face = [-1, 1].map((s) => Ell(100 + s * dx + s * 1.5, y, 10.5, 12, { fill: dark, transform: `rotate(${s * -25} ${100 + s * dx} ${y})`, 'data-r': 'flat' })).join('');
+      out.back = pair(g, 0.27, 6, Cir(0, -6.5, 12.5, { fill: dark, stroke: '#2A2230', 'stroke-width': 2.6, 'data-r': 'part' }) + Cir(0, -5.5, 6.4, { fill: shade(dark, 0.5), 'data-r': 'flat' }), { tilt: 0.6 });
+      const y = fy + 1, dx = g.face.dx;
+      // manchas en lágrima, inclinadas hacia afuera (más anchas abajo)
+      out.face = [-1, 1].map((s) => G({ transform: `rotate(${s * -24} ${f(100 + s * dx)} ${f(y)})` },
+        P(`M${f(100 + s * dx)} ${f(y - 12.5)} C${f(100 + s * dx + 9)} ${f(y - 12.5)} ${f(100 + s * dx + 12.5)} ${f(y - 2)} ${f(100 + s * dx + 11)} ${f(y + 6)} C${f(100 + s * dx + 9)} ${f(y + 13.5)} ${f(100 + s * dx - 9)} ${f(y + 13.5)} ${f(100 + s * dx - 11)} ${f(y + 6)} C${f(100 + s * dx - 12.5)} ${f(y - 2)} ${f(100 + s * dx - 9)} ${f(y - 12.5)} ${f(100 + s * dx)} ${f(y - 12.5)}Z`, { fill: dark, 'data-r': 'flat' }))).join('');
       break;
     }
     case 'koala': {
-      const fluffy = `M-16 2 C-24 -2 -24 -14 -17 -18 C-17 -27 -6 -32 0 -26 C6 -32 17 -27 17 -18 C24 -14 24 -2 16 2 C10 6 -10 6 -16 2Z`;
+      const fluffy = 'M-16 2 C-24 -2 -24 -14 -17 -18 C-17 -27 -6 -32 0 -26 C6 -32 17 -27 17 -18 C24 -14 24 -2 16 2 C10 6 -10 6 -16 2Z';
       out.back = pair(g, 0.3, 8, part(fluffy, c.body) + flat('M-9 -2 C-13 -6 -11 -14 -6 -15 C-4 -21 4 -21 6 -15 C11 -14 13 -6 9 -2 C5 0 -5 0 -9 -2Z', c.inner), { tilt: 0.75 });
+      // la nariz grande y oscura del koala, con su brillo
+      const y = fy + 4.5;
+      out.face = P(`M100 ${f(y - 6.5)} C${f(105.5)} ${f(y - 6.5)} ${f(106)} ${f(y - 1)} ${f(105)} ${f(y + 2.5)} C${f(104)} ${f(y + 6.5)} ${f(96)} ${f(y + 6.5)} ${f(95)} ${f(y + 2.5)} C${f(94)} ${f(y - 1)} ${f(94.5)} ${f(y - 6.5)} 100 ${f(y - 6.5)}Z`, { fill: '#4A3F55', stroke: OUT, 'stroke-width': 2, 'data-r': 'part' })
+        + Ell(97.6, y - 3, 1.5, 2.1, { fill: '#FFFFFF', opacity: 0.85, 'data-r': 'shine' });
+      out.faceMouthDy = 2;
       break;
     }
     case 'lobo':
-      out.back = pair(g, 0.24, 10, part('M-14 9 L-7 -27 Q0 -34 6 -27 L15 9Z', c.body)
-        + flat('M-7 5 L-3 -16 L4 -16 L8 5Z', inner)
-        + P('M-4 4 l1 -9 M0 5 l0 -11 M4 4 l-1 -9', { fill: 'none', stroke: c.body, 'stroke-width': 2, 'stroke-linecap': 'round', 'data-r': 'line' }), { tilt: 0.8 });
+      out.back = pair(g, 0.24, 10, part('M-14.5 9 L-7 -28 Q0 -35.5 6.5 -28 L15.5 9Z', c.body)
+        + flat('M-7.5 5 L-3.2 -17 Q0 -20 3.2 -17 L8.5 5Z', inner)
+        + flat('M-4.5 5 L-2 -8 L0 -2 L2 -9 L4.5 5Z', c.body), { tilt: 0.8 });
       break;
     case 'oveja': {
-      const t = g.top;
-      const tuft = [[-14, 6, 8], [-5, 1, 9], [5, 1, 9], [14, 6, 8], [0, 9, 8]].map(([x, y, r]) => Cir(100 + x, t + y, r, { fill: c.wool, stroke: '#3A2A3E', 'stroke-width': 2.4, 'data-r': 'part' })).join('');
-      out.front = tuft;
-      out.back = pair(g, 0.34, 12, part('M2 2 C-6 -2 -18 0 -22 6 C-14 10 -4 10 3 8Z', c.body) + flat('M-2 3 C-7 2 -13 3 -16 5 C-11 7 -6 7 -1 6Z', inner), { tilt: 0.3, rot: -10 });
+      // copete de lana: una sola nube festoneada (en pixel, muchos
+      // círculos sueltos se ven como perlas) con rulitos adentro
+      const t = g.top, k = Math.pow(g.wf, 0.25);
+      const cx = 100, rx = 32 * k, ry = 15, cy = t + 9;
+      const n = 10;
+      let d = '';
+      for (let i = 0; i <= n; i++) {
+        const th = Math.PI + 0.25 - ((Math.PI + 0.5) * i) / n;
+        const x = cx + rx * Math.cos(th), y = cy - ry * Math.sin(th);
+        if (!i) { d += `M${f(x)} ${f(y)}`; continue; }
+        const tm = Math.PI + 0.25 - ((Math.PI + 0.5) * (i - 0.5)) / n;
+        d += `Q${f(cx + (rx + 7) * Math.cos(tm))} ${f(cy - (ry + 7) * Math.sin(tm))} ${f(x)} ${f(y)}`;
+      }
+      // el borde de abajo: rulitos sobre la frente
+      const xr = cx + rx * Math.cos(-0.25), xl = cx + rx * Math.cos(Math.PI + 0.25), yb = cy + ry * Math.sin(0.25);
+      const m = 4;
+      for (let i = 1; i <= m; i++) {
+        const x = xr - ((xr - xl) * i) / m, xm = xr - ((xr - xl) * (i - 0.5)) / m;
+        d += `Q${f(xm)} ${f(yb + 9)} ${f(x)} ${f(yb)}`;
+      }
+      const curl = (x, y, r) => `M${f(x - r)} ${f(y)} a${f(r)} ${f(r)} 0 1 1 ${f(r)} ${f(r)}`;
+      out.front = part(`${d}Z`, c.wool)
+        + P(curl(cx - 16 * k, cy + 1, 3.8) + curl(cx + 1 * k, cy - 5, 4) + curl(cx + 17 * k, cy + 2, 3.6), { fill: 'none', stroke: shade(c.wool, -0.9), 'stroke-width': 2.2, 'stroke-linecap': 'round', 'data-r': 'line' })
+        + Ell(cx - 10 * k, t - 2, 5, 2.4, { fill: '#FFFFFF', opacity: 0.85, 'data-r': 'shine' });
+      out.back = pair(g, 0.36, 13, part('M3 2 C-5 -3 -18 -1 -24 6 C-16 11 -5 11 3 8Z', c.body) + flat('M-1 3 C-7 1.5 -14 2.5 -18 5.5 C-12 8 -6 7.5 -1 6Z', inner), { tilt: 0.3, rot: -8 });
       break;
     }
     case 'pollito': {
-      const t = g.top;
-      out.front = P(`M100 ${t + 3} C97 ${t - 9} 89 ${t - 13} 84 ${t - 9} C90 ${t - 7} 94 ${t - 2} 96 ${t + 4}Z`, { fill: c.body, stroke: '#3A2A3E', 'stroke-width': 2.4, 'stroke-linejoin': 'round', 'data-r': 'part' })
-        + P(`M101 ${t + 3} C101 ${t - 11} 108 ${t - 17} 115 ${t - 14} C109 ${t - 10} 106 ${t - 4} 105 ${t + 4}Z`, { fill: c.body, stroke: '#3A2A3E', 'stroke-width': 2.4, 'stroke-linejoin': 'round', 'data-r': 'part' });
-      const wy = g.ys - 4;
-      const wing = part(`M${g.l + 4} ${wy - 10} C${g.l - 10} ${wy - 8} ${g.l - 12} ${wy + 8} ${g.l - 2} ${wy + 12} C${g.l + 2} ${wy + 13} ${g.l + 6} ${wy + 8} ${g.l + 7} ${wy + 2}Z`, shade(c.body, -0.4));
-      out.back = wing + mirrorX(wing);
+      // tres plumitas en la coronilla
+      const t = g.top, pc = shade(c.body, -0.25);
+      const feather = (x, rot, len) => G({ transform: `translate(${f(100 + x)} ${f(t + 4)}) rotate(${rot})` },
+        part(`M-3.2 2 C-4.5 ${f(-len * 0.45)} -2.5 ${f(-len * 0.85)} 0.5 ${f(-len)} C2.5 ${f(-len * 0.8)} 3.8 ${f(-len * 0.4)} 3.2 2Z`, pc, { 'stroke-width': 2.2 }));
+      // un mechoncito que brota: una pluma alta inclinada y una chiquita
+      out.front = feather(-4, -26, 13) + feather(2, 14, 20);
+      // alitas pegadas a los costados, con la punta hacia abajo
+      // alitas pegadas a los costados, con la punta hacia abajo y afuera
+      const wy = g.ys - 4, wc = shade(c.body, -0.3), L = g.l;
+      const wing = part(`M${f(L + 9)} ${f(wy - 15)} C${f(L - 6)} ${f(wy - 15)} ${f(L - 14)} ${f(wy + 2)} ${f(L - 10)} ${f(wy + 17)} C${f(L - 6)} ${f(wy + 12)} ${f(L - 2)} ${f(wy + 13)} ${f(L + 1)} ${f(wy + 8)} C${f(L + 4)} ${f(wy + 9)} ${f(L + 7)} ${f(wy + 6)} ${f(L + 8)} ${f(wy + 1)} C${f(L + 12)} ${f(wy - 3)} ${f(L + 12)} ${f(wy - 11)} ${f(L + 9)} ${f(wy - 15)}Z`, wc)
+        + tone(`M${f(L - 10)} ${f(wy + 17)} C${f(L - 14)} ${f(wy + 4)} ${f(L - 9)} ${f(wy - 7)} ${f(L - 2)} ${f(wy - 12)} C${f(L - 6)} ${f(wy - 3)} ${f(L - 7)} ${f(wy + 7)} ${f(L - 10)} ${f(wy + 17)}Z`, '#3A2A3E', 0.14);
+      out.front += both(wing);
       break;
     }
     case 'rana': {
       const bx = g.w * 0.22;
       const by = g.topAt(100 - bx) + 1;
-      const bump = Cir(100 - bx, by, 16.5, { fill: c.body, stroke: '#3A2A3E', 'stroke-width': 2.6, 'data-r': 'part' });
+      const bump = Cir(100 - bx, by, 16.5, { fill: c.body, stroke: OUT, 'stroke-width': 2.6, 'data-r': 'part' });
       out.back = bump + mirrorX(bump);
       out.faceShift = { y: by - g.face.y, dx: bx - g.face.dx };
       break;
     }
     case 'unicornio': {
       const t = g.top;
-      out.back = pair(g, 0.22, 9, part('M-9 8 L-4 -19 Q0 -24 4 -19 L9 8Z', c.body) + flat('M-4 4 L-1.5 -11 L1.5 -11 L4 4Z', inner), { tilt: 0.9 });
-      const id2 = `uh${++zid}`;
-      out.front = G({ transform: `translate(100 ${t + 6}) rotate(8)` },
-        part('M-6.5 0 L0 -34 L6.5 0 Q0 3 -6.5 0Z', '#FFE08A', { stroke: '#B88A2A' })
-        + P('M-4.6 -7 L4.6 -10 M-3.2 -16 L3.2 -18.5 M-1.8 -25 L1.8 -26.5', { fill: 'none', stroke: '#B88A2A', 'stroke-width': 1.6, 'stroke-linecap': 'round', 'data-r': 'line' }))
+      out.back = pair(g, 0.22, 9, part('M-9.5 8 L-4 -20 Q0 -25 4 -20 L9.5 8Z', c.body) + flat('M-4.5 4 L-1.6 -11.5 L1.6 -11.5 L4.5 4Z', inner), { tilt: 0.9 });
+      const id2 = `uh${++zid}`, id3 = `uk${++zid}`;
+      const horn = 'M-7.5 1 L0 -36 L7.5 1 Q0 4 -7.5 1Z';
+      // cuerno con su espiral en bandas (no en rayitas: en pixel se pierden)
+      out.front = G({ transform: `translate(100 ${f(t + 6)}) rotate(8)` },
+        E('clipPath', { id: id3 }, P(horn)) + part(horn, '#FFE08A', { stroke: '#A8781E' })
+        + G({ 'clip-path': `url(#${id3})` }, flat('M-9 -5 L9 -10 L9 -6.5 L-9 -1.5Z M-9 -16 L9 -21 L9 -17.5 L-9 -12.5Z M-9 -27 L9 -32 L9 -28.5 L-9 -23.5Z', '#E9B949'))
+        + P(horn, { fill: 'none', stroke: '#A8781E', 'stroke-width': 2.4, 'stroke-linejoin': 'round', 'data-r': 'line' })
+        + Ell(-2.6, -14, 1.2, 5, { fill: '#FFFFFF', opacity: 0.8, transform: 'rotate(12 -2.6 -14)', 'data-r': 'shine' }))
         + E('clipPath', { id: id2 }, P(g.path))
         + G({ 'clip-path': `url(#${id2})` },
           P(`M${100 - g.w * 0.3} ${t + 26} C${100 - g.w * 0.26} ${t + 4} ${100 - 4} ${t - 4} ${100 + 6} ${t + 2} C${100 - 2} ${t + 10} ${100 - 4} ${t + 18} ${100 - g.w * 0.14} ${t + 28}Z`, { fill: c.mane1, 'data-r': 'flat' })
@@ -154,84 +228,105 @@ export function renderEars(id, g, c) {
       break;
     }
     case 'dragon':
-      out.back = pair(g, 0.2, 9, part('M-6 8 C-8 -6 -7 -16 -2 -24 C3 -18 7 -8 6 8Z', '#FFF0C9', { stroke: '#9A7A3A' })
-        + P('M-6 -4 l9 2 M-5 -12 l8 2', { fill: 'none', stroke: '#C9A65A', 'stroke-width': 1.5, 'data-r': 'line' }), { tilt: 0.9, rot: -8 })
-        + pair(g, 0.36, 18, part('M2 0 C-10 -8 -20 -4 -24 2 C-18 4 -14 8 -14 12 C-10 10 -4 10 2 8Z', c.accent), { tilt: 0.4, rot: -12 });
-      {
-        const wy = g.ys - 14;
-        const wing = part(`M${g.l + 10} ${wy} C${g.l - 6} ${wy - 22} ${g.l - 26} ${wy - 18} ${g.l - 30} ${wy - 6} C${g.l - 22} ${wy - 6} ${g.l - 20} ${wy + 2} ${g.l - 22} ${wy + 8} C${g.l - 14} ${wy + 4} ${g.l - 8} ${wy + 8} ${g.l - 8} ${wy + 14} C${g.l - 2} ${wy + 8} ${g.l + 4} ${wy + 8} ${g.l + 10} ${wy + 10}Z`, c.accent);
-        out.back = wing + mirrorX(wing) + out.back;
-      }
+      out.back = membraneWing(g, c.accent, 1.18)
+        + pair(g, 0.2, 9, part('M-6.5 8 C-8.5 -6 -7.5 -16 -2 -25 C3.5 -18 7.5 -8 6.5 8Z', '#FFF0C9', { stroke: '#8A6A2E' })
+          + flat('M-7 -2 L5.8 0 L5.4 3 L-7.2 1Z M-6 -11 L4.6 -9 L4 -6 L-6.6 -8Z', '#E9CF8E'), { tilt: 0.9, rot: -8 })
+        + pair(g, 0.36, 18, part('M2 0 C-10 -8 -21 -4 -25 2 C-19 4 -15 8 -15 12 C-11 10 -5 10 2 8Z', c.accent), { tilt: 0.4, rot: -12 });
       break;
     case 'murcielago': {
-      const ear = part('M-15 10 C-20 -4 -20 -22 -10 -34 C-8 -26 -4 -22 0 -22 C2 -28 6 -32 10 -34 C14 -20 16 -2 15 10Z', c.accent)
-        + P('M-10 -30 C-8 -16 -6 -6 -4 6 M8 -30 C6 -16 4 -6 2 6', { fill: 'none', stroke: shade(c.accent, -1.5), 'stroke-width': 1.6, 'data-r': 'line' });
-      out.back = pair(g, 0.26, 10, ear, { tilt: 0.85, rot: -6 });
+      const ear = part('M-15 10 C-21 -4 -21 -23 -10 -35 C-8 -27 -4 -23 0 -23 C2 -29 6 -33 10 -35 C14 -21 16 -2 15 10Z', c.accent)
+        + flat('M-9 6 C-12 -4 -12 -16 -8 -26 C-6 -20 -3 -17 0 -17 C2 -21 4 -24 6 -26 C9 -16 10 -4 9 6Z', mixc(c.accent, '#FF9EC0', 0.35));
+      out.back = membraneWing(g, shade(c.accent, -0.3), 0.72) + pair(g, 0.26, 10, ear, { tilt: 0.85, rot: -6 });
       break;
     }
     case 'alas': {
       const wy = g.ys - 22;
       const feather = (dy, len) => `M${g.l + 8} ${wy + dy} C${g.l - len * 0.4} ${wy + dy - 10} ${g.l - len} ${wy + dy - 4} ${g.l - len} ${wy + dy + 6} C${g.l - len * 0.6} ${wy + dy + 8} ${g.l - len * 0.2} ${wy + dy + 8} ${g.l + 8} ${wy + dy + 10}Z`;
-      const wing = part(feather(-6, 30), '#FFFFFF', { stroke: '#8A84A8' }) + part(feather(2, 26), '#F4F1FF', { stroke: '#8A84A8' }) + part(feather(10, 20), '#FFFFFF', { stroke: '#8A84A8' });
-      out.back = wing + mirrorX(wing);
+      const wing = part(feather(-6, 30), '#FFFFFF', { stroke: '#8A84A8' }) + part(feather(2, 26), '#F1EDFF', { stroke: '#8A84A8' }) + part(feather(10, 20), '#E6E1FA', { stroke: '#8A84A8' });
+      out.back = both(wing);
       break;
     }
     case 'axolote': {
-      // branquias: tres plumitas rosadas a cada lado, saliendo de los costados
-      const frond = part('M-2.6 2 C-3.6 -8 -2.6 -16 0 -23 C2.6 -16 3.6 -8 2.6 2Z', c.gill, { 'stroke-width': 2 });
-      const fluff = [[-4.2, -5, 2.6], [4.2, -5, 2.6], [-4.2, -11, 2.4], [4.2, -11, 2.4], [-3.4, -16.5, 2], [3.4, -16.5, 2]].map(([x, y, r]) => Cir(x, y, r, { fill: c.gill, stroke: '#3A2A3E', 'stroke-width': 1.6, 'data-r': 'part' })).join('');
-      const s = 1.2 * Math.pow(g.wf, 0.3);
+      // branquias: tres plumas rosadas a cada lado, con borde en rulitos y
+      // la vena del medio
+      const frond = part('M-3 1 C-6 -2 -7 -5 -5 -7.5 C-8.5 -9.5 -8.5 -13.5 -5.2 -14.5 C-7.2 -18 -5 -21.5 0 -24.5 C5 -21.5 7.2 -18 5.2 -14.5 C8.5 -13.5 8.5 -9.5 5 -7.5 C7 -5 6 -2 3 1Z', c.gill, { 'stroke-width': 2.2 })
+        + flat('M-1 0 L-1 -18.5 Q0 -20 1 -18.5 L1 0Z', shade(c.gill, -0.9));
+      const s = 1.1 * Math.pow(g.wf, 0.3);
       const y0 = g.ys - (g.ys - g.top) * 0.62;
-      const L = [-64, -38, -12].map((a, i) => {
+      const L = [-66, -40, -14].map((a, i) => {
         const y = y0 + i * 10;
         const x = 100 - g.chordAt(y) / 2 + 4;
-        return G({ transform: `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${a}) scale(${s.toFixed(3)})` }, fluff + frond);
+        return G({ transform: `translate(${f(x)} ${f(y)}) rotate(${a}) scale(${s.toFixed(3)})` }, frond);
       }).join('');
-      out.back = L + mirrorX(L);
+      out.back = both(L);
       break;
     }
-    case 'capibara':
-      out.back = pair(g, 0.3, 5, Cir(0, -6, 9.5, { fill: shade(c.body, -0.3), stroke: '#3A2A3E', 'stroke-width': 2.4, 'data-r': 'part' }) + Cir(0, -5.4, 4.6, { fill: shade(c.body, -1), 'data-r': 'flat' }), { tilt: 0.55 });
+    case 'capibara': {
+      out.back = pair(g, 0.3, 5, Cir(0, -6, 9.5, { fill: shade(c.body, -0.3), stroke: OUT, 'stroke-width': 2.4, 'data-r': 'part' }) + Cir(0, -5.4, 4.6, { fill: shade(c.body, -1), 'data-r': 'flat' }), { tilt: 0.55 });
+      // el hocico ancho de la capibara, con los orificios arriba
+      const y = fy + 9, rx = 13 * Math.pow(g.wf, 0.15), ry = 8.6, mc = shade(c.body, -0.45);
+      out.face = P(`M${f(100 - rx)} ${f(y - 1)} C${f(100 - rx)} ${f(y - ry - 1)} ${f(100 + rx)} ${f(y - ry - 1)} ${f(100 + rx)} ${f(y - 1)} C${f(100 + rx)} ${f(y + ry)} ${f(100 - rx)} ${f(y + ry)} ${f(100 - rx)} ${f(y - 1)}Z`, { fill: mc, 'data-r': 'flat' })
+        + Ell(100 - 4.6, y - 4.4, 2.2, 1.5, { fill: shade(c.body, -2.2), 'data-r': 'flat' })
+        + Ell(100 + 4.6, y - 4.4, 2.2, 1.5, { fill: shade(c.body, -2.2), 'data-r': 'flat' });
       break;
+    }
     case 'hamster':
-      out.back = pair(g, 0.33, 6, Cir(0, -7, 10.5, { fill: c.body, stroke: '#3A2A3E', 'stroke-width': 2.4, 'data-r': 'part' }) + Cir(0, -6.4, 5.6, { fill: inner, 'data-r': 'flat' }), { tilt: 0.7 });
+      out.back = pair(g, 0.33, 6, Cir(0, -7, 11, { fill: c.body, stroke: OUT, 'stroke-width': 2.4, 'data-r': 'part' }) + Cir(0, -6.4, 6, { fill: inner, 'data-r': 'flat' }), { tilt: 0.7 });
       break;
     case 'ardilla':
-      out.back = pair(g, 0.25, 9, part('M-11 8 L-5 -17 Q0 -23 5 -17 L11 8Z', c.body)
-        + flat('M-5.5 4 L-2.4 -10 Q0 -13 2.4 -10 L5.5 4Z', inner)
-        + part('M-2 -20 C-6 -26 -4 -33 0 -38 C0.6 -32 4 -29 3 -22Z', shade(c.body, -0.8), { 'stroke-width': 2 }), { tilt: 0.85 });
+      out.back = pair(g, 0.25, 9, part('M-11.5 8 L-5 -17.5 Q0 -23.5 5 -17.5 L11.5 8Z', c.body)
+        + flat('M-6 4 L-2.4 -10.5 Q0 -13.5 2.4 -10.5 L6 4Z', inner)
+        + part('M-2.5 -20 C-7 -26 -5 -34 0 -39 C1 -33 4.5 -29 3.4 -22Z', shade(c.body, -0.8), { 'stroke-width': 2.2 }), { tilt: 0.85 });
       break;
     case 'leon': {
-      // melena alrededor de la cabeza (detrás) y orejitas redondas encima
-      const n = 13;
-      let mane = '';
-      for (let i = 0; i <= n; i++) {
-        const th = Math.PI + 0.12 - ((Math.PI + 0.24) * i) / n;
-        const x = 100 + (g.hw + 8) * Math.cos(th), y = g.ys - (g.ys - g.top + 8) * Math.sin(th);
-        mane += Cir(x, y, 12.5, { fill: c.mane, stroke: '#3A2A3E', 'stroke-width': 2.4, 'data-r': 'part' });
-      }
-      out.back = mane + pair(g, 0.27, 5, Cir(0, -5, 9, { fill: c.body, stroke: '#3A2A3E', 'stroke-width': 2.4, 'data-r': 'part' }) + Cir(0, -4.6, 4.6, { fill: inner, 'data-r': 'flat' }), { tilt: 0.6 });
+      // melena: una sola forma festoneada alrededor de la cabeza (detrás),
+      // con la sombra pegada al cuerpo; y orejitas redondas encima
+      const n = 12, R0x = g.hw + 7, R0y = g.ys - g.top + 7;
+      const pt = (th, o) => [100 + (R0x + o) * Math.cos(th), g.ys - (R0y + o) * Math.sin(th)];
+      const a0 = Math.PI + 0.32, a1 = -0.32;
+      const ring = (o, bump) => {
+        let d = '';
+        for (let i = 0; i <= n; i++) {
+          const th = a0 + ((a1 - a0) * i) / n;
+          const [x, y] = pt(th, o);
+          if (!i) { d += `M${f(x)} ${f(y)}`; continue; }
+          const tm = a0 + ((a1 - a0) * (i - 0.5)) / n;
+          const [cx, cy] = pt(tm, o + bump);
+          d += `Q${f(cx)} ${f(cy)} ${f(x)} ${f(y)}`;
+        }
+        const [xe, ye] = pt(a1, -16), [xs, ys2] = pt(a0, -16);
+        return `${d}L${f(xe)} ${f(ye)}L${f(xs)} ${f(ys2)}Z`;
+      };
+      out.back = part(ring(0, 12), c.mane) + flat(ring(-7, 8), shade(c.mane, -0.7))
+        + pair(g, 0.27, 5, Cir(0, -5, 9.5, { fill: c.body, stroke: OUT, 'stroke-width': 2.4, 'data-r': 'part' }) + Cir(0, -4.6, 5, { fill: inner, 'data-r': 'flat' }), { tilt: 0.6 });
       break;
     }
-    case 'vaca':
+    case 'vaca': {
       out.back = pair(g, 0.42, 14, part('M4 3 C-6 -9 -27 -9 -32 1 C-27 10 -8 10 4 8Z', c.body) + flat('M-1 3 C-8 -3 -20 -3 -25 2 C-20 6 -8 6 -1 5Z', inner), { tilt: 0.2, rot: -12 })
-        + pair(g, 0.17, 6, part('M-4 4 C-6 -4 -4 -12 2 -16 C1 -10 3 -4 4 4Z', '#F3E6C8', { stroke: '#8A7350' }), { tilt: 0.9 });
+        + pair(g, 0.17, 6, part('M-5.5 5 C-7.5 -4 -5.5 -13 1.5 -18.5 C1 -11 3.5 -4 5.5 5Z', '#F3E6C8', { stroke: '#7A6040' })
+          + flat('M-6 -4 C-3 -3 1 -3 4 -4.5 L4.6 -1.5 C1 0 -3 0 -6.2 -1Z', '#D9C49A'), { tilt: 0.9 });
+      // el morro rosado, con las fosas arriba (la boca va encima)
+      const my = g.face.mouthY + 1, rx = 14 * Math.pow(g.wf, 0.15);
+      out.face = Ell(100, my, rx, 9, { fill: c.muzzle, stroke: shade(c.muzzle, -1.4), 'stroke-width': 1.8, 'data-r': 'part' })
+        + Ell(100 - rx * 0.42, my - 4.5, 1.9, 1.5, { fill: shade(c.muzzle, -2), 'data-r': 'flat' })
+        + Ell(100 + rx * 0.42, my - 4.5, 1.9, 1.5, { fill: shade(c.muzzle, -2), 'data-r': 'flat' });
       break;
+    }
     case 'ciervo': {
-      const antler = part('M-2 4 C-3 -6 -2 -14 1 -25 L4.4 -24 C2 -14 2 -6 3 4Z', '#C8955E', { stroke: '#6E4A2C', 'stroke-width': 2 })
-        + part('M-0.5 -9 C-6 -13 -9 -17 -9.5 -22 L-6.4 -22.4 C-6 -18 -3 -14.5 0.6 -12.4Z', '#C8955E', { stroke: '#6E4A2C', 'stroke-width': 2 })
-        + part('M2 -17 C6 -20 8 -23 8.4 -27 L11 -26 C10.6 -22 7.6 -18.4 3 -14.6Z', '#C8955E', { stroke: '#6E4A2C', 'stroke-width': 2 });
+      // cuernitos de un solo trazo grueso (en pixel una rama fina se pierde)
+      const antler = part('M-2.6 4 L-2.6 -9 C-2.6 -13 -5 -16 -8.4 -19.5 L-6 -22 C-3.6 -19.6 -1.6 -17.4 -0.4 -15.4 L-0.4 -21.5 C-0.4 -24.5 0.2 -26.8 1.8 -29 L4.4 -27.8 C3.2 -25.8 2.8 -23.6 2.8 -21 L2.8 -14.4 C4.4 -16.4 6.6 -18.4 8.2 -21 L10.6 -19.4 C8.6 -15 5.4 -11.2 2.8 -8.2 L2.8 4Z', '#C8955E', { stroke: '#6E4A2C', 'stroke-width': 2.2 });
       out.back = pair(g, 0.17, 7, antler, { tilt: 0.85, rot: -4 })
         + pair(g, 0.36, 14, part('M3 2 C-3 -8 -17 -10 -21 -2 C-16 4 -6 6 3 6Z', c.body) + flat('M-1 2 C-5 -3 -13 -4 -16 -1 C-12 2 -6 3 -1 4Z', inner), { tilt: 0.3, rot: -18 });
       break;
     }
     case 'abeja': {
       const t = g.top;
-      const ant = (s) => P(`M${100 + s * 9} ${t + 6} C${100 + s * 9} ${t - 6} ${100 + s * 13} ${t - 14} ${100 + s * 19} ${t - 18}`, { fill: 'none', stroke: '#3A2A3E', 'stroke-width': 2.6, 'stroke-linecap': 'round', 'data-r': 'line' })
-        + Cir(100 + s * 20, t - 19, 4, { fill: '#3A3044', stroke: '#3A2A3E', 'stroke-width': 1.6, 'data-r': 'part' }) + Cir(100 + s * 19, t - 20.5, 1.2, { fill: '#FFFFFF', 'data-r': 'shine' });
+      const ant = (s) => P(`M${100 + s * 9} ${t + 6} C${100 + s * 9} ${t - 6} ${100 + s * 13} ${t - 14} ${100 + s * 19} ${t - 18}`, { fill: 'none', stroke: OUT, 'stroke-width': 3, 'stroke-linecap': 'round', 'data-r': 'line' })
+        + Cir(100 + s * 20, t - 19, 4.8, { fill: '#3A3044', stroke: OUT, 'stroke-width': 1.6, 'data-r': 'part' }) + Cir(100 + s * 18.6, t - 20.6, 1.4, { fill: '#FFFFFF', 'data-r': 'shine' });
       const wy = g.ys - (g.ys - g.top) * 0.62;
-      const wing = part(`M${g.l + 10} ${wy + 6} C${g.l - 6} ${wy - 6} ${g.l - 16} ${wy - 22} ${g.l - 6} ${wy - 26} C${g.l + 4} ${wy - 28} ${g.l + 10} ${wy - 12} ${g.l + 12} ${wy}Z`, '#EAF6FF', { stroke: '#7FA9C8', 'stroke-width': 2 });
-      out.back = wing + mirrorX(wing);
+      const wing = part(`M${g.l + 10} ${wy + 6} C${g.l - 6} ${wy - 6} ${g.l - 16} ${wy - 22} ${g.l - 6} ${wy - 26} C${g.l + 4} ${wy - 28} ${g.l + 10} ${wy - 12} ${g.l + 12} ${wy}Z`, '#EAF6FF', { stroke: '#6F9CC0', 'stroke-width': 2.2 })
+        + P(`M${g.l + 8} ${wy + 2} C${g.l} ${wy - 6} ${g.l - 6} ${wy - 14} ${g.l - 4} ${wy - 20}`, { fill: 'none', stroke: '#B9D7EE', 'stroke-width': 2.2, 'stroke-linecap': 'round', 'data-r': 'line' });
+      out.back = both(wing);
       out.front = ant(-1) + ant(1);
       break;
     }
@@ -241,14 +336,19 @@ export function renderEars(id, g, c) {
 }
 
 export function colorsForEars(c) {
+  const pinkBody = (() => { const [r, g2, b] = parseColor(c.body); return r > 200 && r - b > 15 && r - g2 > 25; })();
   return {
     earInner: c.inner === '#FFFFFF' || c.inner.toUpperCase() === '#FFF1E4' ? mixc(c.inner, '#FFB3C6', 0.55) : c.inner,
     tip: shade(c.body, -2.2),
-    patch: '#2E2733',
+    patch: '#4A3F55',
     wool: mixc('#FFFFFF', c.body, 0.08),
     mane1: c.accent,
     mane2: c.accentAlt === '#FFFFFF' ? '#B8A1FF' : c.accentAlt,
     gill: mixc(c.accent, '#FF7FA8', 0.75),
     mane: shade(mixc(c.accent, '#E89A3C', 0.5), -0.4),
+    // la ñata del chanchito: un rosado un poco más fuerte que el cuerpo
+    snout: pinkBody ? shade(c.body, -0.6) : mixc(c.body, '#F49AB2', 0.55),
+    // el morro de la vaquita
+    muzzle: lum(parseColor(c.body)) < 0.3 ? '#E9A3B0' : mixc('#F7C2C8', c.body, 0.15),
   };
 }
