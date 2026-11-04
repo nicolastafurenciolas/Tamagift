@@ -256,7 +256,7 @@ function StylePicker({ styleId, onPick }) {
         Estilo — no todo tiene que ser rosita
       </p>
       <p style={{ fontSize: 11.5, color: C.inkSoft, opacity: 0.85, marginBottom: 9 }}>
-        Elige el que vaya con ella y ajusta lo que quieras después.
+        Elige el que vaya con tu pareja y ajusta lo que quieras después.
       </p>
       <div className="flex gap-2.5" style={{ overflowX: 'auto', paddingBottom: 6 }}>
         {PET_STYLES.map((s) => {
