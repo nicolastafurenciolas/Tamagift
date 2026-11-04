@@ -48,3 +48,9 @@ desktop.ini
 PusheenGame/
 # Salida generada por la herramienta de análisis.
 graphify-out/
+
+# videos y material pesado del anuncio
+marketing/**/*.mp4
+marketing/**/*.wav
+marketing/**/*.mov
+marketing/work/
