@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from pydantic import field_validator, BaseModel, Field
 from typing import List, Optional, Literal
 
@@ -233,6 +234,8 @@ class PetOut(BaseModel):
     decor_items: List[DecorItemOut] = []
     whack_targets: List[WhackTargetOut] = []
     profile: Optional[str] = None
+    # El día que se creó el regalo: es el cumpleaños de la mascota.
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
