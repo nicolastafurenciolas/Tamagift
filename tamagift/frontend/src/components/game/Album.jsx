@@ -56,7 +56,9 @@ function Polaroid({ src, alt, tilt = -1.5 }) {
 const ERR = { 'muchas-fotos': 'Hoy ya guardaste muchas fotos. Mañana caben más.', 'muy-pesada': 'La foto quedó muy pesada para guardarla.', 'sin-conexion': 'No hay conexión: bájala para no perderla.' };
 
 // `canSave`: el regalo está en el servidor (si no, solo bajar/compartir).
-export function PhotoModal({ photo, slug, petName, giverName, canSave, onClose, onOpenAlbum }) {
+// `extraAction`: un botón más, arriba de todo (p. ej. "Mandársela a…",
+// ver personal/SendPhotoButton.jsx).
+export function PhotoModal({ photo, slug, petName, giverName, canSave, onClose, onOpenAlbum, extraAction = null }) {
   const [state, setState] = useState('nueva'); // nueva | guardando | guardada | error
   const [err, setErr] = useState('');
   async function save() {
@@ -73,6 +75,7 @@ export function PhotoModal({ photo, slug, petName, giverName, canSave, onClose, 
         <p style={{ fontSize: 12.5, color: C.rose, margin: '6px 0 2px' }}>{err}</p>
       ) : null}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 8 }}>
+        {extraAction}
         {canSave && state !== 'guardada' && (
           <button onClick={save} disabled={state === 'guardando'} className="pg-btn pg-btn-rose pg-focus" style={{ padding: '11px 18px', fontSize: 14 }}>
             {state === 'guardando' ? 'Guardando…' : 'Guardar en el álbum'}

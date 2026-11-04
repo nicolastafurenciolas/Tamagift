@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { lookOf, parseRecipe } from '../petLook';
 import { C, FONT, SHADOW } from '../theme';
-import { loadPet, feedPetRemote, redesignPetRemote, setActiveDesignRemote, setPetStyleRemote, fetchGameSave, pushGameSave, fetchLetters, fetchLetter, markLetterOpened, fetchReplies, parseProfile } from '../api';
+import { loadPet, feedPetRemote, redesignPetRemote, setActiveDesignRemote, setPetStyleRemote, fetchGameSave, pushGameSave, fetchLetters, fetchLetter, markLetterOpened, fetchReplies, parseProfile, sendReply } from '../api';
 import MailArchive from './game/MailArchive';
 import { PhotoModal, AlbumModal } from './game/Album';
 import { photoDate } from '../snapshot';
@@ -62,14 +62,16 @@ import { pendingDelivery } from '../deliveries';
 import { callName, fill } from '../personal/catalog';
 import {
   ingestLetters, ingestAnswers, nextDrop, clearShowing, chestReady, unannouncedChestAll, announceChest, openChestItem,
-  situationLine, registerVisit, ambientSituations, packageItem, hiddenIds, chestState,
+  situationLine, registerVisit, ambientSituations, packageItem, hiddenIds, chestState, ingestCoupons, parseServerDate,
 } from '../personal/engine';
 import { ARRIVAL_EVENTS } from '../worldEvents';
 import GiverBubble from './game/personal/GiverBubble';
 import ChestModal from './game/personal/ChestModal';
 import VoicePlayer from './game/personal/VoicePlayer';
-import PhotoSendModal from './game/personal/PhotoSendModal';
-import { CHEST_X } from './game/personal/PersonalLayer';
+import SendPhotoButton from './game/personal/SendPhotoButton';
+import { CHEST_X, PersonalBack } from './game/personal/PersonalLayer';
+import JarModal from './game/personal/JarModal';
+import { earnStars, markCare, redeem, syncPending, ensureWeek, noteGiverSent, claimGoal, goalStatus, jarFill } from '../personal/jar';
 import { findFurniture } from '../roomCatalog';
 import { findWearable } from '../art/mochi/index.js';
 
@@ -401,7 +403,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
   const logroPending = useRef(false);
   // ¿Hay algo abierto encima del cuarto? (lo llaman los relojes de abajo,
   // cuando todos los estados ya existen)
-  const overlayOpen = () => !!(letter || voice || chestOpen || unboxOpen || mailOpen || photo || albumOpen || dailyOpen || styleOpen || gameResult);
+  const overlayOpen = () => !!(letter || voice || chestOpen || jarOpen || unboxOpen || mailOpen || photo || albumOpen || dailyOpen || styleOpen || gameResult);
   const roomCalm = () => screen === 'main' && opened && guideReady && !tutorialActive && !asleep && !decorating && !paintJob && !cinematicAvailable && !overlayOpen();
 
   function sayFromGiver(text, header) {
@@ -416,14 +418,21 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
     const [list, replies] = await Promise.all([fetchLetters(slug, gameRef.current.lastLetterId || 0), fetchReplies(slug)]);
     setGame((g) => {
       let personal = g.personal;
+      let jar = g.jar;
       let st = g;
       if (list && list.length) {
         const last = g.lastLetterId || 0;
-        personal = ingestLetters(personal, list.filter((l) => l.id > last));
+        const fresh = list.filter((l) => l.id > last);
+        personal = ingestLetters(personal, fresh);
+        // la meta de los dos cuenta lo que mandó esta semana (aunque llegue de a poco)
+        if (fresh.length) jar = noteGiverSent(jar, fresh.map((l) => parseServerDate(l.created_at)));
         st = { ...st, lastLetterId: Math.max(last, ...list.map((l) => l.id)) };
       }
-      if (replies) personal = ingestAnswers(personal, replies);
-      return personal === g.personal && st === g ? g : { ...st, personal };
+      if (replies) {
+        personal = ingestCoupons(ingestAnswers(personal, replies), replies, profile);
+        jar = syncPending(jar, replies);
+      }
+      return personal === g.personal && jar === g.jar && st === g ? g : { ...st, personal, jar };
     });
   };
   useEffect(() => {
@@ -491,6 +500,12 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
       markLetterOpened(slug, item.id);
       return;
     }
+    if (item.kind === 'cupon') {
+      setGame((st) => ({ ...st, personal: next }));
+      play('win'); fireReaction('love');
+      sayFromGiver(item.answer ? `«${item.text}» · ${item.answer}` : `«${item.text}»`, `¡${giver} cumplió tu cupón!`);
+      return;
+    }
     if (item.kind === 'answer') {
       setGame((st) => ({ ...st, personal: next }));
       play('good'); fireReaction('happy');
@@ -510,7 +525,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
       const pkg = validPackage(item.payload);
       if (pkg) {
         // llega por la caja de pedidos (el timbre lo toca el efecto de los pedidos)
-        setGame((st) => addDelivery({ ...st, personal: next }, { ...pkg, label: `De ${giver}: ${pkg.label}`, giftLetterId: item.id, giftNote: item.text || '' }));
+        setGame((st) => addDelivery({ ...st, personal: next }, { ...pkg, label: `De ${giver}: ${pkg.label}`, giftLetterId: item.id, giftNote: fill(item.text || '', names) }));
         return;
       }
       next = { ...next, showing: { ...next.showing, kind: 'carta' } };
@@ -523,18 +538,20 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
     setSummon({ key: Date.now(), x: DOOR_SPOT + 40 });
   }
 
-  // Al abrir el paquete: la nota escrita a mano, y quien regaló ve que llegó.
+  // Al abrir el paquete (la nota ya se leyó dentro de la caja): quien
+  // regaló ve que llegó.
   function giftOpened(list) {
     const gifts = list.filter((d) => d.giftLetterId != null);
     if (!gifts.length) return;
     gifts.forEach((d) => markLetterOpened(slug, d.giftLetterId));
     setGame((g) => ({ ...g, personal: gifts.reduce((p, d) => clearShowing(p, d.giftLetterId), g.personal) }));
-    const withNote = gifts.find((d) => d.giftNote);
-    if (withNote) later(() => setLetter({ text: fill(withNote.giftNote, names), mail: true, letterId: withNote.giftLetterId, heading: `Venía con una nota de ${giver}:` }), 650);
   }
 
   // El cartero: cada pocos segundos, si el cuarto está tranquilo, mira si
   // toca entregar algo. Una sola cosa nueva a la vez en pantalla.
+  // donde se para la mascota para mostrar el cofre: al lado, así entra en
+  // la pantalla del celular (el cofre ya va detrás de ella, ver backLayer)
+  const CHEST_BESIDE = CHEST_X - 125;
   const courier = useRef(null);
   courier.current = () => {
     const g = gameRef.current;
@@ -554,7 +571,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
       play('good');
       setBubble({ text: `¡El cofre de recuerdos brilla! Llegó el día de abrir la carta de ${giver}`, tone: 'gusta' });
       bubbleHold.current = now + 9000;
-      setSummon({ key: now, x: CHEST_X - 125 });
+      setSummon({ key: now, x: CHEST_BESIDE });
       return;
     }
     if (now < bubbleHold.current) return;
@@ -570,11 +587,15 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
         tone: 'gusta',
       });
       bubbleHold.current = now + 9000;
-      setSummon({ key: now, x: CHEST_X - 125 });
+      setSummon({ key: now, x: CHEST_BESIDE });
       return;
     }
     const ev = (g.events || {}).active;
     const busy = parcelAtDoor(g) || hasPendingTrip(g) || !!(ev && ARRIVAL_EVENTS.includes(ev.type));
+    if (!busy && !p.showing && loadState === 'live') {
+      const claim = claimGoal(ensureWeek(g.jar, { date: new Date(now) }), g.ownedDecor);
+      if (claim) { rewardGoal(claim); return; }
+    }
     // solo en desarrollo: ?cartero=rapido entrega cada 6 s (para probar)
     const r = nextDrop(p, { now, busy, ...(devQ && devQ.get('cartero') ? { gap: 6000 } : {}) });
     if (r) deliverPersonal(r.item, r.personal);
@@ -592,7 +613,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
     if (!opened || !guideReady || !pet || session.current) return;
     const v = registerVisit(gameRef.current.personal, { now: Date.now() });
     session.current = { firstToday: v.firstToday, daysAway: v.daysAway, startedAt: Date.now() };
-    setGame((g) => ({ ...g, personal: { ...(g.personal || {}), visit: v.personal.visit } }));
+    setGame((g) => ({ ...g, personal: { ...(g.personal || {}), visit: v.personal.visit }, ...(loadState === 'live' ? { jar: ensureWeek(g.jar) } : {}) }));
   }, [opened, guideReady, !!pet]); // eslint-disable-line react-hooks/exhaustive-deps
   function trySituation(id) {
     if (!pet) return false;
@@ -617,6 +638,46 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
     const id = setInterval(() => ambient.current(), 15000);
     return () => { clearTimeout(t); clearInterval(id); };
   }, [opened]);
+
+  // ── El frasco de estrellas y la meta de los dos (personal/jar.js) ──
+  // Las estrellas se ganan jugando y cuidando (con topes por día) y se
+  // canjean por los cupones que puso quien regala.
+  const [jarOpen, setJarOpen] = useState(false);
+  const [jarBump, setJarBump] = useState(null);
+  const [starToast, setStarToast] = useState(null);
+  const coupons = (profile.coupons || []).filter((c) => c && c.title);
+  function giveStars(n, reason) {
+    if (loadState !== 'live' || !n) return;
+    const r = earnStars(gameRef.current.jar, n, reason);
+    if (!r.got) return;
+    setGame((g) => ({ ...g, jar: earnStars(g.jar, n, reason).jar }));
+    setJarBump({ key: Date.now(), n: r.got });
+  }
+  const careDone = (kind) => { if (loadState === 'live') setGame((g) => ({ ...g, jar: markCare(g.jar, kind) })); };
+  // "+2 ★ al frasco" arriba, cuando vuelve al cuarto
+  useEffect(() => {
+    if (screen !== 'main' || !jarBump) return undefined;
+    setStarToast(jarBump);
+    const t = setTimeout(() => setStarToast(null), 2400);
+    return () => clearTimeout(t);
+  }, [screen, jarBump && jarBump.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  function couponRedeemed(c, reply) {
+    setGame((g) => ({ ...g, jar: redeem(g.jar, c, reply && reply.id) }));
+    play('buy'); fireReaction('love');
+    later(() => setBubble({ text: `¡Listo! ${giver} ya sabe que canjeaste «${c.title}»`, tone: 'gusta' }), 300);
+  }
+  function rewardGoal(claim) {
+    const st = goalStatus(claim.jar, { petName: pet.name, giverName: giver });
+    const d = claim.rewardId ? findDecor(claim.rewardId) : null;
+    setGame((g) => {
+      const next = { ...g, jar: claim.jar };
+      return d ? addDelivery(next, { kind: 'decor', refId: d.id, label: `De los dos: ${d.name}` }) : { ...next, coins: (next.coins || 0) + 100 };
+    });
+    play('win'); fireReaction('love');
+    setBubble({ text: d ? '¡Cumplimos la meta de los dos! Viene un regalo para el cuarto…' : '¡Cumplimos la meta de los dos! Nos ganamos 100 monedas', tone: 'gusta' });
+    bubbleHold.current = Date.now() + 8000;
+    sendReply(slug, { kind: 'meta', ref: claim.jar.week.key, text: `Cumplimos la meta de la semana: ${st.mine.text} y ${st.theirs.text}.${d ? ` Premio de los dos: ${d.name}.` : ''}` });
+  }
 
   // ── Cámara y álbum (snapshot.js, game/Album.jsx) ──────────────────
   const cameraApi = useRef(null);
@@ -665,6 +726,7 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
     if (res.reward.kind === 'monedas') { setCoinToast({ key: Date.now(), amount: res.reward.value, reason: 'premio del día' }); later(() => setCoinToast(null), 2200); }
     fireReaction('love');
     setDailyClaimed(res.reward);
+    giveStars(2, 'premio');
   }
 
   // Las visitas de temporada a la puerta: dulce o truco (Halloween) e
@@ -953,6 +1015,9 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
       return;
     }
     addVitals(eff);
+    // darle de comer cuando tiene hambre cuenta como cuidarla
+    if (hunger < 70) giveStars(1, 'cuidar');
+    careDone('cuidar');
     if (food.fromFridge) setGame((g) => ({ ...g, fridge: { ...(g.fridge || {}), [food.id]: Math.max(0, ((g.fridge || {})[food.id] || 0) - 1) } }));
     if (food.preference === 'gusta') { setMood('feliz'); fireReaction('yum'); }
     else if (food.preference === 'no_gusta') { setMood('enojado'); fireReaction('dislike'); }
@@ -1013,6 +1078,8 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
     addVitals({ clean: 100 });
     play('splash');
     fireReaction('clean');
+    giveStars(1, 'cuidar');
+    careDone('cuidar');
     // Monedas como mucho cada 30 minutos: antes bañarla en bucle daba
     // monedas infinitas.
     const now = Date.now();
@@ -1064,6 +1131,9 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
     const challengeCoins = (info.challenge && info.challenge.reward) || 0;
     // algo difícil (3 estrellas): quien regaló tiene algo que decirle
     if (info.stars >= 3 && (!meta.levels || extra.won)) logroPending.current = true;
+    // las estrellas del nivel (o de la partida) van al frasco
+    if (!meta.levels || extra.won) giveStars(info.stars || 0, 'nivel');
+    careDone('jugar');
     setGame((st) => {
       const next = applyGameResult(st, gameId, score, extra).state;
       const cooked = { ...(next.cooked || {}) };
@@ -1307,12 +1377,24 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
               parcel={parcelAtDoor(game)} onOpenParcel={() => { play('pop'); setUnboxOpen(true); }} summon={summon}
               world={{ phase, weather, lightsOff: asleep }} onToggleLights={toggleLights} asleep={asleep} cleanLevel={clean}
               cameraApi={cameraApi}
+              backLayer={loadState === 'live' ? (
+                <PersonalBack
+                  personal={game.personal} editing={decorating}
+                  jar={{ fill: jarFill(game.jar, coupons), bump: jarBump }}
+                  onChest={() => { play('pop'); setChestOpen(true); }} onJar={() => { play('pop'); setJarOpen(true); }}
+                />
+              ) : null}
               eventLayer={<WorldEvents
-                personal={game.personal ? { personal: game.personal, editing: decorating, onLetter: (id) => openLetterById(id), onVoice: (id) => openVoiceById(id), onChest: () => { play('pop'); setChestOpen(true); } } : null}
+                personal={game.personal ? { personal: game.personal, onLetter: (id) => openLetterById(id), onVoice: (id) => openVoiceById(id) } : null}
                 event={(game.events || {}).active} onResolve={resolveEvent} onDoorChoice={handleDoorChoice} onLetter={(l) => { setLetter(l); play('unbox'); }} onHip={() => { hipRef.current.at = Date.now(); play('pop'); fireReaction('happy'); setBubble({ text: '¡Hip!', tone: 'casual' }); }} />}
               paintJob={paintJob} onPaintDone={(job) => { if (job) { setGame((g) => ({ ...g, [job.kind === 'pared' ? 'wall' : 'floor']: job.value })); fireReaction('happy'); setBubble({ text: job.kind === 'pared' ? '¡Quedó precioso!' : '¡Qué piso tan lindo!', tone: 'gusta' }); } setPaintJob(null); }}
               fullBleed extraReserved={(foodOpen && !decorating ? 104 : 0) + (musicOpen ? 66 : 0)}
             />
+            {starToast && (
+              <div key={`s${starToast.key}`} className="pg-anim-pop" style={{ position: 'absolute', top: 10, right: 12, zIndex: 6, pointerEvents: 'none', background: C.amberSoft, color: C.ink, border: `1.5px solid ${C.amber}`, boxShadow: SHADOW.soft, fontFamily: FONT.display, fontSize: 11.5, fontWeight: 800, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap' }}>
+                +{starToast.n} ★ al frasco
+              </div>
+            )}
             {flicker > 0 && <div key={flicker} className="pg-flicker" style={{ position: 'absolute', inset: 0, background: '#120C1E', pointerEvents: 'none', zIndex: 3 }} />}
             {flash > 0 && <div key={flash} className="pg-camflash" style={{ position: 'absolute', inset: 0, background: '#FFFFFF', pointerEvents: 'none', zIndex: 7 }} />}
             {!paintJob && !decorating && (
@@ -1426,7 +1508,8 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
       )}
 
       {photo && (
-        <PhotoSendModal
+        <PhotoModal
+          extraAction={loadState === 'live' ? <SendPhotoButton slug={slug} photo={photo} giverName={pet.creator_name} /> : null}
           photo={photo} slug={slug} petName={pet.name} giverName={pet.creator_name} canSave={loadState === 'live'}
           onClose={() => { play('pop'); setPhoto(null); }} onOpenAlbum={() => { setPhoto(null); setAlbumOpen(true); }}
         />
@@ -1438,6 +1521,12 @@ export default function TamagiftGame({ slug: slugProp, devScreen, devOpened }) {
           slug={slug} from={pet.creator_name} hidden={hiddenIds(game.personal)} freshAnswers={freshAnswers.current} names={names}
           inChest={new Set(((game.personal || {}).chest || []).filter((it) => !it.opened).map((it) => String(it.id)))}
           onClose={() => { play('pop'); setMailOpen(false); }} onOpen={openFromArchive}
+        />
+      )}
+      {jarOpen && (
+        <JarModal
+          jar={game.jar || {}} coupons={coupons} slug={slug} petName={pet.name} giverName={pet.creator_name}
+          onRedeemed={couponRedeemed} onClose={() => { play('pop'); setJarOpen(false); }}
         />
       )}
       {chestOpen && (

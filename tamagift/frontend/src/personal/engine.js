@@ -124,6 +124,18 @@ export function ingestAnswers(personal, replies) {
   return { ...p, queue: [...p.queue, ...items], answers: [...p.answers, ...fresh.map((r) => r.id)].slice(-200) };
 }
 
+// Los cupones que quien regala marcó como cumplidos: "¡Nico cumplió tu
+// cupón!" llega como sorpresa chiquita, una vez cada uno.
+export function ingestCoupons(personal, replies, profile) {
+  const p = P(personal);
+  const known = new Set((p.coupons || []).map(String));
+  const fresh = (replies || []).filter((r) => r && r.kind === 'canje' && r.done && !known.has(String(r.id)));
+  if (!fresh.length) return personal || p;
+  const title = (ref) => (((profile && profile.coupons) || []).find((c) => String(c.id) === String(ref)) || {}).title || 'tu cupón';
+  const items = fresh.sort((a, b) => a.id - b.id).map((r) => ({ id: `c${r.id}`, replyId: r.id, kind: 'cupon', text: title(r.ref), answer: r.answer || '' }));
+  return { ...p, queue: [...p.queue, ...items], coupons: [...(p.coupons || []), ...fresh.map((r) => r.id)].slice(-200) };
+}
+
 function rollDay(p, now) {
   const day = todayKey(new Date(now));
   return p.day === day ? p : { ...p, day, big: 0, notes: 0 };
@@ -134,10 +146,17 @@ function rollDay(p, now) {
 //   visita…) y lo personal espera.
 export function nextDrop(personal, { now = Date.now(), busy = false, gap = DROP_GAP } = {}) {
   let p = rollDay(P(personal), now);
-  if (busy || p.showing || chestReady(p, now)) return null;
+  if (busy || p.showing) return null;
   if (p.lastDropAt && now - p.lastDropAt < gap) return null;
-  const idx = p.queue.findIndex((it) => {
-    if (it.kind === 'answer') return true;
+  // mientras el cofre brilla no llega nada grande (un solo aviso a la
+  // vez en el cuarto); lo que es solo una burbuja sí puede llegar
+  const glow = !!chestReady(p, now);
+  // lo que contesta a algo que hizo quien recibe (su pregunta, su cupón)
+  // va primero: lo está esperando
+  const reply = p.queue.findIndex((it) => it.kind === 'answer' || it.kind === 'cupon');
+  const idx = reply >= 0 ? reply : p.queue.findIndex((it) => {
+    if (glow && isBig(it.kind)) return false;
+    if (it.kind === 'answer' || it.kind === 'cupon') return true;
     if (isBig(it.kind)) return p.big < BIG_PER_DAY;
     return p.notes < NOTES_PER_DAY;
   });
@@ -148,7 +167,7 @@ export function nextDrop(personal, { now = Date.now(), busy = false, gap = DROP_
   p = {
     ...p, queue, lastDropAt: now,
     big: p.big + (big ? 1 : 0),
-    notes: p.notes + (!big && item.kind !== 'answer' ? 1 : 0),
+    notes: p.notes + (!big && item.kind !== 'answer' && item.kind !== 'cupon' ? 1 : 0),
     // lo grande queda esperando en el cuarto hasta que lo abra
     showing: big ? { id: item.id, kind: item.kind, at: now } : null,
   };
@@ -356,5 +375,5 @@ export function ambientSituations({ date = new Date(), weather, sad = false, ses
 // aparece (sería arruinar la sorpresa).
 export function hiddenIds(personal) {
   const p = P(personal);
-  return new Set(p.queue.filter((it) => it.kind !== 'answer').map((it) => String(it.id)));
+  return new Set(p.queue.filter((it) => it.kind !== 'answer' && it.kind !== 'cupon').map((it) => String(it.id)));
 }

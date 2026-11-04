@@ -11,6 +11,7 @@ import { FramedPoster } from './posters';
 import { applyLook } from '../../wardrobeState';
 import { UI_SPRITES, foodSpriteFor } from '../../sprites';
 import { envelopeSvg } from '../../art/room/world';
+import { regaloNotaSvg } from '../../art/room/personal';
 
 // ─────────────────────────────────────────────────────────────────
 // Abrir el pedido: la caja se abre con brillitos y sale cada cosa, con lo
@@ -33,6 +34,17 @@ function ItemArt({ d, posters, baseRecipe, game }) {
     return <PetArt recipe={r} mood="feliz" size={72} />;
   }
   return null;
+}
+
+// La tarjetita escrita a mano que viene atada a un paquete de quien
+// regaló (d.giftNote, ver personal/engine.js).
+function GiftNote({ text }) {
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 8, padding: '8px 10px 9px', background: '#FFFBF3', border: '1.5px solid #E8D9C4', borderRadius: 10, transform: 'rotate(-1deg)', boxShadow: SHADOW.soft }}>
+      <div style={{ flexShrink: 0, marginTop: 1 }}><Sprite markup={regaloNotaSvg()} cacheKey="regalo-nota" w={34} h={28} /></div>
+      <p style={{ margin: 0, fontFamily: FONT.hand || FONT.display, fontSize: 17, color: '#4A3439', lineHeight: 1.25, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{text}</p>
+    </div>
+  );
 }
 
 const ACTION = { carta: 'Leerla', mueble: 'Ponerlo en el cuarto', decor: 'Ponerlo en el cuarto', poster: 'Colgarlo', ropa: 'Ponérmelo', pared: '¡A pintar!', piso: '¡A enchapar!', monedas: 'Guardarlas', comida: 'A la nevera' };
@@ -61,6 +73,7 @@ export default function DeliveryModal({ items, posters, baseRecipe, game, onUse,
               </div>
               <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                 <div style={{ fontFamily: FONT.display, fontSize: 13, fontWeight: 700, color: C.ink, lineHeight: 1.2 }}>{d.label}</div>
+                {d.giftNote ? <GiftNote text={d.giftNote} /> : null}
                 <button
                   onClick={() => { play('place'); onUse(d); }} className="pg-btn pg-btn-rose pg-focus"
                   style={{ marginTop: 6, padding: '7px 12px', fontSize: 12 }}

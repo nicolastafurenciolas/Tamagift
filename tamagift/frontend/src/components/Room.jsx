@@ -268,6 +268,7 @@ export default function Room({
   asleep = false,      // dormida: no camina
   cleanLevel = 100,    // sucia: manchitas y moscas
   eventLayer = null,   // sucesos dibujados en coordenadas del mundo
+  backLayer = null,    // cosas apoyadas en el piso que van DETRÁS de la mascota (el cofre, el frasco)
   cameraApi = null,    // ref: aquí queda la función que toma la foto (snapshot.js)
 }) {
   const viewportRef = useRef(null);
@@ -531,6 +532,10 @@ export default function Room({
               <Sprite markup={parcelSvg(false)} cacheKey="parcel-closed" w={100} h={96} pixel={pixel} />
             </button>
           )}
+
+          {/* lo apoyado en el piso que no es un mueble (el cofre de
+              recuerdos, el frasco de estrellas): detrás de la mascota */}
+          {backLayer && React.isValidElement(backLayer) ? React.cloneElement(backLayer, { pixel }) : backLayer}
 
           {/* La mascota va siempre delante de los muebles: por eso los
               muebles quedan pegados al fondo del piso. */}

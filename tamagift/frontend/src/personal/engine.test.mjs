@@ -3,7 +3,7 @@
 
 import assert from 'node:assert/strict';
 import {
-  ingestLetters, ingestAnswers, nextDrop, clearShowing, chestView, chestReady, chestNext, openChestItem,
+  ingestLetters, ingestAnswers, ingestCoupons, nextDrop, clearShowing, chestView, chestReady, chestNext, openChestItem,
   situationLine, situationAllowed, registerVisit, ambientSituations, packageItem, parseServerDate,
   fmtCountdown, fmtCountdownShort, hiddenIds, unannouncedChest, announceChest,
   BIG_PER_DAY, NOTES_PER_DAY, SITUATIONS_PER_DAY, DROP_GAP,
@@ -87,9 +87,10 @@ test('carta con fecha va al cofre, cuenta y brilla al llegar la fecha', () => {
   assert.equal(chestReady(p, T0), null);
   assert.equal(chestView(p, openAt + 1)[0].state, 'ready');
   assert.equal(chestReady(p, openAt + 1).id, 5);
-  // mientras brilla no llega otra cosa (un indicador a la vez)
-  p = ingestLetters(p, [L(6, 'nota')]);
+  // mientras brilla no llega otra cosa grande (un indicador a la vez); una nota sí
+  p = ingestLetters(p, [L(6, 'carta')]);
   assert.equal(nextDrop(p, { now: openAt + 1 }), null);
+  assert.equal(nextDrop(ingestLetters(p, [L(8, 'nota')]), { now: openAt + 1 }).item.id, 8);
   p = openChestItem(p, 5, { text: 'feliz aniversario' });
   assert.equal(chestView(p, openAt + 1)[0].state, 'read');
   assert.equal(chestView(p, openAt + 1)[0].text, 'feliz aniversario');
@@ -200,6 +201,19 @@ test('con algo de quien regala esperando, no llega nada más a la puerta', () =>
     assert.ok(ev && !ARRIVAL_EVENTS.includes(ev.type), ev && ev.type);
   }
   assert.equal(rollEvent({ events: {} }, pet, { now: T0 }).type, 'regalo');
+});
+
+test('cupón cumplido: llega una vez, como sorpresa chiquita', () => {
+  const profile = { coupons: [{ id: 'k1', title: 'Vale por una cena', stars: 30 }] };
+  const replies = [{ id: 9, kind: 'canje', ref: 'k1', done: true, answer: 'el sábado' }, { id: 10, kind: 'canje', ref: 'k1', done: false }];
+  let p = ingestCoupons(null, replies, profile);
+  assert.equal(p.queue.length, 1);
+  assert.equal(p.queue[0].text, 'Vale por una cena');
+  p = ingestCoupons(p, replies, profile);
+  assert.equal(p.queue.length, 1);
+  const r = nextDrop(p, { now: T0 });
+  assert.equal(r.item.kind, 'cupon');
+  assert.equal(r.personal.notes, 0);
 });
 
 console.log(`\n${passed} pruebas pasaron`);
