@@ -3,6 +3,7 @@ import { C, FONT, SHADOW } from '../../theme';
 import { IconBag } from '../icons';
 import { play } from '../../sound';
 import Sprite from '../Sprite';
+import PhotoObject from './personal/PhotoObject';
 import { newPlacementKey, ROOM } from '../../gameState';
 import { findDecor } from '../../shopCatalog';
 import { findFurniture } from '../../roomCatalog';
@@ -116,7 +117,7 @@ export default function DecorTrays({ posters, customDecor, game, setGame, camera
             return (
               <TrayItem key={id} label={custom ? custom.name : gen.name} active={isPlaced('decor', id)} onClick={() => toggle('decor', id)}>
                 {custom
-                  ? <Sprite src={custom.image} w={52} h={52} kind="art" />
+                  ? (custom.photoObject ? <PhotoObject kind={custom.photoObject.kind} url={custom.photoObject.url} w={46} /> : <Sprite src={custom.image} w={52} h={52} kind="art" />)
                   : <Sprite markup={gen.svg(game.decorPaint?.[id] || 'natural')} cacheKey={`decor-${gen.id}-${game.decorPaint?.[id] || 'natural'}`} w={50} h={50} />}
               </TrayItem>
             );

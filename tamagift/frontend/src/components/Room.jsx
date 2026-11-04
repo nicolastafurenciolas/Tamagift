@@ -11,6 +11,8 @@ import { findDecor } from '../shopCatalog';
 import { doorSvg, doormatSvg, parcelSvg, DOOR } from '../art/room/door';
 import { usePaintJob, PaintLayer, PaintTool, PaintHud } from './PaintJob';
 import { NightLayer, WeatherOnWindows, LightSwitch, Zzz, Dirt } from './WorldLayer';
+import PhotoObject from './game/personal/PhotoObject';
+import { photoObjectSize } from '../art/room/photoObjects';
 import { takePhoto } from '../snapshot';
 
 // La puerta de entrada vive a la izquierda del cuarto: nada se puede poner
@@ -97,8 +99,10 @@ export function stepPet(p, dt, rnd = Math.random) {
       p.x = p.target;
       p.state = 'idle';
       p.speed = 0;
-      p.timer = p.rush ? 7 : 2.6 + rnd() * 6.5;
+      // si la llamaron para algo que dura (una visita), se queda ahí
+      p.timer = p.rush ? Math.max(7, p.hold || 0) : 2.6 + rnd() * 6.5;
       p.rush = false;
+      p.hold = 0;
       // A veces se queda mirando para el otro lado.
       if (rnd() < 0.35) p.facing = -p.facing;
     }
@@ -165,7 +169,7 @@ function PlacedItem({ item, posters, customDecor, selected, editing, onPointerDo
   const { w, h, foot = 0 } = placedSize(item, posters, customDecor);
   // Los muebles y la decoración del catálogo traen su sombra dibujada;
   // solo lo que subió quien regaló necesita una.
-  const onFloor = item.kind === 'decor' && (customDecor || []).some((d) => String(d.id) === String(item.refId));
+  const onFloor = item.kind === 'decor' && (customDecor || []).some((d) => String(d.id) === String(item.refId) && !d.photoObject);
   const sw = w * item.scale;
   return (
     <>
@@ -218,6 +222,7 @@ function placedSize(item, posters, customDecor) {
   if (item.kind === 'poster') return { w: POSTER.w, h: POSTER.h };
   const custom = (customDecor || []).find((d) => String(d.id) === String(item.refId));
   if (custom) {
+    if (custom.photoObject) return photoObjectSize(custom.photoObject.def);
     const ratio = custom.ratio || 1;
     const base = 110;
     return { w: base, h: base / (ratio || 1) };
@@ -247,6 +252,7 @@ function renderPlacedContent(item, posters, customDecor, pixel, sky) {
   }
   // decoración: primero la que subió quien regaló, si no la del catálogo
   const custom = (customDecor || []).find((d) => String(d.id) === String(item.refId));
+  if (custom && custom.photoObject) return <PhotoObject kind={custom.photoObject.kind} url={custom.photoObject.url} w={sw} h={sh} pixel={pixel} />;
   if (custom) return <Sprite src={custom.image} w={sw} h={sh} kind="art" pixel={pixel} />;
   const d = findDecor(item.refId);
   const paint = item.paint || 'natural';
@@ -260,7 +266,7 @@ export default function Room({
   extraReserved = 0,   // alto que ocupan paneles abiertos debajo (comida, música)
   parcel = false,      // hay una caja en la puerta
   onOpenParcel,
-  summon = null,       // { key, x }: la mascota camina hasta x (p. ej. a abrir la puerta)
+  summon = null,       // { key, x, hold? }: la mascota camina hasta x (p. ej. a abrir la puerta) y se queda `hold` s
   paintJob = null,     // { kind: 'pared'|'piso', value, key }: obra en curso
   onPaintDone,
   world = null,        // { phase, weather, lightsOff }
@@ -391,6 +397,7 @@ export default function Room({
     p.target = clamp(summon.x, ROOM.PET_W * 0.5, ROOM.W - ROOM.PET_W * 0.5);
     p.state = 'walk';
     p.rush = true;
+    p.hold = summon.hold || 0;   // segundos que se queda al llegar
     p.facing = p.target > p.x ? 1 : -1;
     cam.current.manualUntil = 0;
   }, [summon && summon.key]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -637,6 +644,8 @@ function layerOf(item) {
     return f && f.layer === 'suelo' ? 0 : 1;
   }
   if (item.kind === 'decor') {
+    // los objetos con foto (marco, taza…) van encima, como lo de 'sobre'
+    if (String(item.refId).startsWith('foto-')) return 2;
     const d = findDecor(item.refId);
     return d && d.place === 'sobre' ? 2 : 1;
   }
@@ -660,7 +669,7 @@ export function clampPlacement(item, posters, customDecor) {
   const f = item.kind === 'mueble' ? findFurniture(item.refId) : null;
   const d = item.kind === 'decor' ? findDecor(item.refId) : null;
   const onWall = item.kind === 'poster' || (f && f.place === 'pared');
-  const anywhere = d && d.place === 'sobre';   // encima de una mesa, una repisa…
+  const anywhere = (d && d.place === 'sobre') || (item.kind === 'decor' && String(item.refId).startsWith('foto-'));   // encima de una mesa, una repisa…
   const x = clamp(item.x, DOOR_ZONE + sw / 2, ROOM.W - sw / 2 - 8);
   let y;
   if (onWall) y = clamp(item.y, ROOM.WALL_PAD + sh, ROOM.FLOOR_Y - 14);

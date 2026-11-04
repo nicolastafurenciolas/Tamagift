@@ -9,6 +9,7 @@
 // ─────────────────────────────────────────────────────────────────
 
 import { face, part, flat, line, shade, rr, Ell, Cir, piece, DEPTH } from '../../../art/room/draw.js';
+import { slab as woodSlab } from '../../../art/room/furniture/storage.js';
 
 const external = import.meta.glob('../../../art/room/personal.js', { eager: true });
 const ext = Object.values(external)[0] || {};
@@ -67,3 +68,16 @@ export const voiceEnvelopeSvg = typeof ext.sobreVozSvg === 'function' ? ext.sobr
 // tarjetita de los paquetes; sin el archivo de arte, no se muestran.
 export const tableroSvg = typeof ext.tableroSvg === 'function' ? ext.tableroSvg : null;
 export const regaloNotaSvg = typeof ext.regaloNotaSvg === 'function' ? ext.regaloNotaSvg : null;
+
+// La repisita del diario: una tabla de madera con dos ménsulas, colgada
+// en la pared (el diario va parado encima). 120×44.
+export const REPISITA = { w: 120, h: 44, top: 14 };
+export function repisitaSvg() {
+  let s = shade('M8 20H112V27H8Z', '#2A1C24', 0.14);
+  [22, 98].forEach((x) => {
+    s += face(`M${x - 4} 20H${x + 4}V23Q${x + 4} 36 ${x - 2} 40H${x - 4}Z`, '#A86E44', { w: 1.5 });
+    s += flat(`M${x - 2.6} 22H${x - 1}V36H${x - 2.6}Z`, '#C68B5E', { opacity: 0.8 });
+  });
+  s += woodSlab(4, 20, 112, 7, 16, '#C68B5E');
+  return piece(120, 44, s);
+}

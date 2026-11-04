@@ -12,6 +12,7 @@ import { applyLook } from '../../wardrobeState';
 import { UI_SPRITES, foodSpriteFor } from '../../sprites';
 import { envelopeSvg } from '../../art/room/world';
 import { regaloNotaSvg } from '../../art/room/personal';
+import PhotoObject from './personal/PhotoObject';
 
 // ─────────────────────────────────────────────────────────────────
 // Abrir el pedido: la caja se abre con brillitos y sale cada cosa, con lo
@@ -19,9 +20,16 @@ import { regaloNotaSvg } from '../../art/room/personal';
 // Cerrar guarda todo lo que quede en la caja.
 // ─────────────────────────────────────────────────────────────────
 
-function ItemArt({ d, posters, baseRecipe, game }) {
+function ItemArt({ d, posters, baseRecipe, game, customDecor }) {
   if (d.kind === 'mueble') { const f = findFurniture(d.refId); return f ? <Sprite markup={f.svg(d.paint || 'natural')} cacheKey={`furn-${f.id}-${d.paint || 'natural'}`} w={70} h={70} pixel={2} /> : null; }
-  if (d.kind === 'decor') { const x = findDecor(d.refId); return x ? <Sprite markup={x.svg(d.paint || 'natural')} cacheKey={`decor-${x.id}-${d.paint || 'natural'}`} w={66} h={66} pixel={2} /> : null; }
+  if (d.kind === 'decor') {
+    const x = findDecor(d.refId);
+    if (x) return <Sprite markup={x.svg(d.paint || 'natural')} cacheKey={`decor-${x.id}-${d.paint || 'natural'}`} w={66} h={66} pixel={2} />;
+    // lo subido por quien regaló y los objetos con su foto
+    const c = (customDecor || []).find((it) => String(it.id) === String(d.refId));
+    if (c && c.photoObject) return <PhotoObject kind={c.photoObject.kind} url={c.photoObject.url} w={62} />;
+    return c ? <Sprite src={c.image} w={62} h={62} kind="art" /> : null;
+  }
   if (d.kind === 'poster') { const p = (posters || []).find((x) => String(x.id) === String(d.refId)); return p ? <FramedPoster poster={p} paint={d.paint || 'natural'} h={70} /> : null; }
   if (d.kind === 'pared') return <Sprite markup={wallSwatchSvg(d.value, 120)} cacheKey={`swatch-pared-${d.value}`} w={64} h={64} kind="surface" fit="cover" />;
   if (d.kind === 'piso') return <Sprite markup={floorSwatchSvg(d.value, 120)} cacheKey={`swatch-piso-${d.value}`} w={64} h={64} kind="surface" fit="cover" />;
@@ -49,7 +57,7 @@ function GiftNote({ text }) {
 
 const ACTION = { carta: 'Leerla', mueble: 'Ponerlo en el cuarto', decor: 'Ponerlo en el cuarto', poster: 'Colgarlo', ropa: 'Ponérmelo', pared: '¡A pintar!', piso: '¡A enchapar!', monedas: 'Guardarlas', comida: 'A la nevera' };
 
-export default function DeliveryModal({ items, posters, baseRecipe, game, onUse, onKeepAll }) {
+export default function DeliveryModal({ items, posters, baseRecipe, game, customDecor, onUse, onKeepAll }) {
   const [opened, setOpened] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => { setOpened(true); play('unbox'); }, 650);
@@ -69,7 +77,7 @@ export default function DeliveryModal({ items, posters, baseRecipe, game, onUse,
           {items.map((d, i) => (
             <div key={d.id} className="pg-card pg-anim-rise" style={{ padding: 9, display: 'flex', alignItems: 'center', gap: 10, animationDelay: `${i * 90}ms` }}>
               <div style={{ width: 74, height: 74, borderRadius: 12, background: C.paperDeep, border: `1.5px solid ${C.line}`, display: 'grid', placeItems: 'center', overflow: 'hidden', flexShrink: 0 }}>
-                <ItemArt d={d} posters={posters} baseRecipe={baseRecipe} game={game} />
+                <ItemArt d={d} posters={posters} baseRecipe={baseRecipe} game={game} customDecor={customDecor} />
               </div>
               <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                 <div style={{ fontFamily: FONT.display, fontSize: 13, fontWeight: 700, color: C.ink, lineHeight: 1.2 }}>{d.label}</div>

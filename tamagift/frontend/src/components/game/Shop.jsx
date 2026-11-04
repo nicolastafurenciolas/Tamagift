@@ -344,10 +344,12 @@ export function RedesignScreen({ initialRecipe, onCancel, onSave, saving, error 
   );
 }
 
-export default function ShopScreen({ coins, game, setGame, outfits, customDecor, posters, onBack, hasRedesign, onStartRedesign, baseLook, initialTab = 'moda', onStartWork = () => {} }) {
+// `gift`: { label, node } la sección "De {quien regala} para ti" (los
+// packs por gustos, ver game/personal/PackGifts.jsx): va primero.
+export default function ShopScreen({ coins, game, setGame, outfits, customDecor, posters, onBack, hasRedesign, onStartRedesign, baseLook, initialTab = 'moda', onStartWork = () => {}, gift = null }) {
   // Temporada (Halloween…): su pestaña va primero mientras dura.
   const season = seasonNow();
-  const [tab, setTab] = useState(initialTab === 'temporada' && !season ? 'moda' : initialTab);
+  const [tab, setTab] = useState(initialTab === 'temporada' && !season ? 'moda' : initialTab === 'regalo' && !gift ? 'moda' : initialTab);
   const [confirmingRedesign, setConfirmingRedesign] = useState(false);
 
   const buy = (cost, apply) => {
@@ -414,7 +416,7 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
     setGame((g) => ({ ...g, equippedOutfit: g.equippedOutfit === id ? null : id }));
   }
 
-  const TABS = [...(season ? [['temporada', season.name]] : []), ['moda', 'Moda'], ['peluqueria', 'Peluquería'], ['super', 'Súper'], ['muebles', 'Muebles'], ['decor', 'Deco'], ['pared', 'Pared'], ['piso', 'Piso'], ['posters', 'Pósters'], ['ropa', 'Trajes'], ['rediseño', 'Rediseño']];
+  const TABS = [...(gift ? [['regalo', gift.label]] : []), ...(season ? [['temporada', season.name]] : []), ['moda', 'Moda'], ['peluqueria', 'Peluquería'], ['super', 'Súper'], ['muebles', 'Muebles'], ['decor', 'Deco'], ['pared', 'Pared'], ['piso', 'Piso'], ['posters', 'Pósters'], ['ropa', 'Trajes'], ['rediseño', 'Rediseño']];
   const photoPosters = (posters || []).filter((p) => p.type === 'photo');
 
   return (
@@ -456,6 +458,7 @@ export default function ShopScreen({ coins, game, setGame, outfits, customDecor,
           </div>
         ))}
 
+        {tab === 'regalo' && gift && gift.node}
         {tab === 'temporada' && season && (
           <SeasonShop
             season={season} game={game} setGame={setGame} coins={coins} buy={buy} baseLook={baseLook}

@@ -158,18 +158,20 @@ export function GameResult({ result, onReplay, onExit }) {
   const levelGame = isLevelGame(gameId);
   const won = levelGame ? !!extra.won : true;
   const lastLevel = levelGame && extra.level >= LEVEL_GAMES[gameId];
-  const next = levelGame && won && !lastLevel ? extra.level + 1 : levelGame ? extra.level : null;
+  // una receta de quien regala (cocina): no es un nivel
+  const special = extra.special || null;
+  const next = special ? null : levelGame && won && !lastLevel ? extra.level + 1 : levelGame ? extra.level : null;
   const goals = !levelGame ? goalsFor(gameId, info.rank && info.rankUp ? info.rank - 1 : info.rank || 1) : null;
   return (
     <Modal onClose={undefined}>
       {levelGame ? (
         <>
-          <p style={{ fontFamily: FONT.display, fontSize: 13, fontWeight: 700, color: C.inkSoft, margin: 0 }}>Nivel {extra.level}</p>
+          <p style={{ fontFamily: FONT.display, fontSize: 13, fontWeight: 700, color: special ? C.roseDeep : C.inkSoft, margin: 0 }}>{special ? special.name : `Nivel ${extra.level}`}</p>
           <p style={{ fontFamily: FONT.display, fontSize: 19, fontWeight: 800, color: won ? C.ink : C.roseDeep, margin: '2px 0 6px' }}>
             {won ? (meta.done || '¡Nivel superado!') : '¡Casi! Inténtalo otra vez'}
           </p>
           <StarRow n={info.stars || 0} size={34} animate gap={4} />
-          {info.unlockedLevel && <p style={{ fontSize: 12, color: C.sageDeep, fontWeight: 700, margin: '6px 0 0' }}>Desbloqueaste el nivel {info.unlockedLevel}</p>}
+          {!special && info.unlockedLevel && <p style={{ fontSize: 12, color: C.sageDeep, fontWeight: 700, margin: '6px 0 0' }}>Desbloqueaste el nivel {info.unlockedLevel}</p>}
           <p style={{ fontSize: 12, color: C.inkFaint, margin: '6px 0 0' }}>{score} {meta.unit}</p>
         </>
       ) : isRecord ? (
@@ -220,7 +222,7 @@ export function GameResult({ result, onReplay, onExit }) {
       <div className="flex gap-3" style={{ marginTop: 18 }}>
         <button onClick={onExit} className="pg-btn pg-btn-ghost pg-focus" style={{ flex: 1, padding: 12, fontSize: 13.5 }}>Volver</button>
         <button onClick={() => onReplay(next)} className="pg-btn pg-btn-rose pg-focus" style={{ flex: 1, padding: 12, fontSize: 13.5 }}>
-          {levelGame ? (won && !lastLevel ? 'Siguiente nivel' : 'Reintentar') : 'Jugar otra vez'}
+          {special ? 'Cocinar otra vez' : levelGame ? (won && !lastLevel ? 'Siguiente nivel' : 'Reintentar') : 'Jugar otra vez'}
         </button>
       </div>
     </Modal>
