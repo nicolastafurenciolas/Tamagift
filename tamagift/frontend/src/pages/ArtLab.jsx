@@ -14,6 +14,7 @@ import { FURNITURE_DEFS } from '../art/room/furniture';
 import { DECOR_DEFS } from '../art/room/decor';
 import { GAME_ART_SET } from '../art/minigames';
 import { KITCHEN_ART_SET } from '../art/kitchen';
+import { PERSONAL_ART } from '../art/room/personal';
 
 const innerOf = (svg) => svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
 // Un rincón del cuarto (pared + piso) a escala del juego.
@@ -88,6 +89,7 @@ function sets(name) {
   if (name === 'comida') return FOOD_SPRITES.map((f) => ({ name: f.id, markup: renderToStaticMarkup(f.render()), w: 100, h: 100 }));
   if (name === 'juegos') return GAME_ART_SET();
   if (name === 'cocina') return KITCHEN_ART_SET();
+  if (name === 'personal') return PERSONAL_ART.filter((d) => !q.get('ids') || q.get('ids').split(',').includes(d.id)).map((d) => ({ name: d.name, markup: d.svg, w: d.w, h: d.h }));
   if (name === 'deco') {
     // &temporada=halloween: solo las de esa temporada; &ids=a,b: solo esas
     const season = q.get('temporada');
